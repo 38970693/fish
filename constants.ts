@@ -26,13 +26,16 @@ export const GAME_MECHANICS = {
   SPEED_ITEM_MULTIPLIER: 1.5
 };
 
-export const BIRD_CONFIG = {
-  INTERVAL: 3600, 
-  WARNING_TIME: 120, 
-  STRIKE_TIME: 30, 
-  RADIUS: 120, 
-  SAFE_SIZE: 50, 
-  WAVE_COUNT: 5 
+// Meteor Hazard Config
+export const METEOR_CONFIG = {
+  INTERVAL: 1500, // Every 25 seconds
+  WARNING_TIME: 120, // 2 seconds warning
+  STRIKE_TIME: 20, // Quick impact
+  RADIUS: 500, // DOUBLED: Was 250. Massive danger zone.
+  SAFE_SIZE: 1000, 
+  WAVE_COUNT: 5, // Simultaneous meteors
+  SPLASH_COUNT: 24, // Number of water splashes
+  SPLASH_SHRINK: 0.95 // Shrink to 95% of current size upon hit
 };
 
 export const BOOST_CONFIG = {
@@ -166,6 +169,19 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     special: 'CAMO',
     tier: 2
   },
+  [CreatureType.ELECTRIC_EEL]: {
+    type: CreatureType.ELECTRIC_EEL,
+    name: "电鳗",
+    baseRadius: 30,
+    color: "#ca8a04", // Dark Yellow/Gold
+    speed: BASE_SWIM_SPEED * 1.3, 
+    health: 70,
+    damage: 15,
+    weightValue: 35, 
+    behavior: 'AGGRESSIVE',
+    special: 'SHOCK',
+    tier: 2
+  },
 
   // --- TIER 3 ---
   [CreatureType.STINGRAY]: {
@@ -217,6 +233,30 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'AGGRESSIVE',
     tier: 3
   },
+  [CreatureType.AROWANA]: {
+    type: CreatureType.AROWANA,
+    name: "金龙鱼",
+    baseRadius: 42,
+    color: "#f59e0b", // Gold/Amber
+    speed: BASE_SWIM_SPEED * 1.4, 
+    health: 130,
+    damage: 16,
+    weightValue: 65, 
+    behavior: 'AGGRESSIVE',
+    tier: 3
+  },
+  [CreatureType.FUR_SEAL]: {
+    type: CreatureType.FUR_SEAL,
+    name: "海狗",
+    baseRadius: 46,
+    color: "#3f2c22", // Dark Brown
+    speed: BASE_SWIM_SPEED * 1.5, // Very fast
+    health: 140,
+    damage: 14,
+    weightValue: 60, 
+    behavior: 'FLEE', // Smart hit and run
+    tier: 3
+  },
 
   // --- TIER 4 ---
   [CreatureType.GREAT_WHITE]: {
@@ -240,6 +280,31 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     health: 600,
     damage: 50,
     weightValue: 300, 
+    behavior: 'BOSS',
+    tier: 4
+  },
+  [CreatureType.NARWHAL]: {
+    type: CreatureType.NARWHAL,
+    name: "独角鲸",
+    baseRadius: 90,
+    color: "#64748b", // Slate
+    speed: BASE_SWIM_SPEED * 1.25, 
+    health: 500,
+    damage: 60, // High damage spike
+    weightValue: 250, 
+    behavior: 'AGGRESSIVE',
+    special: 'SPIKE',
+    tier: 4
+  },
+  [CreatureType.MERMAID]: {
+    type: CreatureType.MERMAID,
+    name: "美人鱼",
+    baseRadius: 75,
+    color: "#22d3ee", // Cyan tail
+    speed: BASE_SWIM_SPEED * 1.6, // Super fast
+    health: 350,
+    damage: 30,
+    weightValue: 500, // Rare prize
     behavior: 'BOSS',
     tier: 4
   },

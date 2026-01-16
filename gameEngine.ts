@@ -1,10 +1,15 @@
-import { CREATURES, WORLD_SIZE, MAX_ENTITIES, BOOST_CONFIG, MAX_OBSTACLES, GAME_MECHANICS, MAX_POWERUPS, BIRD_CONFIG, EVOLUTION_THRESHOLDS } from './constants';
+import { CREATURES, WORLD_SIZE, MAX_ENTITIES, BOOST_CONFIG, MAX_OBSTACLES, GAME_MECHANICS, MAX_POWERUPS, METEOR_CONFIG, EVOLUTION_THRESHOLDS } from './constants';
 import { CreatureType, Entity, GameState, GameStatus, Obstacle, Particle, PlayerState, PowerUp, Hazard } from './types';
 
 const uuid = () => Math.random().toString(36).substr(2, 9);
 
 const dist = (e1: {x: number, y: number}, e2: {x: number, y: number}) => 
   Math.hypot(e1.x - e2.x, e1.y - e2.y);
+
+const EAT_PHRASES = ["好吃!", "真香!", "爽!", "嗝~", "美味!", "再來!"];
+const HURT_PHRASES = ["疼!", "哎哟!", "别吃我!", "雅蠛蝶!", "救命!", "好痛!"];
+
+const getRandomPhrase = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
 
 // Updated Logic: Evolution depends on current species and what you ate
 const getNextEvolution = (currentType: CreatureType, history: Record<CreatureType, number>, radius: number): CreatureType => {
@@ -17,25 +22,30 @@ const getNextEvolution = (currentType: CreatureType, history: Record<CreatureTyp
   if (!threshold || radius < threshold.radius) return currentType;
 
   // Evolution Logic based on Playstyle (Diet)
-  const aggressiveScore = (history[CreatureType.CLOWN_FISH] || 0) + (history[CreatureType.SEAHORSE] || 0) + (history[CreatureType.SWORD_FISH] || 0);
-  const passiveScore = (history[CreatureType.JELLYFISH] || 0) + (history[CreatureType.PLANKTON] || 0) + (history[CreatureType.TURTLE] || 0);
-  const tankScore = (history[CreatureType.CRAB] || 0) + (history[CreatureType.PUFFER_FISH] || 0);
+  const aggressiveScore = (history[CreatureType.CLOWN_FISH] || 0) + (history[CreatureType.SEAHORSE] || 0) + (history[CreatureType.SWORD_FISH] || 0) + (history[CreatureType.ELECTRIC_EEL] || 0) + (history[CreatureType.AROWANA] || 0);
+  const passiveScore = (history[CreatureType.JELLYFISH] || 0) + (history[CreatureType.PLANKTON] || 0) + (history[CreatureType.TURTLE] || 0) + (history[CreatureType.STINGRAY] || 0) + (history[CreatureType.FUR_SEAL] || 0);
+  const tankScore = (history[CreatureType.CRAB] || 0) + (history[CreatureType.PUFFER_FISH] || 0) + (history[CreatureType.HAMMERHEAD] || 0);
 
   if (nextTier === 2) {
       if (tankScore > aggressiveScore) return CreatureType.CRAB;
-      if (aggressiveScore > passiveScore) return CreatureType.SEAHORSE;
+      if (aggressiveScore > passiveScore) return CreatureType.ELECTRIC_EEL;
+      if (passiveScore > 20) return CreatureType.SEAHORSE;
       return CreatureType.SQUID; // Default agile
   }
   
   if (nextTier === 3) {
+      if (config.type === CreatureType.SEAHORSE || config.type === CreatureType.BLUE_TANG) return CreatureType.FUR_SEAL; // Speed evolution
       if (config.type === CreatureType.CRAB) return CreatureType.HAMMERHEAD;
       if (passiveScore > aggressiveScore) return CreatureType.STINGRAY;
+      if (aggressiveScore > 20) return CreatureType.AROWANA; // Elite hunter
       if (aggressiveScore > 10) return CreatureType.SWORD_FISH;
       return CreatureType.ANGLER_FISH;
   }
 
   if (nextTier === 4) {
+      if (currentType === CreatureType.SWORD_FISH || currentType === CreatureType.AROWANA) return CreatureType.NARWHAL;
       if (aggressiveScore > tankScore) return CreatureType.GREAT_WHITE;
+      if (Math.random() < 0.05) return CreatureType.MERMAID; // Very rare evolution chance
       return CreatureType.ORCA;
   }
 
@@ -70,7 +80,9 @@ export const createEntity = (type: CreatureType, x: number, y: number): Entity =
     renderScale: 1.0,
     isInvulnerable: false,
     aggroTimer: 0,
-    speedBoostTimer: 0
+    speedBoostTimer: 0,
+    happyTimer: 0,
+    speechBubble: null
   };
 };
 
@@ -123,13 +135,13 @@ const spawnPowerUps = (state: GameState) => {
 };
 
 const spawnHazards = (state: GameState) => {
-  if (state.time % BIRD_CONFIG.INTERVAL === 0) {
-    for (let i = 0; i < BIRD_CONFIG.WAVE_COUNT; i++) {
+  if (state.time % METEOR_CONFIG.INTERVAL === 0) {
+    for (let i = 0; i < METEOR_CONFIG.WAVE_COUNT; i++) {
       let tx, ty;
       const r = Math.random();
       if (r < 0.3) {
-        tx = state.player.x + (Math.random() - 0.5) * 200;
-        ty = state.player.y + (Math.random() - 0.5) * 200;
+        tx = state.player.x + (Math.random() - 0.5) * 600;
+        ty = state.player.y + (Math.random() - 0.5) * 600;
       } else if (state.entities.length > 0) {
         const ent = state.entities[Math.floor(Math.random() * state.entities.length)];
         tx = ent.x;
@@ -145,10 +157,10 @@ const spawnHazards = (state: GameState) => {
         id: uuid(),
         x: tx,
         y: ty,
-        radius: BIRD_CONFIG.RADIUS,
-        type: 'BIRD_STRIKE',
-        timer: BIRD_CONFIG.WARNING_TIME + Math.random() * 60,
-        duration: BIRD_CONFIG.WARNING_TIME + BIRD_CONFIG.STRIKE_TIME,
+        radius: METEOR_CONFIG.RADIUS,
+        type: 'METEOR_STRIKE',
+        timer: METEOR_CONFIG.WARNING_TIME,
+        duration: METEOR_CONFIG.WARNING_TIME + METEOR_CONFIG.STRIKE_TIME,
         stage: 'WARNING'
       });
     }
@@ -162,33 +174,58 @@ const updateHazards = (state: GameState, particles: Particle[]) => {
   state.hazards.forEach(hazard => {
     hazard.timer--;
     
-    if (hazard.timer > BIRD_CONFIG.STRIKE_TIME) {
-      hazard.stage = 'WARNING';
-    } else if (hazard.timer > 0) {
-      if (hazard.stage !== 'STRIKE') {
-         hazard.stage = 'STRIKE';
-         for(let i=0; i<10; i++) {
-            particles.push(createParticle(hazard.x + (Math.random()-0.5)*hazard.radius, hazard.y + (Math.random()-0.5)*hazard.radius, 'white'));
-         }
-      }
-      if (player.radius < BIRD_CONFIG.SAFE_SIZE && !player.isGodMode && !player.isHidden) {
-         if (dist(player, hazard) < hazard.radius) {
+    if (hazard.timer > 0) {
+        hazard.stage = 'WARNING';
+    } else if (hazard.timer === 0) {
+        // IMPACT FRAME
+        hazard.stage = 'STRIKE';
+        
+        // Massive Explosion Particles
+        for(let i=0; i<30; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd = Math.random() * 10;
+            particles.push({
+                ...createParticle(hazard.x, hazard.y, '#f59e0b'),
+                vx: Math.cos(angle) * spd,
+                vy: Math.sin(angle) * spd,
+                size: Math.random() * 10 + 5,
+                life: 2.0
+            });
+        }
+        
+        // NEW: Splash Particles (Water that shrinks fish)
+        for(let i=0; i<METEOR_CONFIG.SPLASH_COUNT; i++) {
+           const angle = (Math.PI * 2 / METEOR_CONFIG.SPLASH_COUNT) * i + Math.random();
+           const spd = 5 + Math.random() * 8;
+           particles.push({
+             ...createParticle(hazard.x, hazard.y, '#38bdf8'), // Cyan/Blue water
+             vx: Math.cos(angle) * spd,
+             vy: Math.sin(angle) * spd,
+             life: 1.5, // Lasts a bit
+             size: 8 + Math.random() * 6,
+             interactionType: 'SHRINK'
+           });
+        }
+
+        // Damage Player
+        if (dist(player, hazard) < hazard.radius && !player.isGodMode && !player.isHidden) {
             player.health = 0;
             state.status = GameStatus.GAME_OVER;
-         }
-      }
-      for (const ent of entities) {
-         if (ent.radius < BIRD_CONFIG.SAFE_SIZE && !ent.isHidden) {
+        }
+
+        // Damage Entities
+        for (const ent of entities) {
              if (dist(ent, hazard) < hazard.radius) {
                  ent.health = 0; 
-                 particles.push(createParticle(ent.x, ent.y, '#fca5a5')); 
+                 // Blood/Destruction particles
+                 for(let i=0; i<5; i++) particles.push(createParticle(ent.x, ent.y, ent.config.color));
              }
-         }
-      }
+        }
     } else {
-      hazard.stage = 'COOLDOWN';
+        hazard.stage = 'COOLDOWN';
     }
-    if (hazard.timer > -60) activeHazards.push(hazard);
+    
+    if (hazard.timer > -40) activeHazards.push(hazard);
   });
   state.hazards = activeHazards;
 };
@@ -236,10 +273,111 @@ const updateStrategyState = (entity: Entity) => {
   }
 
   if (entity.ambushTimer > 0) entity.ambushTimer--;
+  if (entity.happyTimer && entity.happyTimer > 0) entity.happyTimer--;
+  
+  // Speech Bubble Timer
+  if (entity.speechBubble) {
+    entity.speechBubble.timer--;
+    if (entity.speechBubble.timer <= 0) {
+       entity.speechBubble = null;
+    }
+  }
 };
 
+// Generic AI logic used by both NPCs and Player Auto-Mode
+const calculateAIMovement = (entity: Entity, entities: Entity[], player: PlayerState, hazards: Hazard[], isPlayer: boolean) => {
+    // 1. Scan environment
+    const detectionRange = 500 + (entity.radius * 3);
+    const nearby = entities.filter(e => e.id !== entity.id && !e.isHidden && dist(entity, e) < detectionRange);
+    
+    // Add player to nearby if this is NPC AI, or exclude if this IS the player
+    if (!isPlayer && !player.isHidden && dist(entity, player) < detectionRange) {
+        nearby.push(player);
+    }
+
+    let fx = 0;
+    let fy = 0;
+    let fearFactor = 0;
+    let nearestFoodDist = Infinity;
+    let nearestFood: {x: number, y: number} | null = null;
+    let targetEntityId: string | null = null;
+
+    // 2. Hazard Avoidance (High Priority)
+    for (const h of hazards) {
+        if (h.stage !== 'COOLDOWN' && h.timer > 0) {
+            const d = dist(entity, h);
+            if (d < h.radius + 100) {
+                const dirX = (h.x - entity.x) / d;
+                const dirY = (h.y - entity.y) / d;
+                const evadeWeight = 5000 / (d + 1);
+                fx -= dirX * evadeWeight;
+                fy -= dirY * evadeWeight;
+                fearFactor += evadeWeight;
+            }
+        }
+    }
+
+    // 3. Entity Interaction (Predator/Prey)
+    for (const other of nearby) {
+        const d = dist(entity, other);
+        const dirX = (other.x - entity.x) / d;
+        const dirY = (other.y - entity.y) / d;
+
+        // Is it bigger? (Predator)
+        const isPredator = other.radius > entity.radius * 1.1; // Safety margin
+        // Is it smaller? (Food)
+        const isFood = other.radius < entity.radius * 0.9 || other.type === CreatureType.PLANKTON;
+
+        if (isPredator) {
+            if (!other.camoActive) {
+                // EVASION LOGIC: Strong repulsion
+                const repulsion = 4000 / (d * d); // Exponential fear
+                fx -= dirX * repulsion * 200; // Stronger force
+                fy -= dirY * repulsion * 200;
+                fearFactor += repulsion;
+            }
+        } else if (isFood) {
+            if (d < nearestFoodDist) {
+                nearestFoodDist = d;
+                nearestFood = other;
+                if ('id' in other) targetEntityId = (other as Entity).id;
+            }
+        }
+    }
+
+    // 4. Decision Making
+    // If scared, RUN!
+    if (fearFactor > 0.5) {
+        // Just run away from the composite fear vector
+        // Vectors already summed in fx/fy
+    } 
+    // If not scared, eat.
+    else if (nearestFood) {
+        const dx = nearestFood.x - entity.x;
+        const dy = nearestFood.y - entity.y;
+        const d = Math.hypot(dx, dy);
+        fx += (dx / d) * 2.0; 
+        fy += (dy / d) * 2.0;
+    } else {
+        // Wander
+        if (!isPlayer) {
+             fx += Math.cos(entity.angle) * 0.5;
+             fy += Math.sin(entity.angle) * 0.5;
+             if (Math.random() < 0.05) {
+                fx += (Math.random() - 0.5) * 2;
+                fy += (Math.random() - 0.5) * 2;
+             }
+        }
+    }
+
+    // Return the desired angle and target
+    const desiredAngle = (Math.abs(fx) > 0.01 || Math.abs(fy) > 0.01) ? Math.atan2(fy, fx) : entity.angle;
+    return { desiredAngle, targetEntityId, fearFactor };
+};
+
+
 const updateAI = (entity: Entity, state: GameState) => {
-  const { player, entities } = state; 
+  const { player, entities, hazards } = state; 
   updateStrategyState(entity);
 
   if (entity.aggroTimer && entity.aggroTimer > 0) entity.aggroTimer--;
@@ -252,146 +390,25 @@ const updateAI = (entity: Entity, state: GameState) => {
     return; 
   }
 
-  if (entity.config.behavior === 'AMBUSH' && entity.isIdle) {
-    let shouldBreakCover = false;
-    if (entity.targetId) {
-      const target = entity.targetId === 'player' ? player : entities.find(e => e.id === entity.targetId);
-      if (target) {
-        const d = dist(entity, target);
-        if (d < entity.radius * 3) shouldBreakCover = true;
-        else if (d > entity.radius * 12) shouldBreakCover = true;
-      } else {
-        shouldBreakCover = true;
-      }
-    } else {
-      if (Math.random() < 0.005) shouldBreakCover = true; 
-    }
-
-    if (!shouldBreakCover) {
-      entity.vx *= 0.9;
-      entity.vy *= 0.9;
-      entity.x += entity.vx;
-      entity.y += entity.vy;
-      return; 
-    }
-  }
-
   let agility = Math.max(0.02, GAME_MECHANICS.BASE_TURN_SPEED - (entity.radius * 0.001));
   
-  if (entity.aggroTimer && entity.aggroTimer > 0 && entity.targetId) {
-      agility *= 3.0; 
-  }
-
-  let fx = 0;
-  let fy = 0;
-  const detectionRange = 400 + (entity.radius * 2); 
+  // Use shared AI logic
+  const { desiredAngle, targetEntityId, fearFactor } = calculateAIMovement(entity, entities, player, hazards, false);
   
-  let fearFactor = 0;
-  let nearestFoodDist = Infinity;
-  let nearestFood: {x: number, y: number} | null = null;
-  let attractionSource: {x: number, y: number} | null = null; 
+  if (targetEntityId) entity.targetId = targetEntityId;
 
-  if (!player.isHidden) {
-    const d = dist(entity, player);
-    const dirX = (player.x - entity.x) / d;
-    const dirY = (player.y - entity.y) / d;
-
-    if (d < detectionRange) {
-      if (player.lureActive && entity.radius < player.radius * 0.8) {
-        attractionSource = player; 
-      }
-      else if (player.radius > entity.radius * 1.5) {
-         if (!player.camoActive) {
-           const weight = 3000 / (d + 1);
-           fx -= dirX * weight;
-           fy -= dirY * weight;
-           fearFactor += weight;
-         }
-      }
-      else if (player.radius < entity.radius * 0.9) {
-         entity.targetId = 'player';
-         nearestFood = player;
-         nearestFoodDist = d;
-      }
-    }
-  }
-
-  for (const other of entities) {
-    if (other.id === entity.id) continue;
-    if (other.isHidden) continue;
-    if (other.type !== CreatureType.PLANKTON && other.radius <= GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE) continue;
-
-    const d = dist(entity, other);
-    if (d > detectionRange) continue;
-    
-    const dirX = (other.x - entity.x) / d;
-    const dirY = (other.y - entity.y) / d;
-
-    if (other.lureActive && entity.radius < other.radius * 0.9) {
-      fx += dirX * 2.5; 
-      fy += dirY * 2.5;
-      continue; 
-    }
-
-    const isDangerous = other.radius > entity.radius * 1.5;
-    const isFood = (other.radius < entity.radius * 0.9) || (other.type === CreatureType.PLANKTON);
-    
-    if (isDangerous) {
-       if (!other.camoActive) {
-         const weight = 2000 / (d + 1);
-         fx -= dirX * weight;
-         fy -= dirY * weight;
-         fearFactor += weight;
-       }
-    } else if (isFood) {
-       if (d < nearestFoodDist) {
-           nearestFoodDist = d;
-           nearestFood = other;
-       }
-    }
-  }
-
-  if (attractionSource && fearFactor < 10) { 
-      const dx = attractionSource.x - entity.x;
-      const dy = attractionSource.y - entity.y;
-      const d = Math.hypot(dx, dy);
-      fx += (dx/d) * 2.0;
-      fy += (dy/d) * 2.0;
-  }
-  else if (nearestFood && fearFactor < 5) {
-     const dx = nearestFood.x - entity.x;
-     const dy = nearestFood.y - entity.y;
-     const d = Math.hypot(dx, dy);
-     fx += (dx / d) * 1.5; 
-     fy += (dy / d) * 1.5;
-     
-     if ('id' in nearestFood) entity.targetId = (nearestFood as Entity).id;
-  }
-
-  fx += Math.cos(entity.angle) * 0.5;
-  fy += Math.sin(entity.angle) * 0.5;
-
-  if (Math.abs(fx) > 0.1 || Math.abs(fy) > 0.1) {
-    const targetAngle = Math.atan2(fy, fx);
-    let angleDiff = targetAngle - entity.angle;
-    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-    entity.angle += angleDiff * agility;
-  }
+  // Turn towards desired angle
+  let angleDiff = desiredAngle - entity.angle;
+  while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+  while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+  entity.angle += angleDiff * agility;
 
   let speedMult = 1.0; 
   if (entity.targetId) speedMult = 1.3; 
-  else if (fearFactor > 50) speedMult = 1.5; 
+  if (fearFactor > 0.5) speedMult = 1.8; // Run faster when scared!
   
   if (entity.speedBoostTimer && entity.speedBoostTimer > 0) {
       speedMult *= GAME_MECHANICS.SPEED_ITEM_MULTIPLIER;
-  }
-
-  if (entity.ambushTimer > 0) {
-    speedMult *= GAME_MECHANICS.AMBUSH_SPEED_BONUS;
-    if (state.time % 3 === 0) {
-      state.particles.push(createParticle(entity.x, entity.y, 'white'));
-    }
   }
 
   const finalSpeed = entity.speed * speedMult;
@@ -411,11 +428,15 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
   let angleDiff = angleToVictim - attacker.angle;
   while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
   while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-  const isBiting = Math.abs(angleDiff) < Math.PI / 3;
-
-  if (!isBiting) return;
   
-  // Plankton Consumption
+  // "Big eats Small" logic refinement
+  // 1. High probability for big fish to eat small fish
+  // 2. Low probability for small fish to bite big fish (deflect)
+
+  const isBiting = Math.abs(angleDiff) < Math.PI / 3;
+  if (!isBiting) return;
+
+  // Plankton is always eaten
   if (victim.type === CreatureType.PLANKTON) {
     let massGained = GAME_MECHANICS.PLANKTON_MASS;
     if (attacker.radius > 60) massGained = 0;
@@ -432,112 +453,137 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
 
     victim.health = 0; 
     attacker.renderScale = 1.1;
+    attacker.happyTimer = 60; 
+    
+    // Plankton doesn't trigger speech always (too noisy), 10% chance
+    if (Math.random() < 0.1) {
+        attacker.speechBubble = { text: "好吃", timer: 60, color: '#bef264' };
+    }
     return;
   }
 
-  const swallowThreshold = (victim.id === 'player') ? 2.0 : 1.4;
-  
-  // Swallow Logic
-  if (attacker.radius > victim.radius * swallowThreshold && victim.id !== 'player') {
-      const victimMass = victim.radius * victim.radius;
+  // --- BIG EATS SMALL (Advantage) ---
+  if (attacker.radius > victim.radius) {
+      // Chance to INSTA-SWALLOW even if not 2x bigger (Lucky Gulp)
+      // Normal swallow threshold is 1.4x (2.0x for player victim)
+      const swallowThreshold = (victim.id === 'player') ? 2.0 : 1.4;
+      const ratio = attacker.radius / victim.radius; // e.g. 1.2
       
-      let efficiency = 0.5;
-      const ratio = victim.radius / attacker.radius;
-      if (ratio < 0.20) efficiency = 0; 
-      else if (ratio < 0.35) efficiency = 0.1; 
-
-      const newR = Math.sqrt(attacker.radius * attacker.radius + victimMass * efficiency);
-      attacker.radius = Math.min(GAME_MECHANICS.MAX_RADIUS, newR);
-      
-      victim.health = 0; 
-      attacker.renderScale = 1.2; 
-      
-      particles.push(createParticle(victim.x, victim.y, victim.config.color));
-      particles.push(createParticle(victim.x, victim.y, 'white'));
-      
-      if ('weight' in attacker) {
-          const w = (attacker as PlayerState);
-          w.weight += victim.config.weightValue * 2.0; 
-          w.eatenHistory[victim.type] = (w.eatenHistory[victim.type] || 0) + 1;
+      let isSwallowed = false;
+      if (ratio > swallowThreshold) {
+          isSwallowed = true;
+      } else if (ratio > 1.1) {
+          // 20% chance to swallow anyway if slightly bigger
+          if (Math.random() < 0.2) isSwallowed = true;
       }
-      return; 
-  }
-  
-  if (victim.radius <= GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE) return;
-  
-  let damage = attacker.config.damage;
-  
-  if (attacker.radius < victim.radius) {
-      damage *= 1.5; 
+
+      if (isSwallowed) {
+          const victimMass = victim.radius * victim.radius;
+          let efficiency = 0.5;
+          const rInv = victim.radius / attacker.radius;
+          if (rInv < 0.20) efficiency = 0; 
+          else if (rInv < 0.35) efficiency = 0.1; 
+
+          const newR = Math.sqrt(attacker.radius * attacker.radius + victimMass * efficiency);
+          attacker.radius = Math.min(GAME_MECHANICS.MAX_RADIUS, newR);
+          
+          victim.health = 0; 
+          attacker.renderScale = 1.2; 
+          attacker.happyTimer = 60;
+          
+          // Talk
+          attacker.speechBubble = { text: getRandomPhrase(EAT_PHRASES), timer: 60, color: '#bef264' };
+          
+          particles.push(createParticle(victim.x, victim.y, victim.config.color));
+          particles.push(createParticle(victim.x, victim.y, 'white'));
+          
+          if ('weight' in attacker) {
+              const w = (attacker as PlayerState);
+              w.weight += victim.config.weightValue * 2.0; 
+              w.eatenHistory[victim.type] = (w.eatenHistory[victim.type] || 0) + 1;
+          }
+          return;
+      }
+
+      // If not swallowed, deal HUGE damage
+      let damage = attacker.config.damage * 1.2; // Bonus damage for being bigger
+      if (attacker.ambushTimer > 0) damage *= GAME_MECHANICS.AMBUSH_DAMAGE_MULT;
+
+      victim.health -= damage;
+      particles.push(createParticle(victim.x, victim.y, 'red'));
+      attacker.happyTimer = 60;
       
-      if (!('weight' in victim)) { 
+      // Talk
+      attacker.speechBubble = { text: getRandomPhrase(EAT_PHRASES), timer: 45, color: '#bef264' };
+      victim.speechBubble = { text: getRandomPhrase(HURT_PHRASES), timer: 60, color: '#f87171' };
+
+      // Knockback / Fear
+       if (!('weight' in victim)) { 
           const v = victim as Entity;
           v.targetId = attacker.id; 
           v.aggroTimer = 300; 
-          v.speedBoostTimer = (v.speedBoostTimer || 0) + 5; 
-          
-          const angleToAttacker = Math.atan2(attacker.y - v.y, attacker.x - v.x);
-          let angleDiff = angleToAttacker - v.angle;
-          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-          v.angle += angleDiff * 0.15; 
+          v.speedBoostTimer = (v.speedBoostTimer || 0) + 10; 
+          // Turn away
+          v.angle = attacker.angle; 
+      }
+  } 
+  // --- SMALL BITES BIG (Disadvantage) ---
+  else {
+      // 85% chance to FAIL (Deflect)
+      if (Math.random() < 0.85) {
+          // Spark effect (Gray particles)
+          particles.push(createParticle((attacker.x + victim.x)/2, (attacker.y + victim.y)/2, '#94a3b8'));
+          return; 
+      }
+
+      // 15% Chance to hit (Normal damage, no bonus)
+      let damage = attacker.config.damage;
+      if (attacker.ambushTimer > 0) damage *= GAME_MECHANICS.AMBUSH_DAMAGE_MULT;
+
+      // Mass Steal
+      let desiredMassSteal = damage * GAME_MECHANICS.COMBAT_BITE_MASS_FACTOR;
+      const victimCurrentMass = victim.radius * victim.radius; 
+      const victimMinMass = GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE * GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE;
+      const availableMass = Math.max(0, victimCurrentMass - victimMinMass);
+      const actualMassSteal = Math.min(desiredMassSteal, availableMass);
+
+      const attackerCurrentMass = attacker.radius * attacker.radius;
+      const attackerNewRadius = Math.sqrt(attackerCurrentMass + actualMassSteal);
+      attacker.radius = Math.min(GAME_MECHANICS.MAX_RADIUS, attackerNewRadius);
+
+      const victimNewRadius = Math.sqrt(victimCurrentMass - actualMassSteal);
+      victim.radius = Math.max(GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE, victimNewRadius);
+
+      attacker.renderScale = 1.05;
+      victim.renderScale = 0.95;
+      
+      particles.push(createParticle((attacker.x + victim.x) / 2, (attacker.y + victim.y) / 2, victim.config.color));
+
+      if ('weight' in attacker) {
+          const w = (attacker as PlayerState);
+          w.eatenHistory[victim.type] = (w.eatenHistory[victim.type] || 0) + 1;
+          attacker.happyTimer = 60;
+      }
+
+      if (!('weight' in victim)) {
+         const v = victim as Entity;
+         v.targetId = attacker.id;
+         v.aggroTimer = 200;
       }
       
-      particles.push(createParticle(victim.x, victim.y, 'yellow')); 
+      victim.health -= damage;
+      
+      // Talk
+      attacker.speechBubble = { text: "爽!", timer: 45, color: '#bef264' };
+      victim.speechBubble = { text: getRandomPhrase(HURT_PHRASES), timer: 60, color: '#f87171' };
   }
 
-  if (attacker.ambushTimer > 0) {
-     damage *= GAME_MECHANICS.AMBUSH_DAMAGE_MULT;
-     particles.push(createParticle(victim.x, victim.y, 'red'));
-     particles.push(createParticle(victim.x, victim.y, 'orange'));
-  }
-
-  let desiredMassSteal = damage * GAME_MECHANICS.COMBAT_BITE_MASS_FACTOR;
-  
-  if (attacker.radius > victim.radius) {
-      desiredMassSteal = 0;
-  }
-
-  const victimCurrentMass = victim.radius * victim.radius; 
-  const victimMinMass = GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE * GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE;
-  const availableMass = Math.max(0, victimCurrentMass - victimMinMass);
-  const actualMassSteal = Math.min(desiredMassSteal, availableMass);
-
-  const attackerCurrentMass = attacker.radius * attacker.radius;
-  const attackerNewRadius = Math.sqrt(attackerCurrentMass + actualMassSteal);
-  attacker.radius = Math.min(GAME_MECHANICS.MAX_RADIUS, attackerNewRadius);
-
-  const victimNewRadius = Math.sqrt(victimCurrentMass - actualMassSteal);
-  victim.radius = Math.max(GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE, victimNewRadius);
-
-  attacker.renderScale = 1.05;
-  victim.renderScale = 0.95;
-  particles.push(createParticle(
-     (attacker.x + victim.x) / 2,
-     (attacker.y + victim.y) / 2,
-     victim.config.color
-  ));
-
-  if ('weight' in attacker) {
-      const w = (attacker as PlayerState);
-      // Biting large fish gives good weight
-      if (attacker.radius < victim.radius) {
-         w.weight += 10;
-      }
-      w.eatenHistory[victim.type] = (w.eatenHistory[victim.type] || 0) + 1;
-  }
-
-  if (!('weight' in victim)) {
-     const v = victim as Entity;
-     v.targetId = attacker.id;
-     v.aggroTimer = 200;
-  }
-
-  victim.health -= damage;
+  // Death Check
   if (victim.id !== 'player' && victim.health <= 0) {
       victim.health = 0; 
       if ('weight' in attacker) (attacker as PlayerState).weight += victim.config.weightValue;
       for(let k=0; k<5; k++) particles.push(createParticle(victim.x, victim.y, victim.config.color));
+      attacker.happyTimer = 60;
   }
 };
 
@@ -550,21 +596,26 @@ const spawnEntities = (state: GameState) => {
     type = CreatureType.PLANKTON;
   } else {
     const r = Math.random();
-    // Balanced Ocean Ecosystem spawn rates
-    if (r < 0.20) type = CreatureType.CLOWN_FISH;
-    else if (r < 0.35) type = CreatureType.BLUE_TANG;
-    else if (r < 0.45) type = CreatureType.TURTLE;
-    else if (r < 0.55) type = CreatureType.JELLYFISH;
-    else if (r < 0.65) type = CreatureType.SEAHORSE;
-    else if (r < 0.72) type = CreatureType.PUFFER_FISH;
-    else if (r < 0.78) type = CreatureType.CRAB;
-    else if (r < 0.84) type = CreatureType.SQUID;
-    else if (r < 0.89) type = CreatureType.STINGRAY;
+    // Optimized spawn rates to include new creatures
+    if (r < 0.15) type = CreatureType.CLOWN_FISH;
+    else if (r < 0.28) type = CreatureType.BLUE_TANG;
+    else if (r < 0.38) type = CreatureType.TURTLE; 
+    else if (r < 0.45) type = CreatureType.JELLYFISH;
+    else if (r < 0.52) type = CreatureType.SEAHORSE;
+    else if (r < 0.58) type = CreatureType.PUFFER_FISH;
+    else if (r < 0.64) type = CreatureType.CRAB;
+    else if (r < 0.70) type = CreatureType.ELECTRIC_EEL; 
+    else if (r < 0.75) type = CreatureType.SQUID;
+    else if (r < 0.82) type = CreatureType.STINGRAY; 
+    else if (r < 0.86) type = CreatureType.FUR_SEAL; // New
+    else if (r < 0.90) type = CreatureType.AROWANA; // New
     else if (r < 0.93) type = CreatureType.SWORD_FISH;
-    else if (r < 0.96) type = CreatureType.HAMMERHEAD;
+    else if (r < 0.96) type = CreatureType.HAMMERHEAD; 
     else if (r < 0.98) type = CreatureType.ANGLER_FISH;
-    else if (r < 0.995) type = CreatureType.GREAT_WHITE;
-    else type = CreatureType.ORCA; 
+    else if (r < 0.99) type = CreatureType.GREAT_WHITE; 
+    else if (r < 0.995) type = CreatureType.NARWHAL; // New
+    else if (r < 0.998) type = CreatureType.ORCA; 
+    else type = CreatureType.MERMAID; // Very rare
   }
 
   const spawnRadiusMin = 1200; 
@@ -625,6 +676,27 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, boos
   if (!boostActive && player.boost.current < player.boost.max) {
     player.boost.current = Math.min(player.boost.max, player.boost.current + BOOST_CONFIG.REGEN_RATE);
   }
+  
+  if (player.happyTimer && player.happyTimer > 0) player.happyTimer--;
+
+  // Player Movement Logic (Mouse vs Auto)
+  let playerAgility = Math.max(0.03, GAME_MECHANICS.BASE_TURN_SPEED - (player.radius * 0.0005));
+  let targetAngle = player.angle;
+
+  if (player.isAutoMode) {
+      // Auto AI
+      const aiResult = calculateAIMovement(player, state.entities, player, state.hazards, true);
+      targetAngle = aiResult.desiredAngle;
+      if (aiResult.fearFactor > 0.5 && player.boost.current > 10) {
+          boostActive = true; // Auto boost when scared
+      }
+  } else {
+      // Mouse Control
+      const dx = mouse.x - (screenW / 2);
+      const dy = mouse.y - (screenH / 2);
+      targetAngle = Math.atan2(dy, dx);
+  }
+
   if (boostActive && player.boost.current > 0) {
     player.boost.current = Math.max(0, player.boost.current - BOOST_CONFIG.DRAIN_RATE);
     speedMult *= BOOST_CONFIG.SPEED_MULTIPLIER;
@@ -634,15 +706,10 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, boos
        newParticles.push(createParticle(bx, by, 'rgba(255, 255, 255, 0.5)'));
     }
   }
-  
-  const dx = mouse.x - (screenW / 2);
-  const dy = mouse.y - (screenH / 2);
-  const targetAngle = Math.atan2(dy, dx);
+
   let angleDiff = targetAngle - player.angle;
   while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
   while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-  
-  const playerAgility = Math.max(0.03, GAME_MECHANICS.BASE_TURN_SPEED - (player.radius * 0.0005));
   player.angle += angleDiff * playerAgility;
 
   const currentSpeed = player.speed * speedMult;
@@ -728,9 +795,34 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, boos
         setTimeout(() => { player.isInvulnerable = false; }, 3000); 
   }
 
-  state.particles = state.particles.map(p => ({
-    ...p, x: p.x + p.vx, y: p.y + p.vy, life: p.life - 0.05
-  })).filter(p => p.life > 0).concat(newParticles);
+  // UPDATE PARTICLES & HANDLE SPLASH COLLISION
+  state.particles = state.particles.filter(p => p.life > 0).map(p => {
+    // If it's a splash/shrink particle, check collision with fish
+    if (p.interactionType === 'SHRINK' && p.life > 0.5) {
+        // Check Player
+        if (dist(player, p) < player.radius) {
+            player.radius *= METEOR_CONFIG.SPLASH_SHRINK; 
+            player.radius = Math.max(GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE, player.radius);
+            p.life = 0; // Destroy particle
+            player.speechBubble = { text: "变小了!", timer: 45, color: '#38bdf8' };
+        }
+        // Check Entities
+        else {
+            for(const e of state.entities) {
+               if (dist(e, p) < e.radius) {
+                  e.radius *= METEOR_CONFIG.SPLASH_SHRINK;
+                  e.radius = Math.max(GAME_MECHANICS.MIN_RADIUS_TO_SURVIVE, e.radius);
+                  p.life = 0;
+                  break; 
+               }
+            }
+        }
+    }
+
+    return {
+       ...p, x: p.x + p.vx, y: p.y + p.vy, life: p.life - 0.05
+    };
+  }).filter(p => p.life > 0).concat(newParticles);
 
   spawnEntities(state);
 

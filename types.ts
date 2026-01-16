@@ -21,16 +21,21 @@ export enum CreatureType {
   SQUID = 'SQUID', 
   PUFFER_FISH = 'PUFFER_FISH',
   CRAB = 'CRAB',
+  ELECTRIC_EEL = 'ELECTRIC_EEL',
   
   // Tier 3 (Large)
   STINGRAY = 'STINGRAY',
   SWORD_FISH = 'SWORD_FISH',
   HAMMERHEAD = 'HAMMERHEAD',
   ANGLER_FISH = 'ANGLER_FISH',
+  AROWANA = 'AROWANA',         // New: Gold Arowana
+  FUR_SEAL = 'FUR_SEAL',       // New: Mammal
   
   // Tier 4 (Apex)
   GREAT_WHITE = 'GREAT_WHITE', // Shark
   ORCA = 'ORCA',               // Whale
+  NARWHAL = 'NARWHAL',         // New: Unicorn of the sea
+  MERMAID = 'MERMAID',         // New: Mythical
   KRAKEN = 'KRAKEN'            // Boss
 }
 
@@ -76,6 +81,12 @@ export interface Entity {
   renderScale: number; 
   isInvulnerable?: boolean; 
   speedBoostTimer?: number; 
+  
+  // Happy/Eating Effect
+  happyTimer?: number; 
+  
+  // Speech Bubble
+  speechBubble?: { text: string; timer: number; color: string } | null;
 }
 
 export interface PlayerState extends Entity {
@@ -95,6 +106,7 @@ export interface PlayerState extends Entity {
     active: boolean;
   };
   isGodMode?: boolean;
+  isAutoMode?: boolean; // New: Auto play
   reviveCount: number; 
 }
 
@@ -108,6 +120,7 @@ export interface Particle {
   maxLife: number;
   color: string;
   size: number;
+  interactionType?: 'SHRINK'; // New: If present, particles interact with fish
 }
 
 export interface Obstacle {
@@ -131,7 +144,7 @@ export interface Hazard {
   x: number;
   y: number;
   radius: number;
-  type: 'BIRD_STRIKE';
+  type: 'METEOR_STRIKE'; // Changed from BIRD_STRIKE
   timer: number;
   duration: number;
   stage: 'WARNING' | 'STRIKE' | 'COOLDOWN';

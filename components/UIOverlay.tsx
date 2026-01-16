@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType } from '../types';
 import { CREATURES } from '../constants';
-import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight } from 'lucide-react';
+import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight, Bot } from 'lucide-react';
 
 interface UIOverlayProps {
   gameState: GameState;
@@ -10,9 +10,10 @@ interface UIOverlayProps {
   onRestart: () => void;
   onRevive?: (useAd: boolean) => void;
   onToggleGodMode?: () => void;
+  onToggleAutoMode?: () => void;
 }
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onRestart, onRevive, onToggleGodMode }) => {
+const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onRestart, onRevive, onToggleGodMode, onToggleAutoMode }) => {
   const { player, status, score, hazards } = gameState;
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
@@ -52,9 +53,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
         {/* Active Hazard Warning */}
         {hasActiveHazards && (
            <div className="absolute top-20 left-1/2 -translate-x-1/2 animate-bounce">
-              <div className="bg-red-500/90 text-white px-6 py-2 rounded-full font-black text-xl border-2 border-yellow-400 shadow-xl flex items-center gap-2">
+              <div className="bg-red-600/90 text-white px-6 py-2 rounded-full font-black text-xl border-2 border-orange-400 shadow-xl flex items-center gap-2">
                  <AlertTriangle size={24} className="animate-pulse text-yellow-300" />
-                 海鸟袭击! 快变大!
+                 警告: 陨石即将撞击! 
               </div>
            </div>
         )}
@@ -96,7 +97,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
           </div>
         </div>
 
-        {/* Top Right: Traits & Score */}
+        {/* Top Right: Buttons & Traits */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 items-end pointer-events-auto">
            {onToggleGodMode && !player.isGodMode && (
              <button 
@@ -110,6 +111,15 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
              <div className="bg-amber-500 text-black px-3 py-1 rounded text-xs font-black shadow-lg">
                 👑 上帝模式已开启
              </div>
+           )}
+
+           {onToggleAutoMode && (
+             <button 
+               onClick={onToggleAutoMode}
+               className={`px-3 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-1 transition-colors ${player.isAutoMode ? 'bg-green-600 text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+             >
+               <Bot size={12}/> {player.isAutoMode ? '自动挂机中' : '开启挂机'}
+             </button>
            )}
 
            <div className="flex gap-1 flex-wrap justify-end max-w-xs">
@@ -126,7 +136,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50 text-sm animate-pulse flex flex-col items-center text-center">
             <span>咬大鱼的<span className="text-yellow-300 font-bold">尾巴</span>可以快速增重!</span>
             <span className="text-yellow-400 text-xs mt-1">但是小心! 大鱼可以一口吞掉你!</span>
-            <span className="text-red-400 text-xs mt-1 font-bold">长按屏幕嘲讽 • 小心海鸟袭击!</span>
+            <span className="text-red-400 text-xs mt-1 font-bold">长按屏幕嘲讽 • 注意地面红色警告区域!</span>
           </div>
         )}
       </div>
@@ -161,7 +171,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="text-cyan-400 font-bold">●</span>
-                            <span><b>技巧</b>: 攻击大鱼尾巴可掠夺重量。</span>
+                            <span><b>灾难</b>: 躲避陨石的红色警戒区!</span>
                         </li>
                      </ul>
                 </div>
@@ -246,7 +256,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
       <div className="absolute inset-0 flex items-center justify-center bg-red-950/80 backdrop-blur-md z-50">
         <div className="max-w-xl w-full p-8 bg-slate-900 border border-red-900 rounded-2xl shadow-2xl text-center">
           <h2 className="text-4xl font-black text-red-500 mb-2">游戏结束</h2>
-          <p className="text-slate-300 mb-6">你被海鸟抓走了 (或者被吃光了)...</p>
+          <p className="text-slate-300 mb-6">你被陨石击中 (或者被吃光了)...</p>
           
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-slate-800 p-3 rounded">

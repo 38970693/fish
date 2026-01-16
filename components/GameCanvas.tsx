@@ -15,9 +15,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
   // --- CUTE & FUNNY FISH DRAWING ---
   
   const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, time: number, isPlayer: boolean) => {
-    const { type, radius, animOffset, mouthOpenValue, renderScale, isInvulnerable } = entity;
+    const { type, radius, animOffset, mouthOpenValue, renderScale, isInvulnerable, happyTimer } = entity;
     
     const safeScale = Number.isFinite(renderScale) ? renderScale : 1;
+    const isHappy = happyTimer && happyTimer > 0;
 
     ctx.save();
     ctx.translate(entity.x, entity.y);
@@ -25,7 +26,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
     ctx.scale(safeScale, safeScale);
     ctx.rotate(entity.angle);
 
-    // --- CAMOUFLAGE (Octopus) ---
+    // --- CAMOUFLAGE (Squid/Octopus hidden) ---
     if (entity.camoActive) {
       ctx.fillStyle = "#64748b"; 
       ctx.beginPath();
@@ -48,16 +49,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         ctx.arc(radius*0.3, -radius*0.2, radius*0.05, 0, Math.PI*2);
         ctx.fill();
       }
-      
-      if (time % 60 < 10) {
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(radius * 0.5, -radius * 0.5);
-        ctx.lineTo(radius * 0.7, -radius * 0.7);
-        ctx.stroke();
-      }
-
       ctx.restore();
       return; 
     }
@@ -98,7 +89,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
     const wobble = Math.sin(time * 0.3 + animOffset) * 0.05;
     const bodyStretch = 1 + wobble;
     
-    if (type !== CreatureType.PLANKTON && type !== CreatureType.JELLYFISH) {
+    // -- Fins/Limbs Drawing (Before Body) --
+    if (type !== CreatureType.PLANKTON && type !== CreatureType.JELLYFISH && type !== CreatureType.STINGRAY && type !== CreatureType.ELECTRIC_EEL && type !== CreatureType.MERMAID) {
       const finFlap = Math.sin(time * 0.8 + animOffset) * 0.4;
       ctx.fillStyle = entity.config.color;
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
@@ -116,7 +108,45 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
              ctx.stroke();
              ctx.restore();
          }
+      } else if (type === CreatureType.TURTLE) {
+         // Turtle Legs
+         const legOffsets = [
+            {x: 0.5, y: 0.6, r: 0.4},
+            {x: 0.5, y: -0.6, r: 0.4},
+            {x: -0.5, y: 0.6, r: 0.3},
+            {x: -0.5, y: -0.6, r: 0.3}
+         ];
+         legOffsets.forEach((l, i) => {
+             ctx.save();
+             ctx.translate(radius * l.x, radius * l.y);
+             ctx.rotate(finFlap * (i%2===0?1:-1));
+             ctx.beginPath();
+             ctx.ellipse(0, 0, radius * 0.4, radius * 0.2, Math.PI/2, 0, Math.PI * 2);
+             ctx.fill();
+             ctx.stroke();
+             ctx.restore();
+         });
+      } else if (type === CreatureType.FUR_SEAL) {
+          // Seal Flippers
+          ctx.save();
+          ctx.translate(radius * 0.2, radius * 0.5);
+          ctx.rotate(Math.PI / 4 + finFlap * 0.5);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, radius * 0.5, radius * 0.2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.save();
+          ctx.translate(radius * 0.2, -radius * 0.5);
+          ctx.rotate(-Math.PI / 4 - finFlap * 0.5);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, radius * 0.5, radius * 0.2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
       } else {
+        // Standard Fish Fins
         ctx.save();
         ctx.translate(radius * 0.3, radius * 0.6);
         ctx.rotate(Math.PI / 3 + finFlap);
@@ -137,9 +167,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       }
     }
 
+    // -- Body Drawing --
     ctx.lineWidth = 3; 
     ctx.strokeStyle = 'rgba(0,0,0,0.2)'; 
-
     ctx.fillStyle = entity.config.color;
     
     if (type === CreatureType.JELLYFISH) {
@@ -166,7 +196,244 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.arc(0, 0, radius, 0, Math.PI * 2);
        ctx.fill();
        ctx.stroke();
+    } else if (type === CreatureType.STINGRAY) {
+       // Diamond Shape
+       ctx.beginPath();
+       ctx.moveTo(radius * 1.2, 0); // Nose
+       ctx.lineTo(0, -radius * 1.2); // Left wing tip
+       ctx.lineTo(-radius * 0.5, 0); // Tail base
+       ctx.lineTo(0, radius * 1.2); // Right wing tip
+       ctx.closePath();
+       ctx.fill();
+       ctx.stroke();
+       // Tail
+       ctx.beginPath();
+       ctx.moveTo(-radius * 0.5, 0);
+       const tailWag = Math.sin(time * 0.3 + animOffset) * radius * 0.5;
+       ctx.quadraticCurveTo(-radius * 1.5, tailWag, -radius * 2.5, 0);
+       ctx.stroke();
+    } else if (type === CreatureType.ELECTRIC_EEL) {
+       // Long wavy body
+       ctx.beginPath();
+       const segments = 10;
+       const segLen = radius * 0.4;
+       let px = radius; 
+       let py = 0;
+       
+       // Head
+       ctx.ellipse(radius * 0.8, 0, radius*0.6, radius*0.5, 0, 0, Math.PI*2);
+       ctx.fill();
+       ctx.stroke();
+
+       // Body segments
+       ctx.beginPath();
+       ctx.moveTo(radius * 0.8, 0);
+       for(let i=1; i<=segments; i++) {
+          const t = i / segments;
+          const sway = Math.sin(time * 0.4 - i * 0.8 + animOffset) * (radius * 0.5);
+          const bx = (radius * 0.8) - i * segLen;
+          const by = sway;
+          ctx.lineTo(bx, by);
+       }
+       ctx.lineWidth = radius * 0.8;
+       ctx.lineCap = 'round';
+       ctx.strokeStyle = entity.config.color;
+       ctx.stroke();
+       
+       // Electric Effect
+       if (time % 10 < 5) {
+           ctx.strokeStyle = '#fef08a';
+           ctx.lineWidth = 2;
+           ctx.stroke();
+       }
+       ctx.lineWidth = 3; 
+       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+
+    } else if (type === CreatureType.TURTLE) {
+       // Round Shell Body
+       ctx.beginPath();
+       ctx.arc(0, 0, radius, 0, Math.PI * 2);
+       ctx.fill();
+       ctx.stroke();
+       
+       // Shell pattern
+       ctx.fillStyle = 'rgba(0,0,0,0.1)';
+       ctx.beginPath();
+       ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+       ctx.fill();
+       
+       // Hexagon pattern attempt
+       ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+       ctx.beginPath();
+       ctx.moveTo(radius * 0.5, 0);
+       for(let i=0; i<6; i++) {
+          const a = (Math.PI*2 * i)/6;
+          ctx.lineTo(Math.cos(a)*radius*0.5, Math.sin(a)*radius*0.5);
+       }
+       ctx.closePath();
+       ctx.stroke();
+
+    } else if (type === CreatureType.HAMMERHEAD) {
+        // Body
+       ctx.beginPath();
+       ctx.ellipse(0, 0, radius * bodyStretch, radius * 0.7, 0, 0, Math.PI * 2);
+       ctx.fill();
+       ctx.stroke();
+       
+       // Hammer Head
+       ctx.save();
+       ctx.translate(radius * 0.8, 0);
+       ctx.fillStyle = entity.config.color;
+       ctx.fillRect(-radius * 0.2, -radius * 1.0, radius * 0.5, radius * 2.0);
+       ctx.strokeRect(-radius * 0.2, -radius * 1.0, radius * 0.5, radius * 2.0);
+       ctx.restore();
+
+       // Tail
+       const tailWag = Math.sin(time * 0.4 + animOffset) * 0.3;
+       ctx.save();
+       ctx.translate(-radius, 0);
+       ctx.rotate(tailWag);
+       ctx.beginPath();
+       ctx.moveTo(0, 0);
+       ctx.lineTo(-radius * 0.8, -radius * 0.6);
+       ctx.lineTo(-radius * 0.8, radius * 0.6);
+       ctx.closePath();
+       ctx.fill();
+       ctx.stroke();
+       ctx.restore();
+       
+    } else if (type === CreatureType.NARWHAL) {
+       // Body (Chubby)
+       ctx.beginPath();
+       ctx.ellipse(0, 0, radius * bodyStretch, radius * 0.8, 0, 0, Math.PI * 2);
+       ctx.fill();
+       ctx.stroke();
+
+       // Tusk
+       ctx.fillStyle = '#e2e8f0'; // Light grey horn
+       ctx.beginPath();
+       ctx.moveTo(radius * 0.9, -radius * 0.2);
+       ctx.lineTo(radius * 2.2, 0); // Long spike
+       ctx.lineTo(radius * 0.9, radius * 0.2);
+       ctx.fill();
+       ctx.stroke();
+       
+       // Spiral detail on tusk
+       ctx.beginPath();
+       ctx.moveTo(radius * 1.0, -radius * 0.1);
+       ctx.lineTo(radius * 2.0, 0);
+       ctx.strokeStyle = '#94a3b8';
+       ctx.stroke();
+
+       // Tail
+       const tailWag = Math.sin(time * 0.4 + animOffset) * 0.3;
+       ctx.save();
+       ctx.translate(-radius * 0.8, 0);
+       ctx.rotate(tailWag);
+       ctx.fillStyle = entity.config.color;
+       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+       ctx.beginPath();
+       ctx.moveTo(0, 0);
+       ctx.lineTo(-radius * 0.6, -radius * 0.5);
+       ctx.quadraticCurveTo(-radius * 0.3, 0, -radius * 0.6, radius * 0.5);
+       ctx.closePath();
+       ctx.fill();
+       ctx.stroke();
+       ctx.restore();
+
+    } else if (type === CreatureType.MERMAID) {
+       // Humanoid Upper Body
+       ctx.fillStyle = '#fce7f3'; // Skin toneish
+       ctx.beginPath();
+       ctx.arc(radius * 0.2, 0, radius * 0.35, 0, Math.PI * 2); // Head/Torso overlap
+       ctx.fill();
+       
+       // Hair
+       ctx.fillStyle = '#db2777'; // Pink hair
+       ctx.beginPath();
+       ctx.arc(radius * 0.2, 0, radius * 0.4, Math.PI / 2, -Math.PI / 2, true);
+       const hairFlow = Math.sin(time * 0.3 + animOffset) * 0.2;
+       ctx.lineTo(-radius * 0.5, -radius * 0.5 + hairFlow * 20);
+       ctx.lineTo(-radius * 0.5, radius * 0.5 + hairFlow * 20);
+       ctx.fill();
+
+       // Fish Tail
+       ctx.fillStyle = entity.config.color; // Cyan tail
+       ctx.beginPath();
+       ctx.moveTo(0, -radius * 0.35);
+       ctx.lineTo(-radius * 1.2, -radius * 0.2); // Tail start
+       ctx.lineTo(-radius * 1.2, radius * 0.2);
+       ctx.lineTo(0, radius * 0.35);
+       ctx.fill();
+       ctx.stroke();
+
+       // Fin
+       const tailWag = Math.sin(time * 0.5 + animOffset) * 0.4;
+       ctx.save();
+       ctx.translate(-radius * 1.2, 0);
+       ctx.rotate(tailWag);
+       ctx.beginPath();
+       ctx.moveTo(0, 0);
+       ctx.lineTo(-radius * 0.6, -radius * 0.6);
+       ctx.lineTo(-radius * 0.6, radius * 0.6);
+       ctx.closePath();
+       ctx.fill();
+       ctx.stroke();
+       ctx.restore();
+
+    } else if (type === CreatureType.AROWANA) {
+       // Long body
+       ctx.beginPath();
+       ctx.ellipse(0, 0, radius * 1.3, radius * 0.5, 0, 0, Math.PI * 2);
+       ctx.fill();
+       ctx.stroke();
+
+       // Scales
+       ctx.strokeStyle = '#d97706'; // Darker gold
+       ctx.lineWidth = 2;
+       for(let i=0; i<3; i++) {
+          ctx.beginPath();
+          ctx.arc(-radius * 0.5 + i * radius * 0.6, 0, radius * 0.25, -Math.PI/2, Math.PI/2);
+          ctx.stroke();
+       }
+
+       // Tail
+       const tailWag = Math.sin(time * 0.4 + animOffset) * 0.3;
+       ctx.save();
+       ctx.translate(-radius * 1.2, 0);
+       ctx.rotate(tailWag);
+       ctx.beginPath();
+       ctx.moveTo(0, -radius * 0.2);
+       ctx.lineTo(-radius * 0.4, -radius * 0.4);
+       ctx.lineTo(-radius * 0.4, radius * 0.4);
+       ctx.lineTo(0, radius * 0.2);
+       ctx.fill();
+       ctx.stroke();
+       ctx.restore();
+
+    } else if (type === CreatureType.FUR_SEAL) {
+       // Sleek body
+       ctx.beginPath();
+       ctx.ellipse(0, 0, radius * 1.2, radius * 0.6, 0, 0, Math.PI * 2);
+       ctx.fill();
+       ctx.stroke();
+       
+       // Tail flippers
+       const tailWag = Math.sin(time * 0.6 + animOffset) * 0.3;
+       ctx.save();
+       ctx.translate(-radius * 1.1, 0);
+       ctx.rotate(tailWag);
+       ctx.beginPath();
+       ctx.moveTo(0, 0);
+       ctx.lineTo(-radius * 0.5, -radius * 0.3);
+       ctx.lineTo(-radius * 0.5, radius * 0.3);
+       ctx.closePath();
+       ctx.fill();
+       ctx.stroke();
+       ctx.restore();
+
     } else {
+       // Standard Fish Body
        ctx.beginPath();
        ctx.ellipse(0, 0, radius * bodyStretch, radius * 0.85, 0, 0, Math.PI * 2);
        ctx.fill();
@@ -185,6 +452,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.stroke();
        ctx.restore();
     }
+
+    // -- Features (Eyes, Teeth, Lure) --
 
     if (type === CreatureType.ANGLER_FISH) {
        ctx.strokeStyle = "black";
@@ -215,10 +484,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        }
     }
 
-    if (type !== CreatureType.PLANKTON && type !== CreatureType.JELLYFISH) {
+    // Eyes
+    if (type !== CreatureType.PLANKTON && type !== CreatureType.JELLYFISH && type !== CreatureType.STINGRAY) {
       const eyeSizeBase = radius * 0.35;
-      const eyeX = radius * 0.3;
-      const eyeYOffset = radius * 0.35;
+      let eyeX = radius * 0.3;
+      let eyeYOffset = radius * 0.35;
+
+      if (type === CreatureType.HAMMERHEAD) {
+          eyeX = radius * 0.9;
+          eyeYOffset = radius * 0.9; // Eyes on the hammer
+      }
+      else if (type === CreatureType.ELECTRIC_EEL) {
+          eyeX = radius * 0.9;
+          eyeYOffset = radius * 0.2;
+      }
+      else if (type === CreatureType.NARWHAL) {
+          eyeX = radius * 0.5;
+          eyeYOffset = radius * 0.4;
+      }
+      else if (type === CreatureType.AROWANA) {
+          eyeX = radius * 0.8;
+          eyeYOffset = radius * 0.25;
+      }
       
       const leftEyeSize = eyeSizeBase * 1.1;
       const rightEyeSize = eyeSizeBase * 0.8;
@@ -228,34 +515,85 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
       ctx.fillStyle = 'white';
       ctx.beginPath();
-      ctx.arc(eyeX, -eyeYOffset, leftEyeSize, 0, Math.PI * 2); 
-      ctx.fill();
-      ctx.stroke();
 
-      ctx.beginPath();
-      ctx.arc(eyeX, eyeYOffset, rightEyeSize, 0, Math.PI * 2); 
-      ctx.fill();
-      ctx.stroke();
+      if (isHappy) {
+          // HAPPY EYES ^ ^
+          const drawHappyEye = (ex: number, ey: number, size: number) => {
+              ctx.beginPath();
+              ctx.lineWidth = 2;
+              ctx.strokeStyle = 'black';
+              ctx.moveTo(ex - size * 0.5, ey);
+              ctx.quadraticCurveTo(ex, ey - size * 0.5, ex + size * 0.5, ey);
+              ctx.stroke();
+          };
+          drawHappyEye(eyeX, -eyeYOffset, leftEyeSize);
+          drawHappyEye(eyeX, eyeYOffset, rightEyeSize);
+      } else {
+          // Normal Eyes
+          ctx.arc(eyeX, -eyeYOffset, leftEyeSize, 0, Math.PI * 2); 
+          ctx.fill();
+          ctx.stroke();
 
-      const lookX = Math.cos(time * 0.1 + animOffset) * leftEyeSize * 0.2;
-      const lookY = Math.sin(time * 0.2 + animOffset) * leftEyeSize * 0.2;
-      
-      ctx.fillStyle = 'black';
-      
-      ctx.beginPath();
-      ctx.arc(eyeX + lookX, -eyeYOffset + lookY, leftEyeSize * 0.3, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(eyeX - lookY, eyeYOffset + lookX, rightEyeSize * 0.3, 0, Math.PI * 2);
-      ctx.fill();
+          ctx.beginPath();
+          ctx.arc(eyeX, eyeYOffset, rightEyeSize, 0, Math.PI * 2); 
+          ctx.fill();
+          ctx.stroke();
+
+          const lookX = Math.cos(time * 0.1 + animOffset) * leftEyeSize * 0.2;
+          const lookY = Math.sin(time * 0.2 + animOffset) * leftEyeSize * 0.2;
+          
+          ctx.fillStyle = 'black';
+          
+          ctx.beginPath();
+          ctx.arc(eyeX + lookX, -eyeYOffset + lookY, leftEyeSize * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.beginPath();
+          ctx.arc(eyeX - lookY, eyeYOffset + lookX, rightEyeSize * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+      }
+    } else if (type === CreatureType.STINGRAY) {
+        // Stingray Eyes on top
+        if (isHappy) {
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(radius * 0.2, -radius * 0.3);
+            ctx.lineTo(radius * 0.3, -radius * 0.35);
+            ctx.lineTo(radius * 0.4, -radius * 0.3);
+            ctx.moveTo(radius * 0.2, radius * 0.3);
+            ctx.lineTo(radius * 0.3, radius * 0.35);
+            ctx.lineTo(radius * 0.4, radius * 0.3);
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(radius * 0.3, -radius * 0.3, radius * 0.15, 0, Math.PI*2);
+            ctx.arc(radius * 0.3, radius * 0.3, radius * 0.15, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(radius * 0.35, -radius * 0.3, radius * 0.05, 0, Math.PI*2);
+            ctx.arc(radius * 0.35, radius * 0.3, radius * 0.05, 0, Math.PI*2);
+            ctx.fill();
+        }
     }
 
-    if (type !== CreatureType.PLANKTON) {
+    // Mouth
+    if (type !== CreatureType.PLANKTON && type !== CreatureType.STINGRAY && type !== CreatureType.MERMAID) {
        ctx.save();
        ctx.translate(radius * 0.6, 0); 
+       if (type === CreatureType.ELECTRIC_EEL) ctx.translate(radius * 0.4, 0);
+       if (type === CreatureType.AROWANA) ctx.translate(radius * 0.4, -radius * 0.1); // Upturned mouth
+       if (type === CreatureType.NARWHAL) ctx.translate(0, radius * 0.2); // Mouth below tusk
+
        const breath = 0.4 + 0.1 * Math.sin(time * 0.2 + animOffset);
-       const effectiveOpen = Math.max(breath, mouthOpenValue);
+       let effectiveOpen = Math.max(breath, mouthOpenValue);
+
+       // Chewing action when happy
+       if (isHappy) {
+           effectiveOpen = 0.2 + Math.abs(Math.sin(time * 0.8)) * 0.3;
+       }
 
        const openW = radius * 0.5; 
        const openH = effectiveOpen * radius * 0.8;
@@ -268,6 +606,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
        ctx.stroke();
 
+       // Teeth
        const toothColor = '#ffffff';
        const toothStroke = '#000000';
        ctx.fillStyle = toothColor;
@@ -282,7 +621,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        };
 
        const drawTeethRow = (isTop: boolean) => {
-          const numTeeth = (type === CreatureType.ANGLER_FISH || type === CreatureType.KRAKEN) ? 5 : 3; 
+          const numTeeth = (type === CreatureType.ANGLER_FISH || type === CreatureType.KRAKEN || type === CreatureType.GREAT_WHITE || type === CreatureType.AROWANA) ? 5 : 3; 
           const rowY = isTop ? -openH : openH;
           const dir = isTop ? 1 : -1;
           const totalW = openW * 1.6;
@@ -321,6 +660,66 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       ctx.fillText("💢", 0, 0);
       ctx.restore();
     }
+    
+    // SPEECH BUBBLE
+    if (entity.speechBubble) {
+        ctx.save();
+        // Counter-rotate to keep text upright relative to screen (not fish body)
+        // Since we are rotated by `entity.angle`
+        ctx.rotate(-entity.angle);
+        
+        ctx.translate(0, -radius - 30);
+        
+        const text = entity.speechBubble.text;
+        ctx.font = "bold 24px 'Microsoft YaHei', sans-serif";
+        const metrics = ctx.measureText(text);
+        const w = metrics.width + 20;
+        const h = 34;
+        
+        // Bubble body
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.strokeStyle = entity.speechBubble.color;
+        ctx.lineWidth = 2;
+        
+        ctx.beginPath();
+        // Simple rounded rect centered
+        const r = 8;
+        const x = -w/2;
+        const y = -h/2;
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Text
+        ctx.fillStyle = entity.speechBubble.color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, 0, 0);
+        
+        ctx.restore();
+    }
+
+    // HEART EFFECT (Below speech bubble priority in visual stack)
+    if (isHappy && !entity.speechBubble) {
+        ctx.save();
+        ctx.translate(0, -radius * 1.2 - 20);
+        const beat = Math.sin(time * 0.5) * 0.2 + 1;
+        ctx.scale(beat, beat);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = "bold 24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("❤️", 0, 0);
+        ctx.restore();
+    }
 
     ctx.restore();
   };
@@ -355,36 +754,43 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
   const drawHazard = (ctx: CanvasRenderingContext2D, h: Hazard, time: number) => {
      ctx.save();
      ctx.translate(h.x, h.y);
-     const pulse = Math.sin(time * 0.5) * 10;
 
      if (h.stage === 'WARNING') {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        // Red Ground Warning Zone
+        const pulse = Math.sin(time * 0.5) * 0.1 + 0.9;
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
         ctx.beginPath();
-        ctx.arc(0, 0, h.radius + pulse, 0, Math.PI * 2);
+        ctx.arc(0, 0, h.radius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+        
+        ctx.strokeStyle = `rgba(255, 50, 50, ${Math.abs(Math.sin(time * 0.2))})`;
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.arc(0, 0, h.radius + 20, 0, (Math.PI*2) * (h.timer / 120)); 
+        ctx.arc(0, 0, h.radius * pulse, 0, Math.PI * 2);
         ctx.stroke();
+
         ctx.fillStyle = '#ef4444';
-        ctx.font = "bold 20px sans-serif";
+        ctx.font = "bold 30px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("⚠️ 危险", 0, -h.radius - 20);
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 4;
+        ctx.fillText("⚠️ 危险区域", 0, -h.radius - 20);
+        ctx.shadowBlur = 0;
+
+        // Shadow getting bigger
+        const shadowSize = h.radius * (1 - (h.timer / 120)) * 0.8;
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.arc(0,0, shadowSize, 0, Math.PI*2);
+        ctx.fill();
      } else if (h.stage === 'STRIKE') {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        // Impact
+        ctx.fillStyle = '#f59e0b'; // Fireball center
         ctx.beginPath();
-        ctx.arc(0, 0, h.radius * 1.2, 0, Math.PI * 2);
+        ctx.arc(0, 0, h.radius * 0.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#fbbf24'; 
-        ctx.strokeStyle = '#92400e';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(-50, -150);
-        ctx.lineTo(50, -150);
-        ctx.closePath();
-        ctx.fill();
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 4;
         ctx.stroke();
      }
      ctx.restore();
@@ -552,10 +958,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
       particles.forEach(p => {
         ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
+        if (p.interactionType === 'SHRINK') {
+           // Draw water droplet
+           ctx.fillStyle = p.color;
+           ctx.beginPath();
+           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+           ctx.fill();
+           // Highlight
+           ctx.fillStyle = 'rgba(255,255,255,0.6)';
+           ctx.beginPath();
+           ctx.arc(p.x - p.size*0.3, p.y - p.size*0.3, p.size*0.2, 0, Math.PI*2);
+           ctx.fill();
+        } else {
+           ctx.fillStyle = p.color;
+           ctx.beginPath();
+           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+           ctx.fill();
+        }
         ctx.globalAlpha = 1.0;
       });
 

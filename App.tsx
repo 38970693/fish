@@ -61,6 +61,7 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
         active: false
       },
       isGodMode: false,
+      isAutoMode: false,
       reviveCount: 0,
       isIdle: false,
       lureActive: false,
@@ -184,6 +185,10 @@ const App: React.FC = () => {
       p.traits.push("深海之神");
     }
   };
+  
+  const handleToggleAutoMode = () => {
+      gameStateRef.current.player.isAutoMode = !gameStateRef.current.player.isAutoMode;
+  };
 
   const gameLoop = useCallback(() => {
     if (gameStateRef.current.status === GameStatus.PLAYING) {
@@ -220,6 +225,7 @@ const App: React.FC = () => {
         onRestart={() => { gameStateRef.current.status = GameStatus.MENU; }}
         onRevive={handleRevive}
         onToggleGodMode={handleToggleGodMode}
+        onToggleAutoMode={handleToggleAutoMode}
       />
     </div>
   );
