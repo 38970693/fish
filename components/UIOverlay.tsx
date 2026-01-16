@@ -144,23 +144,24 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
       <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm z-50">
         <div className="max-w-md w-full p-8 bg-slate-900 border border-pink-500 rounded-2xl shadow-2xl text-center">
           <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-yellow-400 mb-2 drop-shadow-lg">
-            欢乐鱼塘
+            海底世界
           </h1>
-          <p className="text-slate-400 mb-8">别被吃光了身体！</p>
+          <p className="text-slate-400 mb-8">自由进化，称霸无尽海域！</p>
           
           <div className="space-y-4">
             <button 
               onClick={onStart}
               className="w-full py-4 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg text-xl transition-colors shadow-lg shadow-pink-500/30"
             >
-              开始捣乱
+              开始游戏
             </button>
             <div className="p-4 bg-slate-800 rounded-lg text-left text-sm text-slate-300 border border-slate-700">
-               <p className="mb-2 font-bold text-slate-200">新规则:</p>
-               <ul className="list-disc pl-5 space-y-1">
-                 <li><span className="text-green-400">吞噬</span>: 大鱼可以<span className="text-yellow-300 font-bold">一口吞掉</span>小鱼!</li>
-                 <li><span className="text-blue-400">偷袭</span>: 小鱼咬大鱼的<span className="text-yellow-300 font-bold">尾巴</span>可以掠夺大量体型!</li>
-                 <li><span className="text-red-400">海鸟</span>: 保持移动，不要在阴影里停留!</li>
+               <p className="mb-2 font-bold text-slate-200 text-base border-b border-slate-700 pb-1">游戏指南:</p>
+               <ul className="list-disc pl-5 space-y-2">
+                 <li><span className="text-green-400 font-bold">无尽</span>: 世界没有边界，向着深海自由探索!</li>
+                 <li><span className="text-yellow-400 font-bold">吞噬</span>: 大鱼吃小鱼，体型悬殊可<span className="text-red-400">一口吞掉</span>对手!</li>
+                 <li><span className="text-blue-400 font-bold">偷袭</span>: 小鱼咬大鱼的<span className="text-yellow-300">尾巴</span>可以掠夺大量体型!</li>
+                 <li><span className="text-red-400 font-bold">警惕</span>: 看到<span className="text-red-500">海鸟阴影</span>快跑，那是死亡倒计时!</li>
                </ul>
             </div>
           </div>

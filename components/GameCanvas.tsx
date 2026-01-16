@@ -17,24 +17,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
   const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, time: number, isPlayer: boolean) => {
     const { type, radius, animOffset, mouthOpenValue, renderScale, isInvulnerable } = entity;
     
-    // Safety check for scale to prevent crashes
     const safeScale = Number.isFinite(renderScale) ? renderScale : 1;
 
     ctx.save();
     ctx.translate(entity.x, entity.y);
     
-    // Scale Effect (Eating Pop)
     ctx.scale(safeScale, safeScale);
-    
-    // Rotation
     ctx.rotate(entity.angle);
 
     // --- CAMOUFLAGE (Octopus) ---
     if (entity.camoActive) {
-      // Draw as a rock/coral mound instead of a fish
-      ctx.fillStyle = "#64748b"; // Rock gray
+      ctx.fillStyle = "#64748b"; 
       ctx.beginPath();
-      // Irregular rock shape
       for(let i=0; i<8; i++) {
         const ang = (Math.PI*2 * i)/8;
         const r = radius * (0.8 + Math.sin(time*0.05 + i * 132)*0.2);
@@ -43,7 +37,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       ctx.fill();
       ctx.stroke();
       
-      // One subtle eye peeking
       const blink = Math.sin(time * 0.1) > 0.95;
       if (!blink) {
         ctx.fillStyle = "white";
@@ -56,7 +49,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         ctx.fill();
       }
       
-      // "Ambush Ready" glint
       if (time % 60 < 10) {
         ctx.strokeStyle = "white";
         ctx.lineWidth = 2;
@@ -67,10 +59,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       }
 
       ctx.restore();
-      return; // Skip normal fish drawing
+      return; 
     }
 
-    // Invulnerability Aura
     if (isInvulnerable || (isPlayer && (entity as PlayerState).isGodMode)) {
       ctx.save();
       ctx.rotate(time * 0.1);
@@ -83,18 +74,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       ctx.restore();
     }
     
-    // Speed Boost Aura
     if (entity.speedBoostTimer && entity.speedBoostTimer > 0) {
       ctx.save();
       ctx.globalAlpha = 0.6;
-      ctx.fillStyle = '#fde047'; // Yellow
+      ctx.fillStyle = '#fde047'; 
       ctx.beginPath();
       ctx.arc(-radius, 0, radius * 0.8, 0, Math.PI*2);
       ctx.fill();
       ctx.restore();
     }
     
-    // Ambush Ready Aura
     if (entity.ambushTimer > 0) {
        ctx.strokeStyle = "red";
        ctx.lineWidth = 3;
@@ -104,14 +93,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.stroke();
     }
 
-    // Ghost Effect
     if (entity.isHidden) ctx.globalAlpha = 0.5;
 
-    // Body Animation (Wobble)
     const wobble = Math.sin(time * 0.3 + animOffset) * 0.05;
     const bodyStretch = 1 + wobble;
     
-    // --- DRAW FINS (Flappy) ---
     if (type !== CreatureType.PLANKTON && type !== CreatureType.JELLYFISH) {
       const finFlap = Math.sin(time * 0.8 + animOffset) * 0.4;
       ctx.fillStyle = entity.config.color;
@@ -119,7 +105,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       ctx.lineWidth = 2;
       
       if (type === CreatureType.OCTOPUS) {
-         // Tentacles instead of fins
          for(let i=0; i<8; i++) {
              ctx.save();
              const angle = (Math.PI / 4) * i + (Math.sin(time * 0.2 + i)*0.2);
@@ -132,7 +117,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
              ctx.restore();
          }
       } else {
-        // Right Fin
         ctx.save();
         ctx.translate(radius * 0.3, radius * 0.6);
         ctx.rotate(Math.PI / 3 + finFlap);
@@ -142,7 +126,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         ctx.stroke();
         ctx.restore();
 
-        // Left Fin
         ctx.save();
         ctx.translate(radius * 0.3, -radius * 0.6);
         ctx.rotate(-Math.PI / 3 - finFlap);
@@ -154,21 +137,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       }
     }
 
-    // --- DRAW BODY ---
     ctx.lineWidth = 3; 
     ctx.strokeStyle = 'rgba(0,0,0,0.2)'; 
 
     ctx.fillStyle = entity.config.color;
     
     if (type === CreatureType.JELLYFISH) {
-       // Jellyfish Dome
        ctx.beginPath();
        ctx.arc(0, 0, radius, Math.PI, 0); 
        ctx.lineTo(radius, radius * 0.5);
        ctx.lineTo(-radius, radius * 0.5);
        ctx.fill();
        ctx.stroke();
-       // Tentacles
        ctx.strokeStyle = entity.config.color;
        for(let i=-2; i<=2; i++) {
          ctx.beginPath();
@@ -187,13 +167,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.fill();
        ctx.stroke();
     } else {
-       // Standard "Derpy Fish" Body
        ctx.beginPath();
        ctx.ellipse(0, 0, radius * bodyStretch, radius * 0.85, 0, 0, Math.PI * 2);
        ctx.fill();
        ctx.stroke(); 
        
-       // Tail
        const tailWag = Math.sin(time * 0.4 + animOffset) * 0.3;
        ctx.save();
        ctx.translate(-radius, 0);
@@ -208,9 +186,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.restore();
     }
 
-    // --- ANGLER FISH LURE ---
     if (type === CreatureType.ANGLER_FISH) {
-       // Draw rod
        ctx.strokeStyle = "black";
        ctx.lineWidth = 2;
        ctx.beginPath();
@@ -218,13 +194,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.quadraticCurveTo(radius * 1.2, -radius * 0.8, radius * 1.5, -radius * 0.3);
        ctx.stroke();
 
-       // Draw Light Bulb
        const lightX = radius * 1.5;
        const lightY = -radius * 0.3;
-       
        const isLureActive = entity.lureActive;
        
-       // Bulb Glass
        ctx.fillStyle = isLureActive ? "#fef08a" : "#4b5563";
        ctx.beginPath();
        ctx.arc(lightX, lightY, radius * 0.15, 0, Math.PI*2);
@@ -232,18 +205,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.stroke();
 
        if (isLureActive) {
-          // GLOW
           ctx.shadowColor = "#fef08a";
           ctx.shadowBlur = 20 + Math.sin(time * 0.2) * 10;
           ctx.fillStyle = "rgba(254, 240, 138, 0.5)";
           ctx.beginPath();
           ctx.arc(lightX, lightY, radius * 0.3, 0, Math.PI*2);
           ctx.fill();
-          ctx.shadowBlur = 0; // Reset
+          ctx.shadowBlur = 0; 
        }
     }
 
-    // --- GOOGLY EYES ---
     if (type !== CreatureType.PLANKTON && type !== CreatureType.JELLYFISH) {
       const eyeSizeBase = radius * 0.35;
       const eyeX = radius * 0.3;
@@ -255,20 +226,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       ctx.lineWidth = 1;
       ctx.strokeStyle = 'black';
 
-      // Left Eye (Top)
       ctx.fillStyle = 'white';
       ctx.beginPath();
       ctx.arc(eyeX, -eyeYOffset, leftEyeSize, 0, Math.PI * 2); 
       ctx.fill();
       ctx.stroke();
 
-      // Right Eye (Bottom)
       ctx.beginPath();
       ctx.arc(eyeX, eyeYOffset, rightEyeSize, 0, Math.PI * 2); 
       ctx.fill();
       ctx.stroke();
 
-      // Pupils
       const lookX = Math.cos(time * 0.1 + animOffset) * leftEyeSize * 0.2;
       const lookY = Math.sin(time * 0.2 + animOffset) * leftEyeSize * 0.2;
       
@@ -283,7 +251,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       ctx.fill();
     }
 
-    // --- MOUTH & TEETH ---
     if (type !== CreatureType.PLANKTON) {
        ctx.save();
        ctx.translate(radius * 0.6, 0); 
@@ -293,7 +260,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        const openW = radius * 0.5; 
        const openH = effectiveOpen * radius * 0.8;
        
-       ctx.fillStyle = '#450a0a'; // Dark Red
+       ctx.fillStyle = '#450a0a'; 
        ctx.beginPath();
        ctx.ellipse(0, 0, openW, openH, 0, 0, Math.PI * 2);
        ctx.fill();
@@ -301,7 +268,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
        ctx.stroke();
 
-       // Teeth
        const toothColor = '#ffffff';
        const toothStroke = '#000000';
        ctx.fillStyle = toothColor;
@@ -347,7 +313,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.restore();
     }
 
-    // --- AGGRO / TAUNT INDICATOR ---
     if (entity.aggroTimer && entity.aggroTimer > 0 && !isPlayer) {
       ctx.save();
       ctx.translate(0, -radius * 1.5);
@@ -492,7 +457,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
   const drawIndicators = (ctx: CanvasRenderingContext2D, entity: Entity, player: PlayerState) => {
     if (entity.isHidden || entity.id === player.id || entity.type === CreatureType.PLANKTON) return;
 
-    if (entity.camoActive) return; // Don't show indicators for stealth units
+    if (entity.camoActive) return; 
 
     const isBig = entity.radius > player.radius * 1.5;
 
@@ -509,19 +474,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
   
   const drawGrid = (ctx: CanvasRenderingContext2D, camX: number, camY: number, width: number, height: number, zoom: number) => {
     const gridSize = 100;
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
+    
+    // Removed border strokeRect
+    
     ctx.strokeStyle = '#1e293b'; 
     ctx.lineWidth = 1;
     
     const viewW = width / zoom;
     const viewH = height / zoom;
-    const startX = Math.max(0, camX - viewW/2);
-    const startY = Math.max(0, camY - viewH/2);
-    const endX = Math.min(WORLD_SIZE, camX + viewW/2);
-    const endY = Math.min(WORLD_SIZE, camY + viewH/2);
+    const startX = camX - viewW/2;
+    const startY = camY - viewH/2;
+    const endX = camX + viewW/2;
+    const endY = camY + viewH/2;
     
     const snapStartX = Math.floor(startX / gridSize) * gridSize;
     const snapStartY = Math.floor(startY / gridSize) * gridSize;
@@ -595,7 +559,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         ctx.globalAlpha = 1.0;
       });
 
-      // Name tags
       entities.forEach(e => {
         if (e.radius > 40 && !e.isHidden && !e.camoActive) {
           ctx.fillStyle = "rgba(255,255,255,0.7)";
