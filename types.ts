@@ -1,5 +1,3 @@
-
-
 export enum GameStatus {
   MENU = 'MENU',
   PLAYING = 'PLAYING',
@@ -9,30 +7,31 @@ export enum GameStatus {
 }
 
 export enum CreatureType {
-  // Tier 0
+  // Tier 0 (Food)
   PLANKTON = 'PLANKTON',
   
-  // Tier 1 (Small)
-  ALGAE_FISH = 'ALGAE_FISH', // Basic
-  JELLYFISH = 'JELLYFISH', // Passive, dangerous to touch
+  // Tier 1 (Starters / Small)
+  CLOWN_FISH = 'CLOWN_FISH',   // Balanced
+  BLUE_TANG = 'BLUE_TANG',     // Fast
+  TURTLE = 'TURTLE',           // Tanky
+  JELLYFISH = 'JELLYFISH',
   
-  // Tier 2 (Medium - Tricksters)
-  NEEDLE_FISH = 'NEEDLE_FISH', // Fast
-  OCTOPUS = 'OCTOPUS', // Camouflage / Ambush
-  POISON_FISH = 'POISON_FISH', // Defensive
-  WORKER = 'WORKER',
-  ARMOR_FISH = 'ARMOR_FISH',
+  // Tier 2 (Medium)
+  SEAHORSE = 'SEAHORSE',
+  SQUID = 'SQUID', 
+  PUFFER_FISH = 'PUFFER_FISH',
+  CRAB = 'CRAB',
   
-  // Tier 3 (Large - Hunters)
-  ANGLER_FISH = 'ANGLER_FISH', // Lure / Trap
-  SWORD_FISH = 'SWORD_FISH', // Combat
-  GHOST = 'GHOST', // Fast Aggro
-  EEL = 'EEL',
+  // Tier 3 (Large)
+  STINGRAY = 'STINGRAY',
+  SWORD_FISH = 'SWORD_FISH',
+  HAMMERHEAD = 'HAMMERHEAD',
+  ANGLER_FISH = 'ANGLER_FISH',
   
-  // Tier 4 (Giant)
-  MEGA_MOUTH = 'MEGA_MOUTH',
-  LEVIATHAN = 'LEVIATHAN',
-  MUTANT = 'MUTANT'
+  // Tier 4 (Apex)
+  GREAT_WHITE = 'GREAT_WHITE', // Shark
+  ORCA = 'ORCA',               // Whale
+  KRAKEN = 'KRAKEN'            // Boss
 }
 
 export interface CreatureConfig {
@@ -43,10 +42,11 @@ export interface CreatureConfig {
   speed: number;
   health: number;
   damage: number;
-  xpValue: number;
+  weightValue: number; // Replaces XP value
   behavior: 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'AMBUSH' | 'BOSS';
-  special?: 'POISON' | 'SHOCK' | 'SPIKE' | 'LURE' | 'CAMO' | 'NONE';
+  special?: 'POISON' | 'SHOCK' | 'SPIKE' | 'LURE' | 'CAMO' | 'NONE' | 'SHELL';
   tier: 0 | 1 | 2 | 3 | 4;
+  description?: string; // For selection menu
 }
 
 export interface Entity {
@@ -62,26 +62,24 @@ export interface Entity {
   maxHealth: number;
   speed: number;
   config: CreatureConfig;
-  targetId?: string | null; // For AI tracking
-  aggroTimer?: number; // How long to chase target (frames)
-  mouthOpenValue: number; // 0 (closed) to 1 (wide open)
-  isHidden?: boolean; // Hiding in obstacles
+  targetId?: string | null; 
+  aggroTimer?: number; 
+  mouthOpenValue: number; 
+  isHidden?: boolean; 
   
-  // Strategy States
-  isIdle: boolean; // Not moving much
-  lureActive: boolean; // Angler light on
-  camoActive: boolean; // Octopus blended in
-  ambushTimer: number; // Bonus frames after breaking stealth
+  isIdle: boolean;
+  lureActive: boolean;
+  camoActive: boolean;
+  ambushTimer: number;
 
-  animOffset: number; // Random value to desync animations
-  renderScale: number; // For "Pop" effect when eating
-  isInvulnerable?: boolean; // For pre-evolution protection
-  speedBoostTimer?: number; // Effect timer for powerups
+  animOffset: number; 
+  renderScale: number; 
+  isInvulnerable?: boolean; 
+  speedBoostTimer?: number; 
 }
 
 export interface PlayerState extends Entity {
-  xp: number;
-  level: number;
+  weight: number; // Replaces XP/Level. This is the score.
   evolutionPoints: number;
   traits: string[];
   stats: {
@@ -90,14 +88,14 @@ export interface PlayerState extends Entity {
     defenseMult: number;
     visionRadius: number;
   };
-  eatenHistory: Record<CreatureType, number>; // To determine evolution path
+  eatenHistory: Record<CreatureType, number>; 
   boost: {
     current: number;
     max: number;
     active: boolean;
   };
   isGodMode?: boolean;
-  reviveCount: number; // Track how many times revived
+  reviveCount: number; 
 }
 
 export interface Particle {
@@ -134,8 +132,8 @@ export interface Hazard {
   y: number;
   radius: number;
   type: 'BIRD_STRIKE';
-  timer: number; // Countdown to strike
-  duration: number; // Total duration of hazard
+  timer: number;
+  duration: number;
   stage: 'WARNING' | 'STRIKE' | 'COOLDOWN';
 }
 
@@ -150,7 +148,7 @@ export interface GameState {
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };
-  score: number;
+  score: number; // Kept for legacy compatibility, usually same as weight
   genePoints: number; 
   time: number; 
 }

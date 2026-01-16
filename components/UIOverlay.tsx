@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType } from '../types';
-import { LEVEL_THRESHOLDS } from '../constants';
-import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban } from 'lucide-react';
+import { CREATURES } from '../constants';
+import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight } from 'lucide-react';
 
 interface UIOverlayProps {
   gameState: GameState;
-  onStart: () => void;
+  onStart: (selectedType?: CreatureType) => void;
   onEvolve: (trait: string, statBonus: Partial<PlayerState['stats']>) => void;
   onRestart: () => void;
   onRevive?: (useAd: boolean) => void;
@@ -13,8 +13,11 @@ interface UIOverlayProps {
 }
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onRestart, onRevive, onToggleGodMode }) => {
-  const { player, status, score, genePoints, hazards } = gameState;
+  const { player, status, score, hazards } = gameState;
   const [isWatchingAd, setIsWatchingAd] = useState(false);
+  const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
+
+  const starters = [CreatureType.CLOWN_FISH, CreatureType.BLUE_TANG, CreatureType.TURTLE];
 
   const handleAdReviveClick = () => {
     if (isWatchingAd) return;
@@ -27,9 +30,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
   // -- HUD --
   if (status === GameStatus.PLAYING) {
-    const nextXp = LEVEL_THRESHOLDS[player.level] || 999999;
-    const progress = Math.min(100, (player.xp / nextXp) * 100);
-
     const boostRatio = player.boost.current / player.boost.max;
     let boostColor = 'bg-yellow-500';
     let boostText = '充能中';
@@ -61,35 +61,33 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
         {/* Top Left: Stats */}
         <div className="flex flex-col gap-2 pointer-events-auto">
-          <div className="bg-slate-900/50 backdrop-blur p-3 rounded-lg border border-slate-700 w-64">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-slate-200 font-bold">等级 {player.level}</span>
-              <span className="text-xs text-slate-400">{player.xp} / {nextXp} XP</span>
+          <div className="bg-slate-900/50 backdrop-blur p-4 rounded-lg border border-slate-700 w-64 shadow-xl">
+             <div className="flex items-center gap-2 mb-2">
+                <div className="w-10 h-10 rounded-full border-2 border-white/20 bg-black/40 flex items-center justify-center">
+                   <div className="w-6 h-6 rounded-full" style={{ backgroundColor: player.config.color }}></div>
+                </div>
+                <div>
+                  <div className="text-white font-bold text-lg leading-none">{player.config.name}</div>
+                  <div className="text-slate-400 text-xs">Tier {player.config.tier}</div>
+                </div>
+             </div>
+
+            <div className="flex justify-between items-center text-sm mb-1">
+               <span className="text-slate-300 font-semibold">重量</span>
+               <span className="text-white font-mono text-lg">{Math.floor(player.weight)} kg</span>
             </div>
-            <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
-              <div 
-                className="bg-yellow-400 h-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            
-            <div className="mt-2 flex justify-between text-xs text-slate-300">
-               <span>体型 (Max: 400)</span>
-               <span>{Math.floor(player.radius)}</span>
-            </div>
-             <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1">
-              {/* Dynamic color for radius health */}
+             <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden mb-3">
               <div 
                 className={`h-full transition-all duration-300 ${player.radius < 10 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
-                style={{ width: `${Math.min(100, (player.radius / 100) * 100)}%` }}
+                style={{ width: `${Math.min(100, (player.radius / 500) * 100)}%` }}
               ></div>
             </div>
 
-            <div className="mt-2 flex justify-between text-xs items-center">
+            <div className="flex justify-between text-xs items-center mb-1">
                <span className="text-slate-300">加速 (空格键)</span>
                <span className={`text-[10px] font-bold ${boostTextColor} animate-pulse`}>{boostText}</span>
             </div>
-             <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden mt-1 border border-slate-600">
+             <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden border border-slate-600">
               <div 
                 className={`${boostColor} h-full transition-all duration-100`}
                 style={{ width: `${boostRatio * 100}%` }}
@@ -105,7 +103,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                onClick={onToggleGodMode}
                className="bg-amber-600/80 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs font-bold shadow-lg animate-pulse flex items-center gap-1"
              >
-               <Crown size={12}/> 变身无敌巨兽
+               <Crown size={12}/> 变身深海巨怪
              </button>
            )}
            {player.isGodMode && (
@@ -114,9 +112,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
              </div>
            )}
 
-           <div className="bg-slate-900/50 backdrop-blur px-4 py-2 rounded-lg border border-slate-700 text-white font-mono">
-             分数: {Math.floor(player.xp)}
-           </div>
            <div className="flex gap-1 flex-wrap justify-end max-w-xs">
              {player.traits.map(t => (
                <span key={t} className="px-2 py-1 bg-indigo-600/80 text-xs rounded text-white font-bold shadow-sm">
@@ -127,9 +122,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
         </div>
         
         {/* Tutorial Hint */}
-        {player.level === 1 && player.xp < 50 && (
+        {player.weight < 50 && (
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50 text-sm animate-pulse flex flex-col items-center text-center">
-            <span>咬大鱼的<span className="text-yellow-300 font-bold">尾巴</span>可以偷取体型!</span>
+            <span>咬大鱼的<span className="text-yellow-300 font-bold">尾巴</span>可以快速增重!</span>
             <span className="text-yellow-400 text-xs mt-1">但是小心! 大鱼可以一口吞掉你!</span>
             <span className="text-red-400 text-xs mt-1 font-bold">长按屏幕嘲讽 • 小心海鸟袭击!</span>
           </div>
@@ -140,31 +135,89 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
   // -- MAIN MENU --
   if (status === GameStatus.MENU) {
+    const starterConfig = CREATURES[selectedStarter];
+
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm z-50">
-        <div className="max-w-md w-full p-8 bg-slate-900 border border-pink-500 rounded-2xl shadow-2xl text-center">
-          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-yellow-400 mb-2 drop-shadow-lg">
-            海底世界
-          </h1>
-          <p className="text-slate-400 mb-8">自由进化，称霸无尽海域！</p>
-          
-          <div className="space-y-4">
-            <button 
-              onClick={onStart}
-              className="w-full py-4 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg text-xl transition-colors shadow-lg shadow-pink-500/30"
-            >
-              开始游戏
-            </button>
-            <div className="p-4 bg-slate-800 rounded-lg text-left text-sm text-slate-300 border border-slate-700">
-               <p className="mb-2 font-bold text-slate-200 text-base border-b border-slate-700 pb-1">游戏指南:</p>
-               <ul className="list-disc pl-5 space-y-2">
-                 <li><span className="text-green-400 font-bold">无尽</span>: 世界没有边界，向着深海自由探索!</li>
-                 <li><span className="text-yellow-400 font-bold">吞噬</span>: 大鱼吃小鱼，体型悬殊可<span className="text-red-400">一口吞掉</span>对手!</li>
-                 <li><span className="text-blue-400 font-bold">偷袭</span>: 小鱼咬大鱼的<span className="text-yellow-300">尾巴</span>可以掠夺大量体型!</li>
-                 <li><span className="text-red-400 font-bold">警惕</span>: 看到<span className="text-red-500">海鸟阴影</span>快跑，那是死亡倒计时!</li>
-               </ul>
+      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm z-50">
+        <div className="max-w-4xl w-full flex flex-col md:flex-row gap-8 p-8 items-center justify-center">
+            
+            {/* Left: Title & Info */}
+            <div className="flex-1 text-center md:text-left">
+                <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-2 drop-shadow-lg">
+                    海底世界
+                </h1>
+                <p className="text-slate-400 text-lg mb-8">自由进化，称霸无尽海域！</p>
+                
+                <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-700 text-left">
+                    <h3 className="text-xl font-bold text-white mb-4 border-b border-slate-700 pb-2">生存法则</h3>
+                     <ul className="space-y-3 text-slate-300">
+                        <li className="flex items-start gap-2">
+                            <span className="text-yellow-400 font-bold">●</span>
+                            <span><b>大鱼吃小鱼</b>: 体型就是一切。</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="text-red-400 font-bold">●</span>
+                            <span><b>进化</b>: 你的食谱决定你的进化路线。</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="text-cyan-400 font-bold">●</span>
+                            <span><b>技巧</b>: 攻击大鱼尾巴可掠夺重量。</span>
+                        </li>
+                     </ul>
+                </div>
             </div>
-          </div>
+
+            {/* Right: Character Selection */}
+            <div className="flex-1 w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-cyan-500 to-blue-500"></div>
+                <h2 className="text-center text-white font-bold text-xl mb-6">选择你的初始鱼</h2>
+                
+                <div className="flex justify-center gap-4 mb-6">
+                    {starters.map(type => {
+                        const cfg = CREATURES[type];
+                        const isSelected = selectedStarter === type;
+                        return (
+                            <button 
+                                key={type}
+                                onClick={() => setSelectedStarter(type)}
+                                className={`relative w-20 h-20 rounded-xl flex items-center justify-center transition-all duration-300 border-2 ${isSelected ? 'border-cyan-400 bg-cyan-900/30 scale-110 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : 'border-slate-700 bg-slate-800 hover:border-slate-500'}`}
+                            >
+                                <div 
+                                    className="w-10 h-10 rounded-full shadow-lg"
+                                    style={{ backgroundColor: cfg.color }}
+                                ></div>
+                                {isSelected && <div className="absolute -bottom-2 bg-cyan-400 w-2 h-2 rotate-45"></div>}
+                            </button>
+                        )
+                    })}
+                </div>
+
+                <div className="bg-slate-800 rounded-lg p-4 mb-6 min-h-[140px] border border-slate-700 transition-all">
+                    <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                        {starterConfig.name}
+                        <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300 font-normal">Tier 1</span>
+                    </h3>
+                    <p className="text-slate-400 text-sm mb-3">{starterConfig.description}</p>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-slate-900/50 p-2 rounded flex justify-between">
+                            <span className="text-slate-500">速度</span>
+                            <span className="text-cyan-300">{'★'.repeat(starterConfig.speed * 2)}</span>
+                        </div>
+                        <div className="bg-slate-900/50 p-2 rounded flex justify-between">
+                            <span className="text-slate-500">生命</span>
+                            <span className="text-green-300">{'★'.repeat(Math.ceil(starterConfig.health / 20))}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={() => onStart(selectedStarter)}
+                    className="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-lg text-xl transition-all shadow-lg shadow-cyan-500/20 active:scale-95 flex items-center justify-center gap-2 group"
+                >
+                    开始游戏 <ChevronRight className="group-hover:translate-x-1 transition-transform"/>
+                </button>
+            </div>
         </div>
       </div>
     );
@@ -186,7 +239,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
       );
     }
     
-    // Fix: Handle undefined (legacy state) gracefully
     const currentRevives = player.reviveCount ?? 0;
     const canRevive = currentRevives < 1;
 
@@ -198,12 +250,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
           
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-slate-800 p-3 rounded">
-              <div className="text-xs text-slate-400">等级</div>
-              <div className="text-xl font-bold text-white">{player.level}</div>
+              <div className="text-xs text-slate-400">最终重量</div>
+              <div className="text-xl font-bold text-white">{Math.floor(player.weight)} kg</div>
             </div>
             <div className="bg-slate-800 p-3 rounded">
-              <div className="text-xs text-slate-400">分数</div>
-              <div className="text-xl font-bold text-white">{Math.floor(score)}</div>
+              <div className="text-xs text-slate-400">物种</div>
+              <div className="text-xl font-bold text-white">{player.config.name}</div>
             </div>
           </div>
 

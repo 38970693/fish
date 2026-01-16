@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -8,23 +6,21 @@ import { INITIAL_PLAYER_STATS, WORLD_SIZE, CREATURES, BOOST_CONFIG } from './con
 import { updateGame, createEntity, createObstacles } from './gameEngine';
 
 // Initial state factory
-const createInitialState = (options: { isPremium?: boolean } = {}): GameState => {
+const createInitialState = (options: { isPremium?: boolean, startType?: CreatureType } = {}): GameState => {
   const isPremium = options.isPremium || false;
   
   // Default Start
-  let startType = CreatureType.ALGAE_FISH;
-  let startLevel = 1;
-  let startRadius = INITIAL_PLAYER_STATS.radius;
-  let startHealth = INITIAL_PLAYER_STATS.health;
-  let startXp = 0;
+  let startType = options.startType || CreatureType.CLOWN_FISH;
+  let startRadius = CREATURES[startType].baseRadius;
+  let startHealth = CREATURES[startType].health;
+  let startWeight = 5;
   
-  // Premium Start (Ad Revive)
+  // Premium Start (Ad Revive / Debug)
   if (isPremium) {
     startType = CreatureType.SWORD_FISH;
-    startLevel = 10;
     startRadius = CREATURES[CreatureType.SWORD_FISH].baseRadius * 1.5; 
     startHealth = 300;
-    startXp = 2500; 
+    startWeight = 500; 
   }
 
   const baseConfig = CREATURES[startType];
@@ -42,12 +38,11 @@ const createInitialState = (options: { isPremium?: boolean } = {}): GameState =>
       angle: 0,
       health: startHealth,
       maxHealth: startHealth,
-      // Player gets 2x speed advantage over AI counterparts
-      speed: baseConfig.speed * 2 * (isPremium ? 1.2 : 1),
+      // Player gets slight speed advantage
+      speed: baseConfig.speed * 1.2,
       config: baseConfig,
-      xp: startXp,
-      level: startLevel,
-      evolutionPoints: isPremium ? 5 : 0, 
+      weight: startWeight,
+      evolutionPoints: 0, 
       traits: isPremium ? ['复仇者'] : [],
       stats: {
         speedMult: 1,
@@ -80,7 +75,7 @@ const createInitialState = (options: { isPremium?: boolean } = {}): GameState =>
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
     camera: { x: 0, y: 0, zoom: 1 },
-    score: isPremium ? 1000 : 0,
+    score: 0,
     genePoints: 0,
     time: 0
   };
@@ -127,13 +122,13 @@ const App: React.FC = () => {
         const x = Math.random() * WORLD_SIZE;
         const y = Math.random() * WORLD_SIZE;
         state.entities.push(
-            createEntity(Math.random() > 0.5 ? CreatureType.PLANKTON : CreatureType.ALGAE_FISH, x, y)
+            createEntity(Math.random() > 0.5 ? CreatureType.PLANKTON : CreatureType.CLOWN_FISH, x, y)
         );
     }
   };
 
-  const startGame = () => {
-    gameStateRef.current = createInitialState();
+  const startGame = (selectedType?: CreatureType) => {
+    gameStateRef.current = createInitialState({ startType: selectedType });
     spawnInitialEntities(gameStateRef.current);
     gameStateRef.current.status = GameStatus.PLAYING;
   };
@@ -154,9 +149,10 @@ const App: React.FC = () => {
       }, 3000);
       
     } else {
-      gameStateRef.current = createInitialState();
-      spawnInitialEntities(gameStateRef.current);
-      gameStateRef.current.status = GameStatus.PLAYING;
+      gameStateRef.current = createInitialState(); // Reset to default menu logic if declining ad
+      // But actually we want to return to menu or just restart with default?
+      // Simple restart logic:
+      gameStateRef.current.status = GameStatus.MENU;
     }
   };
 
@@ -177,15 +173,15 @@ const App: React.FC = () => {
     const p = gameStateRef.current.player;
     if (!p.isGodMode) {
       p.isGodMode = true;
-      p.type = CreatureType.LEVIATHAN;
-      p.config = CREATURES[CreatureType.LEVIATHAN];
-      p.radius = 160;
+      p.type = CreatureType.KRAKEN;
+      p.config = CREATURES[CreatureType.KRAKEN];
+      p.radius = 180;
       p.maxHealth = 99999;
       p.health = 99999;
       p.speed = 5; 
+      p.weight = 9999;
       p.stats.sizeMult = 2.0;
-      p.level = 99;
-      p.traits.push("神");
+      p.traits.push("深海之神");
     }
   };
 
@@ -199,7 +195,6 @@ const App: React.FC = () => {
         window.innerWidth,
         window.innerHeight
       );
-      gameStateRef.current.score += 0.05; 
     }
     frameIdRef.current = requestAnimationFrame(gameLoop);
   }, []);
@@ -222,7 +217,7 @@ const App: React.FC = () => {
         gameState={uiState} 
         onStart={startGame}
         onEvolve={handleEvolve}
-        onRestart={startGame}
+        onRestart={() => { gameStateRef.current.status = GameStatus.MENU; }}
         onRevive={handleRevive}
         onToggleGodMode={handleToggleGodMode}
       />

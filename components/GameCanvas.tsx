@@ -104,7 +104,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       ctx.lineWidth = 2;
       
-      if (type === CreatureType.OCTOPUS) {
+      if (type === CreatureType.SQUID || type === CreatureType.KRAKEN) {
          for(let i=0; i<8; i++) {
              ctx.save();
              const angle = (Math.PI / 4) * i + (Math.sin(time * 0.2 + i)*0.2);
@@ -161,7 +161,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        ctx.beginPath();
        ctx.arc(0, 0, radius, 0, Math.PI * 2);
        ctx.fill();
-    } else if (type === CreatureType.OCTOPUS) {
+    } else if (type === CreatureType.SQUID || type === CreatureType.KRAKEN) {
        ctx.beginPath();
        ctx.arc(0, 0, radius, 0, Math.PI * 2);
        ctx.fill();
@@ -282,7 +282,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
        };
 
        const drawTeethRow = (isTop: boolean) => {
-          const numTeeth = (type === CreatureType.ANGLER_FISH || type === CreatureType.LEVIATHAN) ? 5 : 3; 
+          const numTeeth = (type === CreatureType.ANGLER_FISH || type === CreatureType.KRAKEN) ? 5 : 3; 
           const rowY = isTop ? -openH : openH;
           const dir = isTop ? 1 : -1;
           const totalW = openW * 1.6;
