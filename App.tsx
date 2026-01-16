@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -20,9 +22,9 @@ const createInitialState = (options: { isPremium?: boolean } = {}): GameState =>
   if (isPremium) {
     startType = CreatureType.SWORD_FISH;
     startLevel = 10;
-    startRadius = CREATURES[CreatureType.SWORD_FISH].baseRadius * 1.5; // Bigger start
+    startRadius = CREATURES[CreatureType.SWORD_FISH].baseRadius * 1.5; 
     startHealth = 300;
-    startXp = 2500; // Boosted XP
+    startXp = 2500; 
   }
 
   const baseConfig = CREATURES[startType];
@@ -40,11 +42,12 @@ const createInitialState = (options: { isPremium?: boolean } = {}): GameState =>
       angle: 0,
       health: startHealth,
       maxHealth: startHealth,
-      speed: baseConfig.speed * (isPremium ? 1.2 : 1),
+      // Player gets 2x speed advantage over AI counterparts
+      speed: baseConfig.speed * 2 * (isPremium ? 1.2 : 1),
       config: baseConfig,
       xp: startXp,
       level: startLevel,
-      evolutionPoints: isPremium ? 5 : 0, // Free points
+      evolutionPoints: isPremium ? 5 : 0, 
       traits: isPremium ? ['复仇者'] : [],
       stats: {
         speedMult: 1,
@@ -55,16 +58,25 @@ const createInitialState = (options: { isPremium?: boolean } = {}): GameState =>
       eatenHistory: {} as Record<CreatureType, number>,
       mouthOpenValue: 0,
       animOffset: 0,
+      renderScale: 1.0,
+      isInvulnerable: false,
       boost: {
         current: BOOST_CONFIG.MAX_ENERGY,
         max: BOOST_CONFIG.MAX_ENERGY,
         active: false
       },
-      isGodMode: false
+      isGodMode: false,
+      reviveCount: 0,
+      isIdle: false,
+      lureActive: false,
+      camoActive: false,
+      ambushTimer: 0
     },
     entities: [],
     particles: [],
     obstacles: createObstacles(),
+    powerUps: [],
+    hazards: [],
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
     camera: { x: 0, y: 0, zoom: 1 },
@@ -80,6 +92,7 @@ const App: React.FC = () => {
   
   const mouseRef = useRef({ x: 0, y: 0 });
   const keysRef = useRef<{ space: boolean }>({ space: false });
+  const isMouseDownRef = useRef(false);
   const frameIdRef = useRef<number>(0);
 
   // Sync state for UI updates (throttled)
@@ -109,8 +122,8 @@ const App: React.FC = () => {
   }, []);
 
   const spawnInitialEntities = (state: GameState) => {
-    // Initial Spawn - Massive swarm of food (400 entities - Doubled from 200)
-    for(let i=0; i<400; i++) {
+    // Initial Spawn - Reduced count
+    for(let i=0; i<100; i++) {
         const x = Math.random() * WORLD_SIZE;
         const y = Math.random() * WORLD_SIZE;
         state.entities.push(
@@ -126,38 +139,50 @@ const App: React.FC = () => {
   };
 
   const handleRevive = (useAd: boolean) => {
-    gameStateRef.current = createInitialState({ isPremium: useAd });
-    spawnInitialEntities(gameStateRef.current);
-    gameStateRef.current.status = GameStatus.PLAYING;
+    if (useAd) {
+      const deadPlayer = gameStateRef.current.player;
+      gameStateRef.current.status = GameStatus.PLAYING;
+      gameStateRef.current.player.health = deadPlayer.maxHealth;
+      gameStateRef.current.player.x = Math.random() * WORLD_SIZE; 
+      gameStateRef.current.player.y = Math.random() * WORLD_SIZE;
+      gameStateRef.current.player.isInvulnerable = true;
+      gameStateRef.current.player.boost.current = gameStateRef.current.player.boost.max;
+      gameStateRef.current.player.reviveCount = (gameStateRef.current.player.reviveCount || 0) + 1;
+      
+      setTimeout(() => {
+         gameStateRef.current.player.isInvulnerable = false;
+      }, 3000);
+      
+    } else {
+      gameStateRef.current = createInitialState();
+      spawnInitialEntities(gameStateRef.current);
+      gameStateRef.current.status = GameStatus.PLAYING;
+    }
   };
 
   const handleMouseMove = (x: number, y: number) => {
     mouseRef.current = { x, y };
   };
 
+  const handleMouseDown = () => { isMouseDownRef.current = true; };
+  const handleMouseUp = () => { isMouseDownRef.current = false; };
+
   const handleEvolve = (trait: string, statBonus: Partial<PlayerState['stats']>) => {
     const state = gameStateRef.current;
     state.player.traits.push(trait);
-    
-    if (statBonus.speedMult) state.player.stats.speedMult += (statBonus.speedMult - 1);
-    if (statBonus.sizeMult) state.player.stats.sizeMult += (statBonus.sizeMult - 1);
-    if (statBonus.defenseMult) state.player.stats.defenseMult += (statBonus.defenseMult - 1);
-    if (statBonus.visionRadius) state.player.stats.visionRadius += (statBonus.visionRadius - 1);
-    
     state.status = GameStatus.PLAYING;
   };
 
   const handleToggleGodMode = () => {
     const p = gameStateRef.current.player;
     if (!p.isGodMode) {
-      // Activate God Mode
       p.isGodMode = true;
       p.type = CreatureType.LEVIATHAN;
       p.config = CREATURES[CreatureType.LEVIATHAN];
       p.radius = 160;
       p.maxHealth = 99999;
       p.health = 99999;
-      p.speed = 5; // Good cruising speed
+      p.speed = 5; 
       p.stats.sizeMult = 2.0;
       p.level = 99;
       p.traits.push("神");
@@ -169,7 +194,8 @@ const App: React.FC = () => {
       gameStateRef.current = updateGame(
         gameStateRef.current,
         mouseRef.current,
-        keysRef.current.space, // Pass boost intent
+        keysRef.current.space, // Boost
+        isMouseDownRef.current, // Taunt
         window.innerWidth,
         window.innerHeight
       );
@@ -188,6 +214,8 @@ const App: React.FC = () => {
       <GameCanvas 
         gameState={gameStateRef.current} 
         onMouseMove={handleMouseMove} 
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
       />
       
       <UIOverlay 

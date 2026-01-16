@@ -1,3 +1,5 @@
+
+
 export enum GameStatus {
   MENU = 'MENU',
   PLAYING = 'PLAYING',
@@ -7,26 +9,30 @@ export enum GameStatus {
 }
 
 export enum CreatureType {
-  // Tier 1: Passive
+  // Tier 0
   PLANKTON = 'PLANKTON',
-  ALGAE_FISH = 'ALGAE_FISH',
-  JELLYFISH = 'JELLYFISH',
   
-  // Tier 2: Reactive / Weird
-  NEEDLE_FISH = 'NEEDLE_FISH',
+  // Tier 1 (Small)
+  ALGAE_FISH = 'ALGAE_FISH', // Basic
+  JELLYFISH = 'JELLYFISH', // Passive, dangerous to touch
+  
+  // Tier 2 (Medium - Tricksters)
+  NEEDLE_FISH = 'NEEDLE_FISH', // Fast
+  OCTOPUS = 'OCTOPUS', // Camouflage / Ambush
+  POISON_FISH = 'POISON_FISH', // Defensive
+  WORKER = 'WORKER',
   ARMOR_FISH = 'ARMOR_FISH',
-  POISON_FISH = 'POISON_FISH',
-  WORKER = 'WORKER', // "牛马" (Sad worker fish)
   
-  // Tier 3: Aggressive / Monsters
-  SWORD_FISH = 'SWORD_FISH',
+  // Tier 3 (Large - Hunters)
+  ANGLER_FISH = 'ANGLER_FISH', // Lure / Trap
+  SWORD_FISH = 'SWORD_FISH', // Combat
+  GHOST = 'GHOST', // Fast Aggro
   EEL = 'EEL',
-  MEGA_MOUTH = 'MEGA_MOUTH',
-  GHOST = 'GHOST', // "鬼"
   
-  // Tier 4: Boss / Mutant
-  MUTANT = 'MUTANT', // "怪"
-  LEVIATHAN = 'LEVIATHAN'
+  // Tier 4 (Giant)
+  MEGA_MOUTH = 'MEGA_MOUTH',
+  LEVIATHAN = 'LEVIATHAN',
+  MUTANT = 'MUTANT'
 }
 
 export interface CreatureConfig {
@@ -38,9 +44,9 @@ export interface CreatureConfig {
   health: number;
   damage: number;
   xpValue: number;
-  behavior: 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'BOSS';
-  special?: 'POISON' | 'SHOCK' | 'SPIKE' | 'NONE';
-  tier: 1 | 2 | 3 | 4;
+  behavior: 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'AMBUSH' | 'BOSS';
+  special?: 'POISON' | 'SHOCK' | 'SPIKE' | 'LURE' | 'CAMO' | 'NONE';
+  tier: 0 | 1 | 2 | 3 | 4;
 }
 
 export interface Entity {
@@ -57,11 +63,20 @@ export interface Entity {
   speed: number;
   config: CreatureConfig;
   targetId?: string | null; // For AI tracking
+  aggroTimer?: number; // How long to chase target (frames)
   mouthOpenValue: number; // 0 (closed) to 1 (wide open)
-  isHidden?: boolean; // Transient state for rendering/logic
+  isHidden?: boolean; // Hiding in obstacles
+  
+  // Strategy States
+  isIdle: boolean; // Not moving much
+  lureActive: boolean; // Angler light on
+  camoActive: boolean; // Octopus blended in
+  ambushTimer: number; // Bonus frames after breaking stealth
+
   animOffset: number; // Random value to desync animations
   renderScale: number; // For "Pop" effect when eating
   isInvulnerable?: boolean; // For pre-evolution protection
+  speedBoostTimer?: number; // Effect timer for powerups
 }
 
 export interface PlayerState extends Entity {
@@ -82,6 +97,7 @@ export interface PlayerState extends Entity {
     active: boolean;
   };
   isGodMode?: boolean;
+  reviveCount: number; // Track how many times revived
 }
 
 export interface Particle {
@@ -101,7 +117,26 @@ export interface Obstacle {
   x: number;
   y: number;
   radius: number;
-  type: 'ROCK' | 'CORAL';
+  type: 'ROCK' | 'CORAL' | 'SEAWEED';
+}
+
+export interface PowerUp {
+  id: string;
+  x: number;
+  y: number;
+  type: 'SPEED';
+  radius: number;
+}
+
+export interface Hazard {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  type: 'BIRD_STRIKE';
+  timer: number; // Countdown to strike
+  duration: number; // Total duration of hazard
+  stage: 'WARNING' | 'STRIKE' | 'COOLDOWN';
 }
 
 export interface GameState {
@@ -110,10 +145,12 @@ export interface GameState {
   entities: Entity[];
   particles: Particle[];
   obstacles: Obstacle[];
+  powerUps: PowerUp[];
+  hazards: Hazard[]; 
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };
   score: number;
-  genePoints: number; // Persistent currency
-  time: number; // Global animation tick
+  genePoints: number; 
+  time: number; 
 }
