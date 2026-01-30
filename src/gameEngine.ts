@@ -59,6 +59,7 @@ const clampToMap = (entity: {x: number, y: number, radius: number, angle: number
         if (entity.vx !== undefined && entity.vy !== undefined) {
              entity.vx *= -0.5;
              entity.vy *= -0.5;
+             entity.angle += Math.PI;
         }
     }
 };
@@ -1061,6 +1062,34 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
   const { player, entities, particles, obstacles, powerUps, hazards, projectiles } = state;
 
   if (state.status === GameStatus.PLAYING) {
+      // Trail Particles Logic
+      if (player.cosmetics && player.cosmetics.trailType && player.cosmetics.trailType !== 'NONE') {
+          if (Math.random() < 0.4) {
+              let color = '#ffffff';
+              let size = Math.random() * 3 + 2;
+              let life = 0.5;
+              const tType = player.cosmetics.trailType;
+              if (tType === 'BUBBLES') { color = 'rgba(255,255,255,0.5)'; }
+              else if (tType === 'RAINBOW') { color = `hsl(${(state.time * 10) % 360}, 100%, 50%)`; }
+              else if (tType === 'FIRE') { color = Math.random() < 0.5 ? '#ef4444' : '#f59e0b'; }
+              else if (tType === 'GLITTER') { color = '#fef08a'; life = 0.8; }
+              else if (tType === 'HEARTS') { color = '#ec4899'; }
+              else if (tType === 'ELECTRIC') { color = '#22d3ee'; }
+              else if (tType === 'SLIME') { color = '#4ade80'; }
+              state.particles.push({
+                  id: uuid(),
+                  x: player.x - Math.cos(player.angle) * player.radius, 
+                  y: player.y - Math.sin(player.angle) * player.radius,
+                  vx: (Math.random() - 0.5) * 2,
+                  vy: (Math.random() - 0.5) * 2,
+                  life,
+                  maxLife: life,
+                  color,
+                  size
+              });
+          }
+      }
+
       const cx = screenWidth / 2;
       const cy = screenHeight / 2;
       const dx = mouse.x - cx;
@@ -1085,7 +1114,13 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
       if (isSpacePressed && canBoost) {
           player.boost.active = true;
           player.boost.current -= BOOST_CONFIG.DRAIN_RATE;
-          speedMult *= BOOST_CONFIG.SPEED_MULTIPLIER;
+          
+          let massBonus = 1.0;
+          if (player.radius > 50) massBonus = 1.2;
+          if (player.radius > 100) massBonus = 1.5;
+          if (player.radius > 150) massBonus = 1.8;
+
+          speedMult *= (BOOST_CONFIG.SPEED_MULTIPLIER * massBonus);
           if (player.boost.current <= 0 && player.weight > BOOST_CONFIG.OVERDRIVE_MIN_WEIGHT) {
                player.isOverdrive = true;
                player.weight -= BOOST_CONFIG.OVERDRIVE_WEIGHT_COST;
@@ -1163,9 +1198,131 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
       player.currentBiome = getBiome(player.x, player.y);
   }
 
+  // --- LABEL GENERATION (Dynamic Hints) ---
+  state.labels = []; // Clear previous labels
+  if (state.status === GameStatus.PLAYING) {
+      // 1. Buildings (Always handy)
+      state.buildings.forEach(b => {
+          const d = dist(player, b);
+          if (d < 400) {
+              let text = "";
+              if (b.type === BuildingType.SHOP) text = "商店: 停止移动进入换装";
+              else if (b.type === BuildingType.HOSPITAL) text = "急救站: 靠近恢复生命";
+              else if (b.type === BuildingType.ARMORY) text = "军火库: 靠近补充鱼雷";
+              else if (b.type === BuildingType.SHRINE) text = "龙王庙: 随机强力BUFF";
+              
+              if (text) state.labels.push({ x: b.x, y: b.y - b.radius - 20, text, color: '#ffffff' });
+          }
+      });
+
+      // 2. Portals
+      state.portals.forEach(p => {
+          if (dist(player, p) < 300) {
+              state.labels.push({ x: p.x, y: p.y - p.radius - 30, text: "传送阵: 瞬间转移", color: '#d8b4fe' });
+          }
+      });
+
+      // 3. Ambush Opportunities (Behind Big Fish)
+      state.entities.forEach(e => {
+          if (e.radius > player.radius * 1.5 && !e.isHidden && e.type !== CreatureType.PLANKTON) {
+              const distToEnemy = dist(player, e);
+              if (distToEnemy < 500) {
+                  // Check angle to see if player is behind
+                  const angleToPlayer = Math.atan2(player.y - e.y, player.x - e.x);
+                  let angleDiff = Math.abs(angleToPlayer - e.angle);
+                  while(angleDiff > Math.PI) angleDiff -= Math.PI*2;
+                  angleDiff = Math.abs(angleDiff);
+                  
+                  // If angleDiff is large (close to PI, meaning player vector is opposite to fish velocity vector), player is behind
+                  if (angleDiff > 2.0) { // > ~115 degrees
+                       state.labels.push({ x: e.x, y: e.y + e.radius + 40, text: "机会! 背后偷袭暴击!", color: '#fca5a5' });
+                  }
+              }
+          }
+      });
+
+      // 4. NEW: Extensive Tutorial & Status Hints (Idiot-proofing)
+      
+      // A. Hiding in Seaweed
+      let nearestSeaweed = null;
+      let minSeaweedDist = 350;
+      state.obstacles.forEach(o => {
+          if (o.type === 'SEAWEED') {
+              const d = dist(player, o);
+              if (d < minSeaweedDist) {
+                  minSeaweedDist = d;
+                  nearestSeaweed = o;
+              }
+          }
+      });
+      if (nearestSeaweed && !player.isHidden) {
+          state.labels.push({ x: (nearestSeaweed as Obstacle).x, y: (nearestSeaweed as Obstacle).y - 60, text: "躲进草丛! 隐身!", color: '#bef264' });
+      }
+
+      // B. Low Health Warning
+      if (player.health < player.maxHealth * 0.3) {
+          state.labels.push({ x: player.x, y: player.y - 80, text: "残血了! 快找急救站(红十字)!", color: '#ef4444' });
+      }
+
+      // C. Basket Full
+      const basketTotal = player.basket.reduce((acc, item) => acc + item.count, 0);
+      if (basketTotal >= 3) {
+          state.labels.push({ x: player.x, y: player.y + 80, text: "鱼篓满了! 点右下角消化变强!", color: '#f59e0b' });
+      }
+
+      // D. Boost Tip
+      if (player.boost.current >= 90 && Math.hypot(player.vx, player.vy) > 1 && !isSpacePressed && state.time % 300 < 100) {
+           // Intermittent reminder
+           state.labels.push({ x: player.x, y: player.y + 110, text: "按住空格冲刺!", color: '#fde047' });
+      }
+
+      // E. Newbie Food Hint & Danger Hint
+      let foodMarked = false;
+      let dangerMarked = false;
+      state.entities.forEach(e => {
+          const d = dist(player, e);
+          
+          // Food (Only for small players)
+          if (player.radius < 30 && !foodMarked && e.type === CreatureType.PLANKTON && d < 400) {
+              state.labels.push({ x: e.x, y: e.y - 20, text: "吃我! +经验", color: '#86efac' });
+              foodMarked = true;
+          }
+
+          // Danger (Any size)
+          if (!dangerMarked && e.radius > player.radius * 1.5 && d < 550 && !e.isHidden) {
+              state.labels.push({ x: e.x, y: e.y - e.radius - 30, text: "太大了! 快跑!", color: '#ef4444' });
+              dangerMarked = true;
+          }
+      });
+
+      // F. PowerUp Identification
+      state.powerUps.forEach(p => {
+          if (dist(player, p) < 400) {
+              let txt = "道具";
+              let col = "#fff";
+              if (p.type === 'SPEED') { txt = "加速BUFF"; col = "#fde047"; }
+              else if (p.type === 'SHIELD') { txt = "无敌护盾"; col = "#22d3ee"; }
+              else if (p.type === 'TORPEDO') { txt = "鱼雷弹药"; col = "#f87171"; }
+              state.labels.push({ x: p.x, y: p.y - 30, text: txt, color: col });
+          }
+      });
+
+      // G. Map Boundary Warning
+      const distFromCenter = Math.hypot(player.x - MAP_SHAPE_CONFIG.CENTER_X, player.y - MAP_SHAPE_CONFIG.CENTER_Y);
+      const boundaryR = getMapBoundaryRadius(Math.atan2(player.y - MAP_SHAPE_CONFIG.CENTER_Y, player.x - MAP_SHAPE_CONFIG.CENTER_X));
+      if (distFromCenter > boundaryR - 600) {
+           const labelX = player.x + (MAP_SHAPE_CONFIG.CENTER_X - player.x) * 0.1;
+           const labelY = player.y + (MAP_SHAPE_CONFIG.CENTER_Y - player.y) * 0.1;
+           state.labels.push({ x: labelX, y: labelY, text: "前方地图边界! 回头!", color: '#f87171' });
+      }
+  }
+
   state.entities.forEach(ent => {
      updateAI(ent, state);
-     if (!isPositionValid(ent.x, ent.y, -100)) ent.health = 0; 
+     const distFromCenter = Math.hypot(ent.x - MAP_SHAPE_CONFIG.CENTER_X, ent.y - MAP_SHAPE_CONFIG.CENTER_Y);
+     if (distFromCenter > MAP_SHAPE_CONFIG.BASE_RADIUS + MAP_SHAPE_CONFIG.PETAL_VARIANCE + 200) {
+         ent.health = 0;
+     }
   });
   
   state.entities = state.entities.filter(e => e.health > 0);
@@ -1175,13 +1332,7 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
       p.life--;
       p.x += p.vx;
       p.y += p.vy;
-      if (Math.random() < 0.5) {
-          state.particles.push({
-             ...createParticle(p.x, p.y, '#f87171'),
-             size: 2, 
-             life: 0.3
-          });
-      }
+      if (Math.random() < 0.5) state.particles.push({ ...createParticle(p.x, p.y, '#f87171'), size: 2, life: 0.3 });
       for (const ent of state.entities) {
           if (dist(p, ent) < ent.radius + p.radius) {
               ent.health -= p.damage;
@@ -1253,11 +1404,10 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
       }
   }
 
-  const targetCamX = player.x - (screenWidth / 2) / state.camera.zoom;
-  const targetCamY = player.y - (screenHeight / 2) / state.camera.zoom;
-  state.camera.x += (targetCamX - state.camera.x) * 0.1;
-  state.camera.y += (targetCamY - state.camera.y) * 0.1;
-  const targetZoom = Math.max(0.3, 0.8 - (player.radius / 500));
+  state.camera.x += (player.x - state.camera.x) * 0.1;
+  state.camera.y += (player.y - state.camera.y) * 0.1;
+  // Increase max zoom to 1.5, min zoom 0.3
+  const targetZoom = Math.max(0.3, Math.min(1.5, 1.0 - (player.radius / 800)));
   state.camera.zoom += (targetZoom - state.camera.zoom) * 0.05;
 
   return state;

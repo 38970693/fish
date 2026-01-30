@@ -314,6 +314,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
           {label: '耳机', value: 'HEADPHONES', icon: '🎧'},
           {label: '光环', value: 'HALO', icon: '😇', vip: true},
           {label: '眼罩', value: 'EYEPATCH', icon: '🏴‍☠️'},
+          {label: '独角兽', value: 'UNICORN_HORN', icon: '🦄', vip: true},
       ];
 
       const TAIL_OPTIONS: {label: string, value: TailType, icon: string}[] = [

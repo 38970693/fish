@@ -94,7 +94,7 @@ export type ScaleType =
 export type AccessoryType = 
   | 'NONE' | 'GOLD_CHAIN' | 'PEARL_NECKLACE' | 'JADE_PENDANT' 
   | 'SUNGLASSES' | 'CROWN' | 'BOW_TIE' | 'DIAMOND_RING' 
-  | 'MEDAL' | 'SCARF' | 'HEADPHONES' | 'FLOWER' | 'EYEPATCH' | 'HALO';
+  | 'MEDAL' | 'SCARF' | 'HEADPHONES' | 'FLOWER' | 'EYEPATCH' | 'HALO' | 'UNICORN_HORN';
 
 export type TailType = 
   | 'DEFAULT' | 'CRESCENT' | 'FORKED' | 'FAN' | 'TRIDENT' 
@@ -277,6 +277,14 @@ export interface Building {
   cooldown: number; 
 }
 
+// NEW: Label for dynamic in-game text
+export interface Label {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+}
+
 export interface GameState {
   status: GameStatus;
   player: PlayerState;
@@ -288,6 +296,7 @@ export interface GameState {
   projectiles: Projectile[];
   portals: Portal[]; 
   buildings: Building[]; 
+  labels: Label[]; // Added
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };

@@ -90,6 +90,7 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
     projectiles: [],
     portals: createPortals(),
     buildings: createBuildings(), 
+    labels: [], // Initial empty labels
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
     camera: { x: startX, y: startY, zoom: 0.8 }, 

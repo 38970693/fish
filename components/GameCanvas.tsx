@@ -274,9 +274,20 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         }
     }
 
-    const biteSpeed = 0.25;
-    // Increased mouth amplitude by 20% (0.3 -> 0.36)
-    const mouthGap = 0.1 + Math.abs(Math.sin(visualTime * biteSpeed + animOffset)) * 0.36; 
+    // --- BITE SPEED LOGIC ---
+    let biteSpeed = 0.12; // Default: Slower bite in idle
+    
+    // Check if player or entity is boosting (Accelerating)
+    const isBoosting = (entity.speedBoostTimer && entity.speedBoostTimer > 0) || (isPlayer && (entity as any).boost?.active);
+    // Check if entity is chasing something (Targeting)
+    const isChasing = !!entity.targetId;
+
+    if (isBoosting || isChasing) {
+        biteSpeed = 0.40; // Fast bite when aggressive or fast
+    }
+
+    // Increased mouth amplitude by ~30% (Old: 0.36 -> New: 0.47)
+    const mouthGap = 0.1 + Math.abs(Math.sin(visualTime * biteSpeed + animOffset)) * 0.47; 
 
     // Define Body Path function for reuse (Clips)
     const defineBodyPath = () => {
@@ -1052,6 +1063,41 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
                 ctx.beginPath(); ctx.arc(eyeX, -eyeY, eyeSize*1.1, 0, Math.PI*2); ctx.fill();
                 ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(eyeX, -eyeY); ctx.lineTo(-radius, -radius); ctx.stroke();
+            } else if (acc === 'UNICORN_HORN') {
+                ctx.save();
+                // Rotate to point forward/upward relative to fish head
+                ctx.translate(radius * 0.6, -radius * 0.5); // Forehead position
+                ctx.rotate(-Math.PI / 4); // Pointing diagonal up-forward
+
+                // Draw Horn Cone
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(radius * 1.2, -radius * 0.15); // Tip
+                ctx.lineTo(0, -radius * 0.3); // Base width
+                ctx.closePath();
+                
+                // Gradient for horn
+                const hGrad = ctx.createLinearGradient(0, 0, radius*1.2, 0);
+                hGrad.addColorStop(0, '#fdf4ff'); // Whiteish
+                hGrad.addColorStop(1, '#e879f9'); // Pinkish tip
+                ctx.fillStyle = hGrad;
+                ctx.fill();
+                ctx.strokeStyle = '#d8b4fe';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Spiral lines
+                ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)'; // Gold
+                ctx.beginPath();
+                for(let i=0; i<5; i++) {
+                    const startX = (i/5) * radius * 1.2;
+                    const endX = ((i+0.8)/5) * radius * 1.2;
+                    ctx.moveTo(startX, -radius * 0.05); // Approximate internal line
+                    ctx.quadraticCurveTo(startX + radius*0.1, -radius*0.2, endX, -radius*0.1); 
+                }
+                ctx.stroke();
+                
+                ctx.restore();
             }
 
             ctx.restore();
@@ -1218,7 +1264,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
     const render = () => {
         try {
-            const { player, entities, particles, obstacles, powerUps, hazards, projectiles, portals, buildings, camera } = gameState;
+            const { player, entities, particles, obstacles, powerUps, hazards, projectiles, portals, buildings, camera, labels } = gameState;
             const visualTime = performance.now() / 16; 
 
             ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1364,6 +1410,49 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
             entities.forEach(e => { if (e.speechBubble) drawSpeechBubble(ctx, e); });
             if (player.speechBubble) drawSpeechBubble(ctx, player);
+
+            // --- DRAW DYNAMIC LABELS (HINTS) ---
+            if (labels && labels.length > 0) {
+                labels.forEach(label => {
+                    ctx.save();
+                    ctx.translate(label.x, label.y);
+                    
+                    // Simple bounce animation
+                    const bounce = Math.sin(visualTime * 0.2) * 5;
+                    ctx.translate(0, bounce);
+
+                    const padding = 10;
+                    ctx.font = "bold 20px Arial";
+                    const m = ctx.measureText(label.text);
+                    const w = m.width + padding * 2;
+                    const h = 34;
+
+                    // Background Pill
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+                    ctx.strokeStyle = label.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(-w/2, -h/2, w, h, 10);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Text
+                    ctx.fillStyle = "white";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(label.text, 0, 0);
+
+                    // Tiny Triangle Pointer
+                    ctx.beginPath();
+                    ctx.fillStyle = label.color;
+                    ctx.moveTo(-6, h/2);
+                    ctx.lineTo(6, h/2);
+                    ctx.lineTo(0, h/2 + 6);
+                    ctx.fill();
+
+                    ctx.restore();
+                });
+            }
 
         } catch (e) {
             console.error("Render loop error:", e);
