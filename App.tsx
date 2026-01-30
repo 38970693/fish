@@ -1,47 +1,39 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
-import { GameState, GameStatus, PlayerState, CreatureType } from './types';
-import { INITIAL_PLAYER_STATS, WORLD_SIZE, CREATURES, BOOST_CONFIG } from './constants';
-import { updateGame, createEntity, createObstacles } from './gameEngine';
+import { GameState, GameStatus, PlayerState, CreatureType, BiomeType, Cosmetics } from './types';
+import { INITIAL_PLAYER_STATS, WORLD_SIZE, CREATURES, BOOST_CONFIG, PROTECTION_CONFIG } from './constants';
+import { updateGame, createEntity, createObstacles, manualSquadSwitch, digestBasket, createBuildings, createPortals } from './gameEngine';
 
-// Initial state factory
-const createInitialState = (options: { isPremium?: boolean, startType?: CreatureType } = {}): GameState => {
+const createInitialState = (options: { isPremium?: boolean, startType?: CreatureType, cosmetics?: Cosmetics } = {}): GameState => {
   const isPremium = options.isPremium || false;
   
-  // Default Start
-  let startType = options.startType || CreatureType.CLOWN_FISH;
-  let startRadius = CREATURES[startType].baseRadius;
-  let startHealth = CREATURES[startType].health;
-  let startWeight = 5;
-  
-  // Premium Start (Ad Revive / Debug)
-  if (isPremium) {
-    startType = CreatureType.SWORD_FISH;
-    startRadius = CREATURES[CreatureType.SWORD_FISH].baseRadius * 1.5; 
-    startHealth = 300;
-    startWeight = 500; 
+  let startType = options.startType;
+  if (!startType) {
+      const starters = [CreatureType.CLOWN_FISH, CreatureType.BLUE_TANG, CreatureType.TURTLE];
+      startType = starters[Math.floor(Math.random() * starters.length)];
   }
 
   const baseConfig = CREATURES[startType];
+  const startX = WORLD_SIZE / 2;
+  const startY = WORLD_SIZE / 2;
 
   return {
     status: GameStatus.MENU,
     player: {
       id: 'player',
       type: startType,
-      x: WORLD_SIZE / 2,
-      y: WORLD_SIZE / 2,
+      x: startX,
+      y: startY,
       vx: 0,
       vy: 0,
-      radius: startRadius,
+      radius: baseConfig.baseRadius,
       angle: 0,
-      health: startHealth,
-      maxHealth: startHealth,
-      // Player gets slight speed advantage
+      health: baseConfig.health,
+      maxHealth: baseConfig.health,
       speed: baseConfig.speed * 1.2,
       config: baseConfig,
-      weight: startWeight,
+      weight: 5,
       evolutionPoints: 0, 
       traits: isPremium ? ['复仇者'] : [],
       stats: {
@@ -51,6 +43,7 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
         visionRadius: 1
       },
       eatenHistory: {} as Record<CreatureType, number>,
+      basket: [], 
       mouthOpenValue: 0,
       animOffset: 0,
       renderScale: 1.0,
@@ -66,16 +59,33 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
       isIdle: false,
       lureActive: false,
       camoActive: false,
-      ambushTimer: 0
+      ambushTimer: 0,
+      shieldTimer: 0,
+      invulnerableTimer: 0, 
+      evolutionVisualTimer: 0, 
+      torpedoCount: 0,
+      torpedoCooldown: 0,
+      isOverdrive: false,
+      currentBiome: BiomeType.SHALLOWS,
+      biomeDebuffTimer: 0,
+      cosmetics: options.cosmetics || {
+          teeth: 'NORMAL',
+          skinColor: 'DEFAULT',
+          pattern: 'NONE',
+          scaleType: 'NONE'
+      }
     },
     entities: [],
     particles: [],
     obstacles: createObstacles(),
     powerUps: [],
     hazards: [],
+    projectiles: [],
+    portals: createPortals(),
+    buildings: createBuildings(), 
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
-    camera: { x: 0, y: 0, zoom: 1 },
+    camera: { x: startX, y: startY, zoom: 0.8 }, // Start camera AT player
     score: 0,
     genePoints: 0,
     time: 0
@@ -90,25 +100,17 @@ const App: React.FC = () => {
   const keysRef = useRef<{ space: boolean }>({ space: false });
   const isMouseDownRef = useRef(false);
   const frameIdRef = useRef<number>(0);
-
-  // Sync state for UI updates (throttled)
+  
   useEffect(() => {
     const interval = setInterval(() => {
-      const currentState = gameStateRef.current;
-      setUiState({ ...currentState });
+      setUiState({ ...gameStateRef.current });
     }, 100); 
     return () => clearInterval(interval);
   }, []);
 
-  // Keyboard Listeners for Boost
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') keysRef.current.space = true;
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') keysRef.current.space = false;
-    };
-
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.code === 'Space') keysRef.current.space = true; };
+    const handleKeyUp = (e: KeyboardEvent) => { if (e.code === 'Space') keysRef.current.space = false; };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
@@ -117,90 +119,45 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const spawnInitialEntities = (state: GameState) => {
-    // Initial Spawn - Reduced count
-    for(let i=0; i<100; i++) {
-        const x = Math.random() * WORLD_SIZE;
-        const y = Math.random() * WORLD_SIZE;
-        state.entities.push(
-            createEntity(Math.random() > 0.5 ? CreatureType.PLANKTON : CreatureType.CLOWN_FISH, x, y)
-        );
-    }
-  };
-
   const startGame = (selectedType?: CreatureType) => {
-    gameStateRef.current = createInitialState({ startType: selectedType });
-    spawnInitialEntities(gameStateRef.current);
-    gameStateRef.current.status = GameStatus.PLAYING;
+    // Preserve cosmetics from Shop/Menu
+    const currentCosmetics = gameStateRef.current.player.cosmetics;
+    const newState = createInitialState({ startType: selectedType, cosmetics: currentCosmetics });
+    
+    newState.status = GameStatus.PLAYING;
+    newState.player.invulnerableTimer = PROTECTION_CONFIG.NEWBIE_DURATION;
+    newState.player.isInvulnerable = true;
+    gameStateRef.current = newState;
   };
 
   const handleRevive = (useAd: boolean) => {
     if (useAd) {
-      const deadPlayer = gameStateRef.current.player;
+      const p = gameStateRef.current.player;
       gameStateRef.current.status = GameStatus.PLAYING;
-      gameStateRef.current.player.health = deadPlayer.maxHealth;
-      gameStateRef.current.player.x = Math.random() * WORLD_SIZE; 
-      gameStateRef.current.player.y = Math.random() * WORLD_SIZE;
-      gameStateRef.current.player.isInvulnerable = true;
-      gameStateRef.current.player.boost.current = gameStateRef.current.player.boost.max;
-      gameStateRef.current.player.reviveCount = (gameStateRef.current.player.reviveCount || 0) + 1;
-      
-      setTimeout(() => {
-         gameStateRef.current.player.isInvulnerable = false;
-      }, 3000);
-      
+      p.health = p.maxHealth;
+      p.invulnerableTimer = PROTECTION_CONFIG.REVIVE_DURATION;
+      p.isInvulnerable = true;
     } else {
-      gameStateRef.current = createInitialState(); // Reset to default menu logic if declining ad
-      // But actually we want to return to menu or just restart with default?
-      // Simple restart logic:
-      gameStateRef.current.status = GameStatus.MENU;
+      // Restart completely, but maybe keep cosmetics? 
+      // User might want to keep cosmetics, let's keep them.
+      const currentCosmetics = gameStateRef.current.player.cosmetics;
+      gameStateRef.current = createInitialState({ cosmetics: currentCosmetics }); 
     }
-  };
-
-  const handleMouseMove = (x: number, y: number) => {
-    mouseRef.current = { x, y };
-  };
-
-  const handleMouseDown = () => { isMouseDownRef.current = true; };
-  const handleMouseUp = () => { isMouseDownRef.current = false; };
-
-  const handleEvolve = (trait: string, statBonus: Partial<PlayerState['stats']>) => {
-    const state = gameStateRef.current;
-    state.player.traits.push(trait);
-    state.status = GameStatus.PLAYING;
-  };
-
-  const handleToggleGodMode = () => {
-    const p = gameStateRef.current.player;
-    if (!p.isGodMode) {
-      p.isGodMode = true;
-      p.type = CreatureType.KRAKEN;
-      p.config = CREATURES[CreatureType.KRAKEN];
-      p.radius = 180;
-      p.maxHealth = 99999;
-      p.health = 99999;
-      p.speed = 5; 
-      p.weight = 9999;
-      p.stats.sizeMult = 2.0;
-      p.traits.push("深海之神");
-    }
-  };
-  
-  const handleToggleAutoMode = () => {
-      gameStateRef.current.player.isAutoMode = !gameStateRef.current.player.isAutoMode;
   };
 
   const gameLoop = useCallback(() => {
-    if (gameStateRef.current.status === GameStatus.PLAYING) {
-      gameStateRef.current = updateGame(
-        gameStateRef.current,
-        mouseRef.current,
-        keysRef.current.space, // Boost
-        isMouseDownRef.current, // Taunt
-        window.innerWidth,
-        window.innerHeight
-      );
-    }
+    // If we are in SHOP, we still update game loop for background animations if we want, 
+    // or we can pause. Let's pause logic but keep rendering? 
+    // Actually `updateGame` handles status checks.
+    
+    gameStateRef.current = updateGame(
+      gameStateRef.current,
+      mouseRef.current,
+      keysRef.current.space, 
+      isMouseDownRef.current, 
+      window.innerWidth,
+      window.innerHeight
+    );
     frameIdRef.current = requestAnimationFrame(gameLoop);
   }, []);
 
@@ -213,19 +170,31 @@ const App: React.FC = () => {
     <div className="w-full h-screen overflow-hidden bg-slate-900 relative select-none">
       <GameCanvas 
         gameState={gameStateRef.current} 
-        onMouseMove={handleMouseMove} 
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
+        onMouseMove={(x, y) => { mouseRef.current = { x, y }; }} 
+        onMouseDown={() => { isMouseDownRef.current = true; }}
+        onMouseUp={() => { isMouseDownRef.current = false; }}
       />
-      
       <UIOverlay 
         gameState={uiState} 
         onStart={startGame}
-        onEvolve={handleEvolve}
-        onRestart={() => { gameStateRef.current.status = GameStatus.MENU; }}
+        onEvolve={() => {}}
+        onRestart={() => { 
+            const currentCosmetics = gameStateRef.current.player.cosmetics;
+            gameStateRef.current = createInitialState({ cosmetics: currentCosmetics }); 
+        }}
         onRevive={handleRevive}
-        onToggleGodMode={handleToggleGodMode}
-        onToggleAutoMode={handleToggleAutoMode}
+        onToggleGodMode={() => {
+            const p = gameStateRef.current.player;
+            p.isGodMode = !p.isGodMode;
+            if (p.isGodMode) p.health = 99999;
+        }}
+        onToggleAutoMode={() => { gameStateRef.current.player.isAutoMode = !gameStateRef.current.player.isAutoMode; }}
+        onSwitchSquad={() => { manualSquadSwitch(gameStateRef.current); }}
+        onDigest={() => { digestBasket(gameStateRef.current); }}
+        onUpdateCosmetics={(newCosmetics) => {
+            gameStateRef.current.player.cosmetics = newCosmetics;
+        }}
+        setGameStatus={(s) => { gameStateRef.current.status = s; }}
       />
     </div>
   );
