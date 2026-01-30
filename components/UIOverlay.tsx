@@ -4,7 +4,7 @@ import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType,
 import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 import { drawCuteFish } from './GameCanvas';
-import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Ghost, Award, Diamond, Eye, Sparkles, Frown } from 'lucide-react';
+import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Ghost, Award, Diamond, Eye, Sparkles, Frown, BookOpen } from 'lucide-react';
 
 interface UIOverlayProps {
   gameState: GameState;
@@ -23,6 +23,7 @@ interface UIOverlayProps {
 const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onRestart, onRevive, onToggleGodMode, onToggleAutoMode, onSwitchSquad, onDigest, onUpdateCosmetics, setGameStatus }) => {
   const { player, status, score, hazards, entities, buildings, portals } = gameState;
   const [isWatchingAd, setIsWatchingAd] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   
   // Shop State
   const [shopTab, setShopTab] = useState<'TEETH' | 'SKIN' | 'PATTERN' | 'SCALE' | 'ACCESSORY' | 'TAIL' | 'BODY' | 'EYE' | 'EYEBROW' | 'TRAIL'>('TEETH');
@@ -206,6 +207,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
   // --- SHOP UI ---
   if (status === GameStatus.SHOP) {
+      // ... (keep existing shop UI code - abbreviated for brevity as logic is unchanged)
+      // I will include the full SHOP block to ensure no code loss, but logic is same
       const cosmetics = player.cosmetics;
       
       const updateCosmetic = (key: keyof Cosmetics, value: any) => {
@@ -216,7 +219,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
       const TEETH_OPTIONS: {label: string, value: TeethType, icon: string}[] = [
           {label: '普通', value: 'NORMAL', icon: '🦷'},
-          {label: '大金牙', value: 'GOLD', icon: '💰'}, // Moved up
+          {label: '大金牙', value: 'GOLD', icon: '💰'}, 
           {label: '锯齿', value: 'SHARP', icon: '🔪'},
           {label: '吸血鬼', value: 'VAMPIRE', icon: '🧛'},
           {label: '牙套', value: 'BRACES', icon: '😬'},
@@ -231,7 +234,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
       ];
 
       const SKIN_OPTIONS = [
-          // Gradients First
           {label: '黑金', value: 'GRADIENT_GOLD_3', style: 'linear-gradient(135deg, #1c1917, #facc15)'},
           {label: '土豪金', value: 'GRADIENT_GOLD_1', style: 'linear-gradient(135deg, #fef08a, #a16207)'},
           {label: '玫瑰金', value: 'GRADIENT_GOLD_2', style: 'linear-gradient(135deg, #fbcfe8, #ca8a04)'},
@@ -242,8 +244,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
           {label: '极光', value: 'GRADIENT_AURORA', style: 'linear-gradient(135deg, #0f172a, #22c55e, #3b82f6)'},
           {label: '剧毒辐射', value: 'GRADIENT_TOXIC', style: 'linear-gradient(135deg, #14532d, #4ade80, #facc15)'},
           {label: '糖果', value: 'GRADIENT_CANDY', style: 'linear-gradient(135deg, #f472b6, #60a5fa)'},
-          
-          // Solids
           {label: '烈焰红', value: '#ef4444', color: '#ef4444'},
           {label: '深海蓝', value: '#3b82f6', color: '#3b82f6'},
           {label: '虚空紫', value: '#8b5cf6', color: '#8b5cf6'},
@@ -447,6 +447,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                                </button>
                            ))}
 
+                           {/* ... (render other tabs similar to above) ... */}
                            {shopTab === 'EYE' && EYE_OPTIONS.map(opt => (
                                <button 
                                   key={opt.value}
@@ -780,6 +781,87 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
   if (status === GameStatus.MENU) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
+        {/* Rules Modal */}
+        {showRules && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50 p-4" onClick={() => setShowRules(false)}>
+                <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-8 relative" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => setShowRules(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X size={32}/></button>
+                    
+                    <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6 text-center">
+                        🌊 生存指南
+                    </h2>
+
+                    <div className="space-y-6 text-slate-300">
+                        {/* Section 1: Core */}
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                <Fish className="text-yellow-400"/> 核心法则
+                            </h3>
+                            <p>大鱼吃小鱼，小鱼吃虾米。控制你的鱼吞噬比自己小的生物来增加体重。体重达到一定程度后会自动<strong>进化</strong>成更强大的物种！</p>
+                        </div>
+
+                        {/* Section 2: Controls */}
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                <Zap className="text-cyan-400"/> 操作说明
+                            </h3>
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li><strong>移动：</strong> 鼠标移动控制方向。</li>
+                                <li><strong>冲刺：</strong> 按住 <span className="bg-slate-700 px-2 py-0.5 rounded text-white font-mono text-sm border border-slate-600">空格键</span> 消耗体力加速冲撞。</li>
+                                <li><strong>攻击：</strong> 拾取鱼雷后，点击 <span className="bg-slate-700 px-2 py-0.5 rounded text-white font-mono text-sm border border-slate-600">鼠标左键</span> 发射鱼雷攻击远程敌人。</li>
+                            </ul>
+                        </div>
+
+                        {/* Section 3: Buildings */}
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                <MapPin className="text-green-400"/> 地图与设施
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div className="flex items-start gap-2">
+                                    <span className="text-2xl">🛍️</span>
+                                    <div><strong className="text-pink-400">深海商场</strong><br/>位于地图四个角落，进入可更换皮肤和饰品。</div>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <span className="text-2xl">🏥</span>
+                                    <div><strong className="text-red-400">急救站</strong><br/>靠近可瞬间回满生命值。</div>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <span className="text-2xl">⚔️</span>
+                                    <div><strong className="text-orange-400">军火库</strong><br/>位于深渊区域，补充大量鱼雷弹药。</div>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <span className="text-2xl">⛩️</span>
+                                    <div><strong className="text-purple-400">龙王庙</strong><br/>随机获得强力BUFF（护盾、加速或增重）。</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 4: Tips */}
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                <Crown className="text-amber-400"/> 进阶技巧
+                            </h3>
+                            <ul className="space-y-2">
+                                <li className="flex gap-2"><span className="text-green-400">★</span> <strong>组建战队：</strong> 吞噬比自己小的同类时，有机会将其收编为小弟，死后可复活在小弟身上！</li>
+                                <li className="flex gap-2"><span className="text-purple-400">★</span> <strong>时空穿梭：</strong> 利用地图上的紫色传送门快速转移，躲避追杀。</li>
+                                <li className="flex gap-2"><span className="text-red-400">★</span> <strong>末日预警：</strong> 留意地面的红色警告圈，陨石撞击可以直接秒杀任何生物！</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8 text-center">
+                        <button 
+                            onClick={() => setShowRules(false)}
+                            className="px-12 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-cyan-500/30 transition-all hover:-translate-y-1"
+                        >
+                            我明白了
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="max-w-4xl w-full flex flex-col items-center justify-center gap-8 p-8">
             
             {/* Centered Content */}
@@ -809,7 +891,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                     <p className="relative text-cyan-100 text-xl tracking-[0.2em] font-bold drop-shadow-sm">四叶草海域 · 生态进化</p>
                 </div>
                 
-                <div className="flex gap-4 justify-center">
+                <div className="flex gap-4 justify-center items-center">
+                    {/* RULES BUTTON */}
+                    <button 
+                        onClick={() => setShowRules(true)}
+                        className="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-bold text-xl transition-all shadow-xl border-2 border-slate-600 flex items-center justify-center hover:-translate-y-1 hover:shadow-emerald-500/20"
+                        title="游戏指南"
+                    >
+                        <BookOpen size={28} />
+                    </button>
+
                     <button 
                         onClick={() => onStart(undefined)}
                         className="group relative px-12 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-2xl rounded-full transition-all shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:shadow-[0_0_50px_rgba(6,182,212,0.8)] hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-white/20"
@@ -823,10 +914,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
                     <button 
                         onClick={() => setGameStatus && setGameStatus(GameStatus.SHOP)}
-                        className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-purple-400 hover:text-purple-300 font-bold text-xl rounded-full transition-all shadow-xl border-2 border-slate-600 flex items-center gap-2 hover:-translate-y-1"
+                        className="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-700 text-purple-400 hover:text-purple-300 font-bold text-xl transition-all shadow-xl border-2 border-slate-600 flex items-center justify-center hover:-translate-y-1 hover:shadow-purple-500/20"
+                        title="商场"
                     >
-                        <ShoppingBag size={24} />
-                        商场
+                        <ShoppingBag size={28} />
                     </button>
                 </div>
             </div>
