@@ -45,7 +45,10 @@ export enum CreatureType {
   ORCA = 'ORCA',               // Whale
   NARWHAL = 'NARWHAL',         // New: Unicorn of the sea
   MERMAID = 'MERMAID',         // New: Mythical
-  KRAKEN = 'KRAKEN'            // Boss
+  KRAKEN = 'KRAKEN',           // Boss
+  
+  // SPECIAL
+  MASCOT = 'MASCOT'            // New Year Mascot
 }
 
 export interface CreatureConfig {
@@ -57,7 +60,7 @@ export interface CreatureConfig {
   health: number;
   damage: number;
   weightValue: number; // Replaces XP value
-  behavior: 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'AMBUSH' | 'BOSS';
+  behavior: 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'AMBUSH' | 'BOSS' | 'MASCOT';
   special?: 'POISON' | 'SHOCK' | 'SPIKE' | 'LURE' | 'CAMO' | 'NONE' | 'SHELL';
   tier: 0 | 1 | 2 | 3 | 4;
   description?: string; // For selection menu
@@ -79,7 +82,6 @@ export type PatternType =
   | 'NONE' | 'STRIPES' | 'SPOTS' | 'TIGER' 
   | 'DOTS' | 'CAMO' | 'ZEBRA' | 'LEOPARD' 
   | 'HEART' | 'STAR' | 'CIRCUIT' | 'LAVA' | 'KOI' | 'SKELETON'
-  // NEW PATTERNS
   | 'LIGHTNING' | 'CLOUD' | 'CHECKER' | 'VINES' | 'TARGET' 
   | 'GALAXY' | 'SMILEY' | 'FIREY' | 'RUNE' | 'CANDY';
 
@@ -87,14 +89,45 @@ export type ScaleType =
   | 'NONE' | 'SHINY' | 'DRAGON' | 'STONE' 
   | 'FEATHER' | 'MECHANICAL' | 'GLOW' | 'MOSAIC' 
   | 'CRYSTAL' | 'VOID' | 'PIXEL'
-  // NEW SCALES
   | 'ARMOR' | 'DIAMOND_PLATE' | 'SLIME' | 'BIO_HAZARD';
+
+export type AccessoryType = 
+  | 'NONE' | 'GOLD_CHAIN' | 'PEARL_NECKLACE' | 'JADE_PENDANT' 
+  | 'SUNGLASSES' | 'CROWN' | 'BOW_TIE' | 'DIAMOND_RING' 
+  | 'MEDAL' | 'SCARF' | 'HEADPHONES' | 'FLOWER' | 'EYEPATCH' | 'HALO';
+
+export type TailType = 
+  | 'DEFAULT' | 'CRESCENT' | 'FORKED' | 'FAN' | 'TRIDENT' 
+  | 'LOBSTER' | 'MECHANICAL' | 'GHOST' | 'RIBBON';
+
+export type BodyType = 
+  | 'DEFAULT' | 'ROUND' | 'SLENDER' | 'CHUNKY' | 'BOX' 
+  | 'STAR' | 'MERMAID' | 'RAY' | 'EEL';
+
+// NEW: Eye Types
+export type EyeType = 
+  | 'NORMAL' | 'ANIME' | 'MAD' | 'DERP' | 'CYBORG' | 'DEAD' 
+  | 'LOVE' | 'HYPNO' | 'CAT' | 'FIRE' | 'BUTTON' | 'GOGGLES';
+
+// NEW: Eyebrow Types
+export type EyebrowType = 
+  | 'NONE' | 'ANGRY' | 'SAD' | 'CONFUSED' | 'THICK' | 'UNI' | 'TIERED';
+
+// NEW: Trail Types
+export type TrailType = 
+  | 'NONE' | 'BUBBLES' | 'RAINBOW' | 'FIRE' | 'GLITTER' | 'HEARTS' | 'ELECTRIC' | 'SLIME';
 
 export interface Cosmetics {
   teeth: TeethType;
-  skinColor: string; // 'DEFAULT', hex, or 'GRADIENT_XYZ'
+  skinColor: string; 
   pattern: PatternType;
   scaleType: ScaleType;
+  accessory: AccessoryType;
+  tailType: TailType;
+  bodyType: BodyType;
+  eyeType: EyeType; 
+  eyebrowType: EyebrowType; // Added
+  trailType: TrailType;     // Added
 }
 
 export interface Entity {
@@ -111,7 +144,7 @@ export interface Entity {
   speed: number;
   config: CreatureConfig;
   targetId?: string | null; 
-  ownerId?: string; // New: If set, this entity belongs to a squad (e.g. 'player')
+  ownerId?: string; 
   aggroTimer?: number; 
   mouthOpenValue: number; 
   isHidden?: boolean; 
@@ -126,24 +159,15 @@ export interface Entity {
   isInvulnerable?: boolean; 
   speedBoostTimer?: number; 
   
-  // Happy/Eating Effect
   happyTimer?: number;
-  
-  // Scared/Panic Effect
   fearTimer?: number;
-  
-  // Speech Bubble
   speechBubble?: { text: string; timer: number; color: string } | null;
-
-  // Visuals
   evolutionVisualTimer?: number;
-  
-  // Cosmetics (Optional for NPCs, mandatory for player)
   cosmetics?: Cosmetics;
 }
 
 export interface PlayerState extends Entity {
-  weight: number; // Replaces XP/Level. This is the score.
+  weight: number; 
   evolutionPoints: number;
   traits: string[];
   stats: {
@@ -153,30 +177,26 @@ export interface PlayerState extends Entity {
     visionRadius: number;
   };
   eatenHistory: Record<CreatureType, number>;
-  basket: BasketItem[]; // New: Caught fish inventory 
+  basket: BasketItem[]; 
   boost: {
     current: number;
     max: number;
     active: boolean;
   };
   isGodMode?: boolean;
-  isAutoMode?: boolean; // New: Auto play
+  isAutoMode?: boolean; 
   reviveCount: number; 
+  isVip?: boolean; 
   
-  // New Items
   shieldTimer: number;
-  invulnerableTimer: number; // New: For protection countdown logic
+  invulnerableTimer: number; 
   torpedoCount: number;
   torpedoCooldown: number;
   
-  // Overdrive
   isOverdrive: boolean;
-  
-  // Current Biome Status
   currentBiome: BiomeType;
-  biomeDebuffTimer: number; // For tick damage in swamp etc
+  biomeDebuffTimer: number; 
   
-  // Customization
   cosmetics: Cosmetics;
 }
 
@@ -190,7 +210,7 @@ export interface Particle {
   maxLife: number;
   color: string;
   size: number;
-  interactionType?: 'SHRINK'; // New: If present, particles interact with fish
+  interactionType?: 'SHRINK'; 
 }
 
 export interface Obstacle {
@@ -205,7 +225,7 @@ export interface PowerUp {
   id: string;
   x: number;
   y: number;
-  type: 'SPEED' | 'SHIELD' | 'TORPEDO'; // Added new types
+  type: 'SPEED' | 'SHIELD' | 'TORPEDO'; 
   radius: number;
 }
 
@@ -214,7 +234,7 @@ export interface Hazard {
   x: number;
   y: number;
   radius: number;
-  type: 'METEOR_STRIKE'; // Changed from BIRD_STRIKE
+  type: 'METEOR_STRIKE'; 
   timer: number;
   duration: number;
   stage: 'WARNING' | 'STRIKE' | 'COOLDOWN';
@@ -238,14 +258,14 @@ export interface Portal {
   x: number;
   y: number;
   radius: number;
-  // timer: number; // Removed, portals are permanent
   angle: number;
 }
 
 export enum BuildingType {
   HOSPITAL = 'HOSPITAL',
   ARMORY = 'ARMORY',
-  SHRINE = 'SHRINE'
+  SHRINE = 'SHRINE',
+  SHOP = 'SHOP' 
 }
 
 export interface Building {
@@ -254,7 +274,7 @@ export interface Building {
   y: number;
   type: BuildingType;
   radius: number;
-  cooldown: number; // frames
+  cooldown: number; 
 }
 
 export interface GameState {
@@ -267,7 +287,7 @@ export interface GameState {
   hazards: Hazard[]; 
   projectiles: Projectile[];
   portals: Portal[]; 
-  buildings: Building[]; // New
+  buildings: Building[]; 
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };

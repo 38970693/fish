@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity } from '../types';
+import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType } from '../types';
 import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 import { drawCuteFish } from './GameCanvas';
-import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box } from 'lucide-react';
+import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Ghost, Award, Diamond, Eye, Sparkles, Frown } from 'lucide-react';
 
 interface UIOverlayProps {
   gameState: GameState;
@@ -25,7 +25,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   
   // Shop State
-  const [shopTab, setShopTab] = useState<'TEETH' | 'SKIN' | 'PATTERN' | 'SCALE'>('TEETH');
+  const [shopTab, setShopTab] = useState<'TEETH' | 'SKIN' | 'PATTERN' | 'SCALE' | 'ACCESSORY' | 'TAIL' | 'BODY' | 'EYE' | 'EYEBROW' | 'TRAIL'>('TEETH');
   
   // MiniMap Refs
   const miniMapRef = useRef<HTMLCanvasElement>(null);
@@ -43,26 +43,21 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
     // Config
     const SIZE = 180;
     const MARGIN = 10;
-    // Map bounds are larger than WORLD_SIZE because of petals
     const RENDER_SIZE = WORLD_SIZE + 2000;
     const OFFSET = 1000;
-    
     const SCALE = SIZE / RENDER_SIZE;
     
     canvas.width = SIZE;
     canvas.height = SIZE;
     
     const renderMiniMap = () => {
-        // BG Clear
         ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
         ctx.fillRect(0, 0, SIZE, SIZE);
         
         ctx.save();
-        // Scale to fit world
         ctx.scale(SCALE, SCALE);
         ctx.translate(OFFSET, OFFSET);
 
-        // Draw Map Shape (Petals)
         ctx.beginPath();
         const steps = 100;
         for(let i=0; i<=steps; i++) {
@@ -74,12 +69,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
             else ctx.lineTo(x, y);
         }
         ctx.strokeStyle = "#64748b";
-        ctx.lineWidth = 40; // Scaled down stroke
+        ctx.lineWidth = 40; 
         ctx.stroke();
         ctx.fillStyle = "rgba(30, 41, 59, 0.5)";
         ctx.fill();
         
-        // Draw Biome Separators (Cross)
         ctx.beginPath();
         ctx.moveTo(WORLD_SIZE/2, 0); ctx.lineTo(WORLD_SIZE/2, WORLD_SIZE);
         ctx.moveTo(0, WORLD_SIZE/2); ctx.lineTo(WORLD_SIZE, WORLD_SIZE/2);
@@ -87,7 +81,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
         ctx.lineWidth = 20;
         ctx.stroke();
 
-        // Buildings
         if (buildings) {
             buildings.forEach(b => {
                 ctx.fillStyle = BUILDING_CONFIGS[b.type].color;
@@ -95,7 +88,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
             });
         }
 
-        // Portals
         if (portals) {
             ctx.fillStyle = '#d8b4fe';
             portals.forEach(p => {
@@ -105,15 +97,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
             });
         }
         
-        // Entities
         entities.forEach(e => {
             if (e.isHidden) return;
+            if (e.ownerId === 'player') ctx.fillStyle = "#3b82f6";
+            else if (e.radius > player.radius * 1.5) ctx.fillStyle = "#ef4444";
+            else ctx.fillStyle = "#94a3b8";
             
-            if (e.ownerId === 'player') ctx.fillStyle = "#3b82f6"; // Squad Blue
-            else if (e.radius > player.radius * 1.5) ctx.fillStyle = "#ef4444"; // Danger Red
-            else ctx.fillStyle = "#94a3b8"; // Neutral Grey
-            
-            // Don't draw tiny plankton on minimap
             if (e.type !== CreatureType.PLANKTON) {
                 ctx.beginPath();
                 ctx.arc(e.x, e.y, 60, 0, Math.PI*2);
@@ -121,7 +110,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
             }
         });
         
-        // Player
         ctx.fillStyle = "#22d3ee";
         ctx.shadowColor = "#22d3ee";
         ctx.shadowBlur = 100;
@@ -130,7 +118,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
         ctx.fill();
         ctx.shadowBlur = 0;
         
-        // Viewport Box
         const viewW = window.innerWidth / gameState.camera.zoom;
         const viewH = window.innerHeight / gameState.camera.zoom;
         ctx.strokeStyle = "rgba(255,255,255,0.5)";
@@ -140,7 +127,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
         ctx.restore();
     };
     
-    // Use requestAnimationFrame for smoother map
     let frameId: number;
     const loop = () => {
         renderMiniMap();
@@ -160,7 +146,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // Resize based on container? Fixed size for now
     canvas.width = 400;
     canvas.height = 400;
     
@@ -169,25 +154,22 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
     const loop = () => {
         const visualTime = performance.now() / 16;
         
-        // Clear
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Background Glow
         const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, 200);
         grad.addColorStop(0, 'rgba(168, 85, 247, 0.1)');
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0,0, canvas.width, canvas.height);
         
-        // Create Dummy Entity
         const dummy: Entity = {
             ...player,
             x: canvas.width / 2,
             y: canvas.height / 2,
-            radius: 80, // Fixed large size
+            radius: 80,
             angle: 0,
             vx: 0, vy: 0,
-            cosmetics: player.cosmetics, // Use current selection
+            cosmetics: player.cosmetics,
             animOffset: 0,
             renderScale: 1.0,
             isHidden: false,
@@ -202,7 +184,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
             evolutionVisualTimer: 0
         };
         
-        // Add subtle rotation
         dummy.angle = Math.sin(visualTime * 0.05) * 0.1;
         
         drawCuteFish(ctx, dummy, visualTime, true);
@@ -212,7 +193,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
     loop();
     
     return () => cancelAnimationFrame(frameId);
-  }, [status, player.cosmetics, player.type]); // Re-run if cosmetics change
+  }, [status, player.cosmetics, player.type]); 
 
   const handleAdReviveClick = () => {
     if (isWatchingAd) return;
@@ -235,10 +216,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
       const TEETH_OPTIONS: {label: string, value: TeethType, icon: string}[] = [
           {label: '普通', value: 'NORMAL', icon: '🦷'},
+          {label: '大金牙', value: 'GOLD', icon: '💰'}, // Moved up
           {label: '锯齿', value: 'SHARP', icon: '🔪'},
           {label: '吸血鬼', value: 'VAMPIRE', icon: '🧛'},
           {label: '牙套', value: 'BRACES', icon: '😬'},
-          {label: '大金牙', value: 'GOLD', icon: '💰'},
           {label: '倒钩', value: 'CURVED', icon: '🪝'},
           {label: '双排', value: 'DOUBLE_ROW', icon: '🦈'},
           {label: '剑齿', value: 'SABER', icon: '🗡️'},
@@ -250,7 +231,19 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
       ];
 
       const SKIN_OPTIONS = [
-          {label: '默认', value: 'DEFAULT', color: '#94a3b8'},
+          // Gradients First
+          {label: '黑金', value: 'GRADIENT_GOLD_3', style: 'linear-gradient(135deg, #1c1917, #facc15)'},
+          {label: '土豪金', value: 'GRADIENT_GOLD_1', style: 'linear-gradient(135deg, #fef08a, #a16207)'},
+          {label: '玫瑰金', value: 'GRADIENT_GOLD_2', style: 'linear-gradient(135deg, #fbcfe8, #ca8a04)'},
+          {label: '日落渐变', value: 'GRADIENT_SUNSET', style: 'linear-gradient(135deg, #6d28d9, #db2777, #f59e0b)'},
+          {label: '炫彩虹光', value: 'GRADIENT_RAINBOW', style: 'linear-gradient(135deg, red, orange, yellow, green, blue, purple)'},
+          {label: '烈火', value: 'GRADIENT_FIRE', style: 'linear-gradient(135deg, #7f1d1d, #ef4444, #fcd34d)'},
+          {label: '海洋之心', value: 'GRADIENT_OCEAN', style: 'linear-gradient(135deg, #1e3a8a, #06b6d4, #a5f3fc)'},
+          {label: '极光', value: 'GRADIENT_AURORA', style: 'linear-gradient(135deg, #0f172a, #22c55e, #3b82f6)'},
+          {label: '剧毒辐射', value: 'GRADIENT_TOXIC', style: 'linear-gradient(135deg, #14532d, #4ade80, #facc15)'},
+          {label: '糖果', value: 'GRADIENT_CANDY', style: 'linear-gradient(135deg, #f472b6, #60a5fa)'},
+          
+          // Solids
           {label: '烈焰红', value: '#ef4444', color: '#ef4444'},
           {label: '深海蓝', value: '#3b82f6', color: '#3b82f6'},
           {label: '虚空紫', value: '#8b5cf6', color: '#8b5cf6'},
@@ -259,17 +252,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
           {label: '暗影黑', value: '#1e293b', color: '#1e293b'},
           {label: '翡翠绿', value: '#10b981', color: '#10b981'},
           {label: '少女粉', value: '#f472b6', color: '#f472b6'},
-          {label: '土豪金', value: '#ca8a04', color: '#ca8a04'},
           {label: '巧克力', value: '#78350f', color: '#78350f'},
-          // Gradients
-          {label: '日落渐变', value: 'GRADIENT_SUNSET', style: 'linear-gradient(135deg, #6d28d9, #db2777, #f59e0b)'},
-          {label: '海洋之心', value: 'GRADIENT_OCEAN', style: 'linear-gradient(135deg, #1e3a8a, #06b6d4, #a5f3fc)'},
-          {label: '剧毒辐射', value: 'GRADIENT_TOXIC', style: 'linear-gradient(135deg, #14532d, #4ade80, #facc15)'},
-          {label: '炫彩虹光', value: 'GRADIENT_RAINBOW', style: 'linear-gradient(135deg, red, orange, yellow, green, blue, purple)'},
-          {label: '极光', value: 'GRADIENT_AURORA', style: 'linear-gradient(135deg, #0f172a, #22c55e, #3b82f6)'},
-          {label: '糖果', value: 'GRADIENT_CANDY', style: 'linear-gradient(135deg, #f472b6, #60a5fa)'},
-          {label: '烈火', value: 'GRADIENT_FIRE', style: 'linear-gradient(135deg, #7f1d1d, #ef4444, #fcd34d)'},
-          {label: '黑金', value: 'GRADIENT_GOLD', style: 'linear-gradient(135deg, #78350f, #fcd34d, #fbbf24)'},
+          {label: '默认', value: 'DEFAULT', color: '#94a3b8'},
       ];
 
       const PATTERN_OPTIONS: {label: string, value: PatternType, bg: string}[] = [
@@ -301,25 +285,100 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
       const SCALE_OPTIONS: {label: string, value: ScaleType, style: string}[] = [
           {label: '光滑', value: 'NONE', style: 'bg-slate-700'},
-          {label: '重甲', value: 'ARMOR', style: 'bg-slate-600 border-2 border-slate-400'},
-          {label: '菱形', value: 'DIAMOND_PLATE', style: 'bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,.2)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px] bg-slate-500'},
-          {label: '黏液', value: 'SLIME', style: 'bg-green-500/50 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]'},
-          {label: '生化', value: 'BIO_HAZARD', style: 'bg-yellow-400 border border-black'},
           {label: '高光', value: 'SHINY', style: 'bg-gradient-to-tr from-white/10 to-white/60'},
           {label: '龙鳞', value: 'DRAGON', style: 'bg-green-800 border-green-500'},
-          {label: '岩石', value: 'STONE', style: 'bg-stone-600'},
-          {label: '羽毛', value: 'FEATHER', style: 'bg-sky-200'},
+          {label: '重甲', value: 'ARMOR', style: 'bg-slate-600 border-2 border-slate-400'},
           {label: '机械', value: 'MECHANICAL', style: 'bg-slate-500 border-2 border-slate-300'},
           {label: '霓虹', value: 'GLOW', style: 'border-2 border-cyan-400 shadow-[0_0_10px_cyan]'},
-          {label: '马赛克', value: 'MOSAIC', style: 'bg-[conic-gradient(at_top_left,_var(--tw-gradient-stops))] from-gray-200 via-gray-400 to-gray-600'},
+          {label: '菱形', value: 'DIAMOND_PLATE', style: 'bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,.2)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px] bg-slate-500'},
+          {label: '生化', value: 'BIO_HAZARD', style: 'bg-yellow-400 border border-black'},
           {label: '水晶', value: 'CRYSTAL', style: 'bg-cyan-200/50 backdrop-blur'},
+          {label: '岩石', value: 'STONE', style: 'bg-stone-600'},
+          {label: '羽毛', value: 'FEATHER', style: 'bg-sky-200'},
+          {label: '黏液', value: 'SLIME', style: 'bg-green-500/50 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]'},
+          {label: '马赛克', value: 'MOSAIC', style: 'bg-[conic-gradient(at_top_left,_var(--tw-gradient-stops))] from-gray-200 via-gray-400 to-gray-600'},
           {label: '虚空', value: 'VOID', style: 'bg-black shadow-inner shadow-purple-900'},
           {label: '像素', value: 'PIXEL', style: 'bg-indigo-500'},
       ];
 
+      const ACCESSORY_OPTIONS: {label: string, value: AccessoryType, icon: string, vip?: boolean}[] = [
+          {label: '无', value: 'NONE', icon: '❌'},
+          {label: '大金链', value: 'GOLD_CHAIN', icon: '⛓️'},
+          {label: '珍珠项链', value: 'PEARL_NECKLACE', icon: '📿'},
+          {label: '墨镜', value: 'SUNGLASSES', icon: '😎'},
+          {label: '皇冠', value: 'CROWN', icon: '👑', vip: true},
+          {label: '蝴蝶结', value: 'BOW_TIE', icon: '🎀'},
+          {label: '玉佩', value: 'JADE_PENDANT', icon: '🟢'},
+          {label: '钻戒', value: 'DIAMOND_RING', icon: '💍'},
+          {label: '勋章', value: 'MEDAL', icon: '🏅'},
+          {label: '耳机', value: 'HEADPHONES', icon: '🎧'},
+          {label: '光环', value: 'HALO', icon: '😇', vip: true},
+          {label: '眼罩', value: 'EYEPATCH', icon: '🏴‍☠️'},
+      ];
+
+      const TAIL_OPTIONS: {label: string, value: TailType, icon: string}[] = [
+          {label: '默认', value: 'DEFAULT', icon: '🐟'},
+          {label: '新月', value: 'CRESCENT', icon: '🌙'},
+          {label: '分叉', value: 'FORKED', icon: '✂️'},
+          {label: '扇形', value: 'FAN', icon: '🪭'},
+          {label: '三叉戟', value: 'TRIDENT', icon: '🔱'},
+          {label: '龙虾', value: 'LOBSTER', icon: '🦞'},
+          {label: '机械', value: 'MECHANICAL', icon: '🤖'},
+          {label: '幽灵', value: 'GHOST', icon: '👻'},
+          {label: '飘带', value: 'RIBBON', icon: '🎗️'},
+      ];
+
+      const BODY_OPTIONS: {label: string, value: BodyType, icon: string, vip?: boolean}[] = [
+          {label: '默认', value: 'DEFAULT', icon: '🔵'},
+          {label: '圆形', value: 'ROUND', icon: '⚪'},
+          {label: '细长', value: 'SLENDER', icon: '🥒'},
+          {label: '敦实', value: 'CHUNKY', icon: '🥔'},
+          {label: '方块', value: 'BOX', icon: '⬛'},
+          {label: '海星', value: 'STAR', icon: '⭐'},
+          {label: '鳐鱼', value: 'RAY', icon: '🛸'},
+          {label: '鳗鱼', value: 'EEL', icon: '〰️'},
+          {label: '美人鱼', value: 'MERMAID', icon: '🧜‍♀️', vip: true},
+      ];
+
+      const EYE_OPTIONS: {label: string, value: EyeType, icon: string}[] = [
+          {label: '普通', value: 'NORMAL', icon: '👀'},
+          {label: '动漫', value: 'ANIME', icon: '🥺'},
+          {label: '愤怒', value: 'MAD', icon: '😠'},
+          {label: '滑稽', value: 'DERP', icon: '🤪'},
+          {label: '生化', value: 'CYBORG', icon: '🤖'},
+          {label: '晕眩', value: 'DEAD', icon: '😵'},
+          {label: '花痴', value: 'LOVE', icon: '😍'},
+          {label: '催眠', value: 'HYPNO', icon: '😵‍💫'},
+          {label: '猫眼', value: 'CAT', icon: '😺'},
+          {label: '烈焰', value: 'FIRE', icon: '🔥'},
+          {label: '纽扣', value: 'BUTTON', icon: '🔘'},
+          {label: '护目镜', value: 'GOGGLES', icon: '🥽'},
+      ];
+
+      const EYEBROW_OPTIONS: {label: string, value: EyebrowType, icon: string}[] = [
+          {label: '无', value: 'NONE', icon: '😶'},
+          {label: '愤怒', value: 'ANGRY', icon: '😠'},
+          {label: '悲伤', value: 'SAD', icon: '😢'},
+          {label: '困惑', value: 'CONFUSED', icon: '🤨'},
+          {label: '粗眉', value: 'THICK', icon: '🥸'},
+          {label: '连眉', value: 'UNI', icon: '〰️'},
+          {label: '叠层', value: 'TIERED', icon: '📶'},
+      ];
+
+      const TRAIL_OPTIONS: {label: string, value: TrailType, icon: string}[] = [
+          {label: '无', value: 'NONE', icon: '❌'},
+          {label: '气泡', value: 'BUBBLES', icon: '🫧'},
+          {label: '彩虹', value: 'RAINBOW', icon: '🌈'},
+          {label: '火焰', value: 'FIRE', icon: '🔥'},
+          {label: '闪光', value: 'GLITTER', icon: '✨'},
+          {label: '爱心', value: 'HEARTS', icon: '❤️'},
+          {label: '电流', value: 'ELECTRIC', icon: '⚡'},
+          {label: '黏液', value: 'SLIME', icon: '🟢'},
+      ];
+
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-md z-50">
-           <div className="w-full max-w-6xl h-[85vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+           <div className="w-full max-w-7xl h-[90vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                {/* Header */}
                <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800">
                    <div className="flex items-center gap-4">
@@ -332,7 +391,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                        </div>
                    </div>
                    <button 
-                       onClick={() => setGameStatus && setGameStatus(GameStatus.MENU)}
+                       onClick={() => setGameStatus && setGameStatus(GameStatus.PLAYING)}
                        className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-white"
                    >
                        <X size={28} />
@@ -341,17 +400,35 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
                <div className="flex flex-1 overflow-hidden">
                    {/* Sidebar Tabs */}
-                   <div className="w-56 bg-slate-800/50 flex flex-col border-r border-slate-700 flex-shrink-0">
-                       <button onClick={() => setShopTab('TEETH')} className={`p-5 flex items-center gap-3 font-bold transition-all ${shopTab === 'TEETH' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                   <div className="w-64 bg-slate-800/50 flex flex-col border-r border-slate-700 flex-shrink-0 overflow-y-auto scrollbar-hide">
+                       <button onClick={() => setShopTab('TEETH')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'TEETH' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
                            <Skull size={20}/> 牙齿造型
                        </button>
-                       <button onClick={() => setShopTab('SKIN')} className={`p-5 flex items-center gap-3 font-bold transition-all ${shopTab === 'SKIN' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                       <button onClick={() => setShopTab('EYE')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'EYE' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                           <Eye size={20}/> 眼部造型
+                       </button>
+                       <button onClick={() => setShopTab('EYEBROW')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'EYEBROW' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                           <Frown size={20}/> 眉毛造型
+                       </button>
+                       <button onClick={() => setShopTab('TRAIL')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'TRAIL' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                           <Sparkles size={20}/> 拖尾特效
+                       </button>
+                       <button onClick={() => setShopTab('SKIN')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'SKIN' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
                            <Palette size={20}/> 皮肤颜色
                        </button>
-                       <button onClick={() => setShopTab('PATTERN')} className={`p-5 flex items-center gap-3 font-bold transition-all ${shopTab === 'PATTERN' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                       <button onClick={() => setShopTab('BODY')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'BODY' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                           <Users size={20}/> 身体形状
+                       </button>
+                       <button onClick={() => setShopTab('TAIL')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'TAIL' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                           <Wind size={20}/> 尾巴样式
+                       </button>
+                       <button onClick={() => setShopTab('ACCESSORY')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'ACCESSORY' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                           <Diamond size={20}/> 装饰饰品
+                       </button>
+                       <button onClick={() => setShopTab('PATTERN')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'PATTERN' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
                            <Box size={20}/> 花纹样式
                        </button>
-                       <button onClick={() => setShopTab('SCALE')} className={`p-5 flex items-center gap-3 font-bold transition-all ${shopTab === 'SCALE' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
+                       <button onClick={() => setShopTab('SCALE')} className={`p-4 flex items-center gap-3 font-bold transition-all ${shopTab === 'SCALE' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
                            <Gem size={20}/> 鱼鳞质感
                        </button>
                    </div>
@@ -370,6 +447,39 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                                </button>
                            ))}
 
+                           {shopTab === 'EYE' && EYE_OPTIONS.map(opt => (
+                               <button 
+                                  key={opt.value}
+                                  onClick={() => updateCosmetic('eyeType', opt.value)}
+                                  className={`aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${cosmetics.eyeType === opt.value ? 'border-purple-500 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
+                               >
+                                   <div className="text-5xl mb-2 filter drop-shadow-md">{opt.icon}</div>
+                                   <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
+                               </button>
+                           ))}
+
+                           {shopTab === 'EYEBROW' && EYEBROW_OPTIONS.map(opt => (
+                               <button 
+                                  key={opt.value}
+                                  onClick={() => updateCosmetic('eyebrowType', opt.value)}
+                                  className={`aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${cosmetics.eyebrowType === opt.value ? 'border-purple-500 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
+                               >
+                                   <div className="text-5xl mb-2 filter drop-shadow-md">{opt.icon}</div>
+                                   <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
+                               </button>
+                           ))}
+
+                           {shopTab === 'TRAIL' && TRAIL_OPTIONS.map(opt => (
+                               <button 
+                                  key={opt.value}
+                                  onClick={() => updateCosmetic('trailType', opt.value)}
+                                  className={`aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${cosmetics.trailType === opt.value ? 'border-purple-500 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
+                               >
+                                   <div className="text-5xl mb-2 filter drop-shadow-md">{opt.icon}</div>
+                                   <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
+                               </button>
+                           ))}
+
                            {shopTab === 'SKIN' && SKIN_OPTIONS.map(opt => (
                                <button 
                                   key={opt.value}
@@ -377,6 +487,41 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                                   className={`aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all hover:scale-105 ${cosmetics.skinColor === opt.value ? 'border-purple-500 bg-purple-500/20' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
                                >
                                    <div className="w-16 h-16 rounded-full border-4 border-white/10 shadow-xl" style={{ background: opt.style || opt.color }}></div>
+                                   <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
+                               </button>
+                           ))}
+
+                           {shopTab === 'BODY' && BODY_OPTIONS.map(opt => (
+                               <button 
+                                  key={opt.value}
+                                  onClick={() => updateCosmetic('bodyType', opt.value)}
+                                  className={`relative aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${cosmetics.bodyType === opt.value ? 'border-purple-500 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
+                               >
+                                   {opt.vip && <div className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">VIP</div>}
+                                   <div className="text-5xl mb-2 filter drop-shadow-md">{opt.icon}</div>
+                                   <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
+                               </button>
+                           ))}
+
+                           {shopTab === 'TAIL' && TAIL_OPTIONS.map(opt => (
+                               <button 
+                                  key={opt.value}
+                                  onClick={() => updateCosmetic('tailType', opt.value)}
+                                  className={`aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${cosmetics.tailType === opt.value ? 'border-purple-500 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
+                               >
+                                   <div className="text-5xl mb-2 filter drop-shadow-md">{opt.icon}</div>
+                                   <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
+                               </button>
+                           ))}
+
+                           {shopTab === 'ACCESSORY' && ACCESSORY_OPTIONS.map(opt => (
+                               <button 
+                                  key={opt.value}
+                                  onClick={() => updateCosmetic('accessory', opt.value)}
+                                  className={`relative aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 ${cosmetics.accessory === opt.value ? 'border-purple-500 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
+                               >
+                                   {opt.vip && <div className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">VIP</div>}
+                                   <div className="text-5xl mb-2 filter drop-shadow-md">{opt.icon}</div>
                                    <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
                                </button>
                            ))}
@@ -405,7 +550,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                        </div>
                    </div>
 
-                   {/* Preview Panel (New) */}
+                   {/* Preview Panel */}
                    <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col items-center justify-center relative p-4 shadow-2xl flex-shrink-0">
                        <div className="absolute top-4 left-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Live Preview</div>
                        <div className="w-full aspect-square relative flex items-center justify-center">
@@ -427,11 +572,17 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                            {shopTab === 'TEETH' ? TEETH_OPTIONS.find(o=>o.value===cosmetics.teeth)?.label : 
                             shopTab === 'SKIN' ? SKIN_OPTIONS.find(o=>o.value===cosmetics.skinColor)?.label :
                             shopTab === 'PATTERN' ? PATTERN_OPTIONS.find(o=>o.value===cosmetics.pattern)?.label :
+                            shopTab === 'ACCESSORY' ? ACCESSORY_OPTIONS.find(o=>o.value===cosmetics.accessory)?.label :
+                            shopTab === 'TAIL' ? TAIL_OPTIONS.find(o=>o.value===cosmetics.tailType)?.label :
+                            shopTab === 'BODY' ? BODY_OPTIONS.find(o=>o.value===cosmetics.bodyType)?.label :
+                            shopTab === 'EYE' ? EYE_OPTIONS.find(o=>o.value===cosmetics.eyeType)?.label :
+                            shopTab === 'EYEBROW' ? EYEBROW_OPTIONS.find(o=>o.value===cosmetics.eyebrowType)?.label :
+                            shopTab === 'TRAIL' ? TRAIL_OPTIONS.find(o=>o.value===cosmetics.trailType)?.label :
                             SCALE_OPTIONS.find(o=>o.value===cosmetics.scaleType)?.label}
                        </span>
                    </div>
                    <button 
-                       onClick={() => setGameStatus && setGameStatus(GameStatus.MENU)}
+                       onClick={() => setGameStatus && setGameStatus(GameStatus.PLAYING)}
                        className="px-10 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-bold flex items-center gap-2 shadow-lg hover:shadow-green-500/30 transition-all hover:-translate-y-0.5"
                    >
                        <Check size={20} /> 完成搭配

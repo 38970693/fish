@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -72,7 +73,13 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
           teeth: 'NORMAL',
           skinColor: 'DEFAULT',
           pattern: 'NONE',
-          scaleType: 'NONE'
+          scaleType: 'NONE',
+          accessory: 'NONE',
+          tailType: 'DEFAULT',
+          bodyType: 'DEFAULT',
+          eyeType: 'NORMAL',
+          eyebrowType: 'NONE', // New Default
+          trailType: 'NONE'    // New Default
       }
     },
     entities: [],
@@ -85,7 +92,7 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
     buildings: createBuildings(), 
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
-    camera: { x: startX, y: startY, zoom: 0.8 }, // Start camera AT player
+    camera: { x: startX, y: startY, zoom: 0.8 }, 
     score: 0,
     genePoints: 0,
     time: 0

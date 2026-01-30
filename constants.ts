@@ -15,8 +15,8 @@ export const MAP_SHAPE_CONFIG = {
 };
 
 export const GAME_MECHANICS = {
-  BASE_TURN_SPEED: 0.20, 
-  SIZE_AGILITY_PENALTY: 0.0035, 
+  BASE_TURN_SPEED: 0.5, // Increased from 0.20 for snappier turning
+  SIZE_AGILITY_PENALTY: 0.002, // Reduced from 0.0035 to keep big fish playable
   MIN_RADIUS_TO_SURVIVE: 8, 
   MAX_RADIUS: 180, 
   MAX_SQUAD_SIZE: 10, 
@@ -80,7 +80,8 @@ export const BIOME_CONFIGS = {
 export const BUILDING_CONFIGS = {
   HOSPITAL: { radius: 150, cooldown: 300, color: '#ef4444', name: "深海急救站" },
   ARMORY: { radius: 150, cooldown: 600, color: '#f59e0b', name: "军火库" },
-  SHRINE: { radius: 150, cooldown: 900, color: '#8b5cf6', name: "龙王庙" }
+  SHRINE: { radius: 150, cooldown: 900, color: '#8b5cf6', name: "龙王庙" },
+  SHOP: { radius: 200, cooldown: 600, color: '#ec4899', name: "深海商场" } // Cooldown increased to 600 (10s)
 };
 
 // Protection Config
@@ -104,7 +105,9 @@ export const METEOR_CONFIG = {
 // Portal Config (Permanent now)
 export const PORTAL_CONFIG = {
   RADIUS: 80,
-  COLORS: ['#d8b4fe', '#22d3ee', '#f0abfc'] 
+  COLORS: ['#d8b4fe', '#22d3ee', '#f0abfc'],
+  MAX_COUNT: 6,
+  SPAWN_CHANCE: 0.002
 };
 
 export const BOOST_CONFIG = {
@@ -415,6 +418,20 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'BOSS',
     tier: 4,
     nativeBiome: BiomeType.ABYSS
+  },
+  [CreatureType.MASCOT]: {
+    type: CreatureType.MASCOT,
+    name: "新春吉祥物",
+    baseRadius: 40,
+    color: "#f59e0b",
+    speed: 1.0,
+    health: 9999,
+    damage: 0,
+    weightValue: 0,
+    behavior: 'MASCOT',
+    tier: 0,
+    description: "庆祝新年的吉祥物！",
+    nativeBiome: BiomeType.SHALLOWS
   }
 };
 

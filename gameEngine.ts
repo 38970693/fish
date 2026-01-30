@@ -1,3 +1,5 @@
+
+
 import { CREATURES, WORLD_SIZE, MAX_ENTITIES, BOOST_CONFIG, MAX_OBSTACLES, GAME_MECHANICS, MAX_POWERUPS, METEOR_CONFIG, EVOLUTION_THRESHOLDS, SKINNY_PHRASES, REVERSAL_PHRASE, PORTAL_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG } from './constants';
 import { CreatureType, Entity, GameState, GameStatus, Obstacle, Particle, PlayerState, PowerUp, Hazard, Projectile, Portal, BiomeType, Building, BuildingType } from './types';
 
@@ -197,6 +199,17 @@ export const createBuildings = (): Building[] => {
     spawn(BuildingType.ARMORY, BiomeType.ABYSS, 2);
     spawn(BuildingType.SHRINE, BiomeType.SWAMP, 1);
     spawn(BuildingType.SHRINE, BiomeType.REEF, 1);
+    
+    // SPAWN SHOP in a safe central place (Shallows border)
+    buildings.push({
+        id: 'shop-1',
+        x: MAP_SHAPE_CONFIG.CENTER_X - 400,
+        y: MAP_SHAPE_CONFIG.CENTER_Y - 400,
+        type: BuildingType.SHOP,
+        radius: BUILDING_CONFIGS.SHOP.radius,
+        cooldown: 0
+    });
+    
     return buildings;
 };
 
@@ -282,6 +295,46 @@ const spawnHazards = (state: GameState) => {
       });
     }
   }
+};
+
+const spawnMascot = (state: GameState) => {
+  const mascots = state.entities.filter(e => e.type === CreatureType.MASCOT);
+  
+  // We want 1 mascot per biome (4 total)
+  if (mascots.length >= 4) return;
+
+  const biomes = [BiomeType.SHALLOWS, BiomeType.REEF, BiomeType.SWAMP, BiomeType.ABYSS];
+  
+  biomes.forEach(biome => {
+      // Check if this biome already has a mascot
+      const hasMascot = mascots.some(m => getBiome(m.x, m.y) === biome);
+      
+      if (!hasMascot) {
+          const pos = getRandomPosInBiome(biome);
+          if (isPositionValid(pos.x, pos.y)) {
+              const mascot = createEntity(CreatureType.MASCOT, pos.x, pos.y);
+              mascot.angle = -Math.PI / 2; // Upright
+              state.entities.push(mascot);
+          }
+      }
+  });
+};
+
+const spawnPortals = (state: GameState) => {
+    if (state.portals.length >= (PORTAL_CONFIG as any).MAX_COUNT || 6) return;
+    if (Math.random() > (PORTAL_CONFIG as any).SPAWN_CHANCE || 0.002) return;
+
+    const px = Math.random() * WORLD_SIZE;
+    const py = Math.random() * WORLD_SIZE;
+    if (isPositionValid(px, py)) {
+        state.portals.push({
+            id: uuid(),
+            x: px,
+            y: py,
+            radius: PORTAL_CONFIG.RADIUS,
+            angle: 0
+        });
+    }
 };
 
 export const manualSquadSwitch = (state: GameState): boolean => {
@@ -383,7 +436,8 @@ const updateHazards = (state: GameState, particles: Particle[]) => {
             player.health = 0;
         }
         for (const ent of entities) {
-             if (dist(ent, hazard) < hazard.radius) {
+             // Mascot is safe from meteors
+             if (ent.type !== CreatureType.MASCOT && dist(ent, hazard) < hazard.radius) {
                  ent.health = 0; 
                  for(let i=0; i<5; i++) particles.push(createParticle(ent.x, ent.y, ent.config.color));
              }
@@ -399,13 +453,11 @@ const updateHazards = (state: GameState, particles: Particle[]) => {
 const updatePortals = (state: GameState, particles: Particle[]) => {
     state.portals.forEach(p => {
         p.angle += 0.05;
-        //吸引粒子效果
         if (Math.random() < 0.2) {
             const angle = Math.random() * Math.PI * 2;
             const d = p.radius * (1.5 + Math.random());
             const px = p.x + Math.cos(angle) * d;
             const py = p.y + Math.sin(angle) * d;
-            //粒子流向中心
             const vx = (p.x - px) * 0.08;
             const vy = (p.y - py) * 0.08;
             particles.push({
@@ -419,6 +471,9 @@ const updatePortals = (state: GameState, particles: Particle[]) => {
     });
 
     const checkTeleport = (entity: Entity | PlayerState) => {
+        // Mascot doesn't use portals
+        if (entity.type === CreatureType.MASCOT) return;
+
         for (const p of state.portals) {
             if (dist(entity, p) < p.radius) {
                 const currentBiome = getBiome(entity.x, entity.y);
@@ -427,7 +482,6 @@ const updatePortals = (state: GameState, particles: Particle[]) => {
                 const targetBiome = otherBiomes[Math.floor(Math.random() * otherBiomes.length)];
                 const dest = getRandomPosInBiome(targetBiome);
 
-                // --- 传送原点：坍缩效果 ---
                 for(let i=0; i<60; i++) {
                     const angle = Math.random() * Math.PI * 2;
                     const d = entity.radius * 3;
@@ -441,7 +495,6 @@ const updatePortals = (state: GameState, particles: Particle[]) => {
                     });
                 }
 
-                // 为玩家添加全屏闪烁感：创建一个巨大的发光粒子
                 if (entity.id === 'player') {
                     particles.push({
                         id: uuid(),
@@ -458,7 +511,6 @@ const updatePortals = (state: GameState, particles: Particle[]) => {
                 entity.x = dest.x;
                 entity.y = dest.y;
 
-                // --- 传送终点：爆发效果 ---
                 for(let i=0; i<80; i++) {
                     const angle = Math.random() * Math.PI * 2;
                     const spd = 4 + Math.random() * 15;
@@ -488,9 +540,9 @@ const updatePortals = (state: GameState, particles: Particle[]) => {
                 
                 if (entity.id === 'player') {
                     const p = entity as PlayerState;
-                    p.speedBoostTimer = 180; // 退出传送门时加个小冲刺
+                    p.speedBoostTimer = 180; 
                     p.shieldTimer = Math.max(p.shieldTimer, 180); 
-                    p.renderScale = 2.0; // 瞬间放大再回缩的视觉反馈
+                    p.renderScale = 2.0; 
                 }
                 break;
             }
@@ -513,9 +565,18 @@ const updateBuildings = (state: GameState, particles: Particle[]) => {
                 vx: 0, vy: -1
              });
         }
-        if (b.cooldown <= 0 && dist(state.player, b) < b.radius + state.player.radius) {
+        if (b.cooldown <= 0 && dist(state.player, b) < b.radius * 0.8) {
             let success = false;
-            if (b.type === BuildingType.HOSPITAL) {
+            
+            if (b.type === BuildingType.SHOP) {
+                // Enter Shop
+                state.status = GameStatus.SHOP;
+                state.player.speechBubble = { text: "欢迎光临!", timer: 60, color: '#f472b6' };
+                // Reset velocity
+                state.player.vx = 0;
+                state.player.vy = 0;
+                success = true;
+            } else if (b.type === BuildingType.HOSPITAL) {
                 if (state.player.health < state.player.maxHealth) {
                     state.player.health = state.player.maxHealth;
                     state.player.speechBubble = { text: "满血复活!", timer: 60, color: '#ef4444' };
@@ -553,6 +614,7 @@ const checkHiding = (entity: Entity, obstacles: Obstacle[]) => {
     const d = dist(entity, obs);
     const radiusFactor = obs.type === 'SEAWEED' ? 0.8 : 0.7;
     const coverageFactor = obs.type === 'SEAWEED' ? 0.7 : 0.5;
+
     if (d < obs.radius - entity.radius * coverageFactor) {
        if (entity.radius < obs.radius * radiusFactor) {
          entity.isHidden = true;
@@ -565,40 +627,61 @@ const checkHiding = (entity: Entity, obstacles: Obstacle[]) => {
 const updateStrategyState = (entity: Entity) => {
   const speed = Math.hypot(entity.vx, entity.vy);
   entity.isIdle = speed < GAME_MECHANICS.IDLE_THRESHOLD;
+
   if (entity.config.special === 'LURE') {
-    if (entity.isIdle) entity.lureActive = true;
-    else {
-      if (entity.lureActive) entity.ambushTimer = GAME_MECHANICS.AMBUSH_BONUS_FRAMES;
+    if (entity.isIdle) {
+      entity.lureActive = true;
+    } else {
+      if (entity.lureActive) {
+        entity.ambushTimer = GAME_MECHANICS.AMBUSH_BONUS_FRAMES;
+      }
       entity.lureActive = false;
     }
   }
+
   if (entity.config.special === 'CAMO') {
-    if (entity.isIdle) entity.camoActive = true;
-    else {
-      if (entity.camoActive) entity.ambushTimer = GAME_MECHANICS.AMBUSH_BONUS_FRAMES;
+    if (entity.isIdle) {
+      entity.camoActive = true;
+    } else {
+      if (entity.camoActive) {
+        entity.ambushTimer = GAME_MECHANICS.AMBUSH_BONUS_FRAMES;
+      }
       entity.camoActive = false;
     }
   }
+
   if (entity.ambushTimer > 0) entity.ambushTimer--;
   if (entity.happyTimer && entity.happyTimer > 0) entity.happyTimer--;
   if (entity.fearTimer && entity.fearTimer > 0) entity.fearTimer--;
   if (entity.evolutionVisualTimer && entity.evolutionVisualTimer > 0) entity.evolutionVisualTimer--;
+  
   if (entity.speechBubble) {
     entity.speechBubble.timer--;
-    if (entity.speechBubble.timer <= 0) entity.speechBubble = null;
+    if (entity.speechBubble.timer <= 0) {
+       entity.speechBubble = null;
+    }
   }
 };
 
 const calculateAIMovement = (entity: Entity, entities: Entity[], player: PlayerState, hazards: Hazard[], obstacles: Obstacle[], isPlayer: boolean) => {
+    // SPECIAL MASCOT LOGIC: Bob up and down
+    if (entity.type === CreatureType.MASCOT) {
+        // Just hover
+        return { desiredAngle: -Math.PI / 2, targetEntityId: null, fearFactor: 0, panicFactor: 0 };
+    }
+
     const baseDetection = 700;
     const nearby = entities.filter(e => {
         if (e.id === entity.id || e.isHidden) return false;
         const spottingDist = baseDetection + (e.radius * 5); 
         return dist(entity, e) < spottingDist;
     });
+    
     if (!isPlayer && !player.isHidden && entity.ownerId !== 'player') {
         const spottingDist = baseDetection + (player.radius * 5);
-        if (dist(entity, player) < spottingDist) nearby.push(player);
+        if (dist(entity, player) < spottingDist) {
+            nearby.push(player);
+        }
     }
 
     let fx = 0;
@@ -643,29 +726,41 @@ const calculateAIMovement = (entity: Entity, entities: Entity[], player: PlayerS
          let target = null;
          if (entity.targetId === 'player') target = player;
          else target = entities.find(e => e.id === entity.targetId);
+         
          if (target && !target.isHidden) {
              const distToTarget = dist(entity, target);
              const dx = target.x - entity.x;
              const dy = target.y - entity.y;
-             fx += (dx / distToTarget) * 4.0;
+             fx += (dx / distToTarget) * 4.0; 
              fy += (dy / distToTarget) * 4.0;
+             
              const desiredAngle = Math.atan2(fy, fx);
              return { desiredAngle, targetEntityId: entity.targetId, fearFactor: 0, panicFactor: 0 };
          }
     }
 
     for (const other of nearby) {
-        if (other.id === player.id && playerHasShield) continue; 
-        if (entity.ownerId === 'player' && (other.id === player.id || other.ownerId === 'player')) continue;
-        if (isPlayer && other.ownerId === 'player') continue;
+        if (other.id === player.id && playerHasShield) {
+            continue; 
+        }
+
+        if (entity.ownerId === 'player' && (other.id === player.id || other.ownerId === 'player')) {
+            continue;
+        }
+
+        if (isPlayer && other.ownerId === 'player') {
+            continue;
+        }
+        
         if (isPlayer) {
              const insideSeaweed = obstacles.some(o => o.type === 'SEAWEED' && dist(other, o) < o.radius);
              if (insideSeaweed) continue;
         }
-
+        
         const d = dist(entity, other);
         const dirX = (other.x - entity.x) / d;
         const dirY = (other.y - entity.y) / d;
+
         const sizeRatio = other.radius / entity.radius;
         const isPredator = sizeRatio > 1.1; 
         const isFood = other.radius < entity.radius * 0.9 || other.type === CreatureType.PLANKTON;
@@ -673,15 +768,25 @@ const calculateAIMovement = (entity: Entity, entities: Entity[], player: PlayerS
         if (isPredator) {
             if (!other.camoActive) {
                 let panicMultiplier = 1.0;
-                if (sizeRatio > 5.0 || other.radius > 100) panicMultiplier = 4.0; 
-                else if (sizeRatio > 2.0) panicMultiplier = 1.5;
+                
+                if (sizeRatio > 5.0 || other.radius > 100) {
+                    panicMultiplier = 4.0; 
+                } else if (sizeRatio > 2.0) {
+                    panicMultiplier = 1.5;
+                }
+
                 const distanceSq = d * d;
                 const repulsion = 50000 / (distanceSq + 1); 
                 const evasionForce = repulsion * 300 * panicMultiplier;
+
                 fx -= dirX * evasionForce;
                 fy -= dirY * evasionForce;
                 fearFactor += repulsion * panicMultiplier;
-                if (sizeRatio > 5.0 || other.radius > 100) panicFactor += repulsion;
+                
+                if (sizeRatio > 5.0 || other.radius > 100) {
+                    panicFactor += repulsion;
+                }
+                
                 if (sizeRatio > 5.0 && d < 400 && Math.random() < 0.05 && !entity.speechBubble) {
                      entity.speechBubble = { text: getRandomPhrase(PANIC_PHRASES), timer: 45, color: '#fca5a5' };
                 }
@@ -704,7 +809,9 @@ const calculateAIMovement = (entity: Entity, entities: Entity[], player: PlayerS
         }
     }
 
-    if (fearFactor > 0.8) targetEntityId = null; 
+    if (fearFactor > 0.8) { 
+        targetEntityId = null; 
+    } 
     else if (nearestFood) {
         const dx = nearestFood.x - entity.x;
         const dy = nearestFood.y - entity.y;
@@ -742,6 +849,21 @@ const updateAI = (entity: Entity, state: GameState) => {
     return; 
   }
 
+  // --- MASCOT SPECIAL MOVEMENT ---
+  if (entity.type === CreatureType.MASCOT) {
+      // Bob up and down (Visible oscillation)
+      entity.y += Math.sin(state.time * 0.05) * 1.5;
+      
+      // Face player if close and say happy new year
+      if (dist(entity, player) < 400) {
+          // If no speech, add one periodically
+          if (!entity.speechBubble && state.time % 240 === 0) {
+              entity.speechBubble = { text: "马年快乐!", timer: 120, color: '#f59e0b' };
+          }
+      }
+      return; 
+  }
+
   const playerHasShield = player.shieldTimer > 0 || player.isInvulnerable || player.isGodMode;
   if (playerHasShield && entity.targetId === 'player') {
       entity.targetId = null; 
@@ -750,9 +872,14 @@ const updateAI = (entity: Entity, state: GameState) => {
   }
 
   let agility = Math.max(0.02, GAME_MECHANICS.BASE_TURN_SPEED - (entity.radius * GAME_MECHANICS.SIZE_AGILITY_PENALTY));
+  
   const { desiredAngle, targetEntityId, fearFactor, panicFactor } = calculateAIMovement(entity, entities, player, hazards, obstacles, false);
+  
   if (targetEntityId) entity.targetId = targetEntityId;
-  if (panicFactor > 0.1) entity.fearTimer = 20; 
+
+  if (panicFactor > 0.1) { 
+      entity.fearTimer = 20; 
+  }
 
   let angleDiff = desiredAngle - entity.angle;
   while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
@@ -766,6 +893,7 @@ const updateAI = (entity: Entity, state: GameState) => {
       const panicIntensity = Math.min(2.5, panicFactor * 0.5);
       const panicSpeed = 1.5 + panicIntensity;
       speedMult = Math.max(speedMult, panicSpeed);
+      
       if (Math.random() < 0.4) {
           const trailAngle = entity.angle + Math.PI + (Math.random() - 0.5) * 0.5;
           const px = entity.x + Math.cos(trailAngle) * entity.radius;
@@ -778,7 +906,10 @@ const updateAI = (entity: Entity, state: GameState) => {
       }
   }
   
-  if (entity.speedBoostTimer && entity.speedBoostTimer > 0) speedMult *= GAME_MECHANICS.SPEED_ITEM_MULTIPLIER;
+  if (entity.speedBoostTimer && entity.speedBoostTimer > 0) {
+      speedMult *= GAME_MECHANICS.SPEED_ITEM_MULTIPLIER;
+  }
+  
   if (entity.ownerId === 'player') speedMult *= 1.1;
 
   const finalSpeed = entity.speed * speedMult;
@@ -788,19 +919,24 @@ const updateAI = (entity: Entity, state: GameState) => {
   entity.x += entity.vx;
   entity.y += entity.vy;
   
-  if (entity.renderScale > 1.0) entity.renderScale += (1.0 - entity.renderScale) * 0.1;
+  if (entity.renderScale > 1.0) {
+     entity.renderScale += (1.0 - entity.renderScale) * 0.1;
+  }
   
   clampToMap(entity);
 };
 
 const processCollision = (attacker: Entity | PlayerState, victim: Entity | PlayerState, particles: Particle[], state: GameState) => {
+  // MASCOT IMMUNITY
+  if (attacker.type === CreatureType.MASCOT || victim.type === CreatureType.MASCOT) return;
+
   if ('shieldTimer' in victim) {
       const v = victim as PlayerState;
       if (v.shieldTimer > 0 || v.isGodMode || v.isInvulnerable) {
           const angle = Math.atan2(attacker.y - victim.y, attacker.x - victim.x);
           attacker.x += Math.cos(angle) * 20;
           attacker.y += Math.sin(angle) * 20;
-          particles.push(createParticle((attacker.x+victim.x)/2, (attacker.y+victim.y)/2, '#06b6d4'));
+          particles.push(createParticle((attacker.x+victim.x)/2, (attacker.y+victim.y)/2, '#06b6d4')); 
           return;
       }
   }
@@ -819,6 +955,7 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
   if (victim.type === CreatureType.PLANKTON) {
     let massGained = GAME_MECHANICS.PLANKTON_MASS;
     if (attacker.radius > 60) massGained = 0;
+
     const newRadius = Math.sqrt(attacker.radius * attacker.radius + massGained);
     attacker.radius = Math.min(GAME_MECHANICS.MAX_RADIUS, newRadius);
     
@@ -827,6 +964,7 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
        w.weight += victim.config.weightValue;
        w.eatenHistory[victim.type] = (w.eatenHistory[victim.type] || 0) + 1;
     }
+
     victim.health = 0; 
     attacker.renderScale = 1.1;
     attacker.happyTimer = 60; 
@@ -837,44 +975,53 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
   if (attacker.radius > victim.radius) {
       const ratio = attacker.radius / victim.radius;
 
-      // SURVIVAL BOUNCE
-      const safeThreshold = victim.id === 'player' ? 1.8 : 1.25;
-      
-      if (ratio < safeThreshold) {
-          let damage = attacker.config.damage * 0.25; // 50% reduced
-          victim.health -= damage;
-          
-          // STRONG BOUNCE
-          const ang = Math.atan2(victim.y - attacker.y, victim.x - attacker.x);
-          const pushDist = attacker.radius + victim.radius + 30; // Push out of hitbox entirely
-          victim.x = attacker.x + Math.cos(ang) * pushDist;
-          victim.y = attacker.y + Math.sin(ang) * pushDist;
-          victim.vx += Math.cos(ang) * 40; // Mega impulse
-          victim.vy += Math.sin(ang) * 40;
-          
-          if (victim.id === 'player') {
-              (victim as PlayerState).invulnerableTimer = 120; // 2s invuln
-              (victim as PlayerState).isInvulnerable = true;
-              attacker.speechBubble = { text: "太大了!", timer: 45, color: 'white' };
-              victim.speechBubble = { text: "好险!", timer: 45, color: '#fca5a5' };
-          } else {
-              victim.speechBubble = { text: "咬不动!", timer: 45, color: '#fca5a5' };
-          }
-          particles.push(createParticle((attacker.x+victim.x)/2, (attacker.y+victim.y)/2, 'red'));
-          return;
+      if (victim.id === 'player') {
+         const isEnraged = attacker.targetId === 'player' && (attacker.aggroTimer || 0) > 0;
+         
+         if (!isEnraged) {
+              attacker.targetId = 'player';
+              attacker.aggroTimer = 300; 
+              attacker.speechBubble = { text: getRandomPhrase(ANGRY_PHRASES), timer: 60, color: '#ef4444' };
+              attacker.happyTimer = 0;
+              
+              const ang = Math.atan2(victim.y - attacker.y, victim.x - attacker.x);
+              const pushDist = attacker.radius * 0.5 + 20;
+              victim.x = attacker.x + Math.cos(ang) * (attacker.radius + victim.radius + 15); 
+              victim.y = attacker.y + Math.sin(ang) * (attacker.radius + victim.radius + 15);
+              victim.vx += Math.cos(ang) * 15;
+              victim.vy += Math.sin(ang) * 15;
+              
+              if ('invulnerableTimer' in victim) {
+                  (victim as PlayerState).invulnerableTimer = 30; 
+                  (victim as PlayerState).isInvulnerable = true;
+              }
+              
+              victim.fearTimer = 60;
+              if (!victim.speechBubble) victim.speechBubble = { text: "妈耶!", timer: 45, color: '#fca5a5' };
+              
+              for(let k=0; k<10; k++) particles.push(createParticle(attacker.x, attacker.y, '#ef4444'));
+              
+              return; 
+         }
       }
-
+      
       let swallowChance = 0;
-      if (ratio < 2.0) swallowChance = 0.50; 
+      if (ratio < 1.2) swallowChance = 0.01; 
+      else if (ratio < 2.0) swallowChance = 0.05 + (ratio - 1.2) * 0.3; 
+      else if (ratio < 3.0) swallowChance = 0.50; 
+      else if (ratio < 5.0) swallowChance = 0.80; 
       else swallowChance = 1.0; 
 
       let chaseAngleDiff = Math.abs(attacker.angle - victim.angle);
       while (chaseAngleDiff > Math.PI) chaseAngleDiff -= Math.PI * 2;
       while (chaseAngleDiff < -Math.PI) chaseAngleDiff += Math.PI * 2;
       chaseAngleDiff = Math.abs(chaseAngleDiff);
+
       const isAmbush = chaseAngleDiff < Math.PI / 3; 
       
-      if (isAmbush) swallowChance += 0.4; 
+      if (isAmbush) {
+          swallowChance += 0.4; 
+      }
 
       const roll = Math.random();
       const isSwallowed = roll < swallowChance;
@@ -908,8 +1055,11 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
           attacker.renderScale = 1.2; 
           attacker.happyTimer = 60;
           
-          if (isAmbush) attacker.speechBubble = { text: "偷袭!", timer: 60, color: '#fef08a' };
-          else attacker.speechBubble = { text: getRandomPhrase(EAT_PHRASES), timer: 60, color: '#bef264' };
+          if (isAmbush) {
+             attacker.speechBubble = { text: "偷袭!", timer: 60, color: '#fef08a' };
+          } else {
+             attacker.speechBubble = { text: getRandomPhrase(EAT_PHRASES), timer: 60, color: '#bef264' };
+          }
 
           particles.push(createParticle(victim.x, victim.y, victim.config.color));
           particles.push(createParticle(victim.x, victim.y, 'white'));
@@ -952,6 +1102,7 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
           particles.push(createParticle((attacker.x + victim.x)/2, (attacker.y + victim.y)/2, '#94a3b8'));
           return; 
       }
+
       let damage = attacker.config.damage;
       if (attacker.ambushTimer > 0) damage *= GAME_MECHANICS.AMBUSH_DAMAGE_MULT;
 
@@ -1053,6 +1204,7 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
   if (state.entities.length < MAX_ENTITIES) {
       const r = Math.random();
       let type = CreatureType.PLANKTON;
+      
       if (r < 0.6) type = CreatureType.PLANKTON;
       else if (r < 0.8) type = CreatureType.CLOWN_FISH;
       else if (r < 0.9) type = CreatureType.JELLYFISH;
@@ -1069,10 +1221,42 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
   
   spawnPowerUps(state);
   spawnHazards(state);
+  spawnPortals(state);
+  spawnMascot(state);
   
   const { player, entities, particles, obstacles, powerUps, hazards, projectiles } = state;
 
   if (state.status === GameStatus.PLAYING) {
+      // Trail Particles Logic
+      if (player.cosmetics && player.cosmetics.trailType && player.cosmetics.trailType !== 'NONE') {
+          if (Math.random() < 0.4) {
+              let color = '#ffffff';
+              let size = Math.random() * 3 + 2;
+              let life = 0.5;
+              const tType = player.cosmetics.trailType;
+              
+              if (tType === 'BUBBLES') { color = 'rgba(255,255,255,0.5)'; }
+              else if (tType === 'RAINBOW') { color = `hsl(${(state.time * 10) % 360}, 100%, 50%)`; }
+              else if (tType === 'FIRE') { color = Math.random() < 0.5 ? '#ef4444' : '#f59e0b'; }
+              else if (tType === 'GLITTER') { color = '#fef08a'; life = 0.8; }
+              else if (tType === 'HEARTS') { color = '#ec4899'; }
+              else if (tType === 'ELECTRIC') { color = '#22d3ee'; }
+              else if (tType === 'SLIME') { color = '#4ade80'; }
+              
+              state.particles.push({
+                  id: uuid(),
+                  x: player.x - Math.cos(player.angle) * player.radius, 
+                  y: player.y - Math.sin(player.angle) * player.radius,
+                  vx: (Math.random() - 0.5) * 2,
+                  vy: (Math.random() - 0.5) * 2,
+                  life,
+                  maxLife: life,
+                  color,
+                  size
+              });
+          }
+      }
+
       const cx = screenWidth / 2;
       const cy = screenHeight / 2;
       const dx = mouse.x - cx;
@@ -1277,10 +1461,10 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
       }
   }
 
-  // FIXED CAMERA: Target is exactly the player's position
   state.camera.x += (player.x - state.camera.x) * 0.1;
   state.camera.y += (player.y - state.camera.y) * 0.1;
-  const targetZoom = Math.max(0.3, 0.8 - (player.radius / 500));
+  // Increase max zoom to 1.5, min zoom 0.3
+  const targetZoom = Math.max(0.3, Math.min(1.5, 1.0 - (player.radius / 800)));
   state.camera.zoom += (targetZoom - state.camera.zoom) * 0.05;
 
   return state;
