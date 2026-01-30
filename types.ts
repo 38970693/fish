@@ -78,16 +78,21 @@ export type TeethType =
 export type PatternType = 
   | 'NONE' | 'STRIPES' | 'SPOTS' | 'TIGER' 
   | 'DOTS' | 'CAMO' | 'ZEBRA' | 'LEOPARD' 
-  | 'HEART' | 'STAR' | 'CIRCUIT' | 'LAVA' | 'KOI' | 'SKELETON';
+  | 'HEART' | 'STAR' | 'CIRCUIT' | 'LAVA' | 'KOI' | 'SKELETON'
+  // NEW PATTERNS
+  | 'LIGHTNING' | 'CLOUD' | 'CHECKER' | 'VINES' | 'TARGET' 
+  | 'GALAXY' | 'SMILEY' | 'FIREY' | 'RUNE' | 'CANDY';
 
 export type ScaleType = 
   | 'NONE' | 'SHINY' | 'DRAGON' | 'STONE' 
   | 'FEATHER' | 'MECHANICAL' | 'GLOW' | 'MOSAIC' 
-  | 'CRYSTAL' | 'VOID' | 'PIXEL';
+  | 'CRYSTAL' | 'VOID' | 'PIXEL'
+  // NEW SCALES
+  | 'ARMOR' | 'DIAMOND_PLATE' | 'SLIME' | 'BIO_HAZARD';
 
 export interface Cosmetics {
   teeth: TeethType;
-  skinColor: string; // 'DEFAULT' or hex code
+  skinColor: string; // 'DEFAULT', hex, or 'GRADIENT_XYZ'
   pattern: PatternType;
   scaleType: ScaleType;
 }

@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType } from '../types';
+import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity } from '../types';
 import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
+import { drawCuteFish } from './GameCanvas';
 import { Shield, Zap, Wind, Skull, Crosshair, Crown, Play, RefreshCw, AlertTriangle, Ban, Info, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box } from 'lucide-react';
 
 interface UIOverlayProps {
@@ -27,6 +29,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
   
   // MiniMap Refs
   const miniMapRef = useRef<HTMLCanvasElement>(null);
+  
+  // Preview Canvas Ref
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (status !== GameStatus.PLAYING) return;
@@ -147,6 +152,67 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
   }, [status, gameState.entities, gameState.player, gameState.buildings, gameState.portals, gameState.camera.zoom]);
 
+  // --- PREVIEW CANVAS RENDER LOOP ---
+  useEffect(() => {
+    if (status !== GameStatus.SHOP) return;
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Resize based on container? Fixed size for now
+    canvas.width = 400;
+    canvas.height = 400;
+    
+    let frameId: number;
+    
+    const loop = () => {
+        const visualTime = performance.now() / 16;
+        
+        // Clear
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Background Glow
+        const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, 200);
+        grad.addColorStop(0, 'rgba(168, 85, 247, 0.1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+        
+        // Create Dummy Entity
+        const dummy: Entity = {
+            ...player,
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 80, // Fixed large size
+            angle: 0,
+            vx: 0, vy: 0,
+            cosmetics: player.cosmetics, // Use current selection
+            animOffset: 0,
+            renderScale: 1.0,
+            isHidden: false,
+            camoActive: false,
+            isIdle: false,
+            lureActive: false,
+            ambushTimer: 0,
+            mouthOpenValue: 0,
+            fearTimer: 0,
+            happyTimer: 0,
+            speedBoostTimer: 0,
+            evolutionVisualTimer: 0
+        };
+        
+        // Add subtle rotation
+        dummy.angle = Math.sin(visualTime * 0.05) * 0.1;
+        
+        drawCuteFish(ctx, dummy, visualTime, true);
+        
+        frameId = requestAnimationFrame(loop);
+    };
+    loop();
+    
+    return () => cancelAnimationFrame(frameId);
+  }, [status, player.cosmetics, player.type]); // Re-run if cosmetics change
 
   const handleAdReviveClick = () => {
     if (isWatchingAd) return;
@@ -184,21 +250,40 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
       ];
 
       const SKIN_OPTIONS = [
-          {label: '默认', value: 'DEFAULT'},
-          {label: '烈焰红', value: '#ef4444'},
-          {label: '深海蓝', value: '#3b82f6'},
-          {label: '虚空紫', value: '#8b5cf6'},
-          {label: '柠檬黄', value: '#facc15'},
-          {label: '幽灵白', value: '#f8fafc'},
-          {label: '暗影黑', value: '#1e293b'},
-          {label: '翡翠绿', value: '#10b981'},
-          {label: '少女粉', value: '#f472b6'},
-          {label: '土豪金', value: '#ca8a04'},
-          {label: '巧克力', value: '#78350f'},
+          {label: '默认', value: 'DEFAULT', color: '#94a3b8'},
+          {label: '烈焰红', value: '#ef4444', color: '#ef4444'},
+          {label: '深海蓝', value: '#3b82f6', color: '#3b82f6'},
+          {label: '虚空紫', value: '#8b5cf6', color: '#8b5cf6'},
+          {label: '柠檬黄', value: '#facc15', color: '#facc15'},
+          {label: '幽灵白', value: '#f8fafc', color: '#f8fafc'},
+          {label: '暗影黑', value: '#1e293b', color: '#1e293b'},
+          {label: '翡翠绿', value: '#10b981', color: '#10b981'},
+          {label: '少女粉', value: '#f472b6', color: '#f472b6'},
+          {label: '土豪金', value: '#ca8a04', color: '#ca8a04'},
+          {label: '巧克力', value: '#78350f', color: '#78350f'},
+          // Gradients
+          {label: '日落渐变', value: 'GRADIENT_SUNSET', style: 'linear-gradient(135deg, #6d28d9, #db2777, #f59e0b)'},
+          {label: '海洋之心', value: 'GRADIENT_OCEAN', style: 'linear-gradient(135deg, #1e3a8a, #06b6d4, #a5f3fc)'},
+          {label: '剧毒辐射', value: 'GRADIENT_TOXIC', style: 'linear-gradient(135deg, #14532d, #4ade80, #facc15)'},
+          {label: '炫彩虹光', value: 'GRADIENT_RAINBOW', style: 'linear-gradient(135deg, red, orange, yellow, green, blue, purple)'},
+          {label: '极光', value: 'GRADIENT_AURORA', style: 'linear-gradient(135deg, #0f172a, #22c55e, #3b82f6)'},
+          {label: '糖果', value: 'GRADIENT_CANDY', style: 'linear-gradient(135deg, #f472b6, #60a5fa)'},
+          {label: '烈火', value: 'GRADIENT_FIRE', style: 'linear-gradient(135deg, #7f1d1d, #ef4444, #fcd34d)'},
+          {label: '黑金', value: 'GRADIENT_GOLD', style: 'linear-gradient(135deg, #78350f, #fcd34d, #fbbf24)'},
       ];
 
       const PATTERN_OPTIONS: {label: string, value: PatternType, bg: string}[] = [
           {label: '无', value: 'NONE', bg: 'bg-slate-700'},
+          {label: '闪电', value: 'LIGHTNING', bg: 'bg-yellow-900 border-yellow-400'},
+          {label: '云朵', value: 'CLOUD', bg: 'bg-sky-300'},
+          {label: '棋盘', value: 'CHECKER', bg: 'bg-[conic-gradient(at_top_left,_black_90deg,_transparent_0)_0_0/20px_20px]'},
+          {label: '藤蔓', value: 'VINES', bg: 'bg-green-800'},
+          {label: '靶心', value: 'TARGET', bg: 'bg-[radial-gradient(circle,red,white,red)]'},
+          {label: '星系', value: 'GALAXY', bg: 'bg-slate-900'},
+          {label: '笑脸', value: 'SMILEY', bg: 'bg-yellow-400'},
+          {label: '火焰', value: 'FIREY', bg: 'bg-gradient-to-t from-red-600 to-yellow-400'},
+          {label: '符文', value: 'RUNE', bg: 'bg-cyan-900'},
+          {label: '糖果条', value: 'CANDY', bg: 'bg-[repeating-linear-gradient(45deg,#f472b6,#f472b6_10px,white_10px,white_20px)]'},
           {label: '条纹', value: 'STRIPES', bg: 'bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#000_10px,#000_20px)]'},
           {label: '斑点', value: 'SPOTS', bg: 'bg-[radial-gradient(circle,black_2px,transparent_2.5px)] bg-[length:10px_10px]'},
           {label: '虎纹', value: 'TIGER', bg: 'bg-orange-500 bg-[linear-gradient(to_right,black_50%,transparent_50%)] bg-[length:20px_100%]'},
@@ -216,6 +301,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
       const SCALE_OPTIONS: {label: string, value: ScaleType, style: string}[] = [
           {label: '光滑', value: 'NONE', style: 'bg-slate-700'},
+          {label: '重甲', value: 'ARMOR', style: 'bg-slate-600 border-2 border-slate-400'},
+          {label: '菱形', value: 'DIAMOND_PLATE', style: 'bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,.2)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px] bg-slate-500'},
+          {label: '黏液', value: 'SLIME', style: 'bg-green-500/50 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]'},
+          {label: '生化', value: 'BIO_HAZARD', style: 'bg-yellow-400 border border-black'},
           {label: '高光', value: 'SHINY', style: 'bg-gradient-to-tr from-white/10 to-white/60'},
           {label: '龙鳞', value: 'DRAGON', style: 'bg-green-800 border-green-500'},
           {label: '岩石', value: 'STONE', style: 'bg-stone-600'},
@@ -230,7 +319,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-md z-50">
-           <div className="w-full max-w-5xl h-[85vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+           <div className="w-full max-w-6xl h-[85vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                {/* Header */}
                <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800">
                    <div className="flex items-center gap-4">
@@ -252,7 +341,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
 
                <div className="flex flex-1 overflow-hidden">
                    {/* Sidebar Tabs */}
-                   <div className="w-56 bg-slate-800/50 flex flex-col border-r border-slate-700">
+                   <div className="w-56 bg-slate-800/50 flex flex-col border-r border-slate-700 flex-shrink-0">
                        <button onClick={() => setShopTab('TEETH')} className={`p-5 flex items-center gap-3 font-bold transition-all ${shopTab === 'TEETH' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
                            <Skull size={20}/> 牙齿造型
                        </button>
@@ -267,9 +356,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                        </button>
                    </div>
 
-                   {/* Content Area */}
+                   {/* Content Area (Grid) */}
                    <div className="flex-1 p-8 overflow-y-auto bg-slate-900/50 scrollbar-thin scrollbar-thumb-slate-700">
-                       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                            {shopTab === 'TEETH' && TEETH_OPTIONS.map(opt => (
                                <button 
                                   key={opt.value}
@@ -287,7 +376,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                                   onClick={() => updateCosmetic('skinColor', opt.value)}
                                   className={`aspect-square p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all hover:scale-105 ${cosmetics.skinColor === opt.value ? 'border-purple-500 bg-purple-500/20' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}
                                >
-                                   <div className="w-16 h-16 rounded-full border-4 border-white/10 shadow-xl" style={{ backgroundColor: opt.value === 'DEFAULT' ? '#94a3b8' : opt.value }}></div>
+                                   <div className="w-16 h-16 rounded-full border-4 border-white/10 shadow-xl" style={{ background: opt.style || opt.color }}></div>
                                    <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
                                </button>
                            ))}
@@ -313,6 +402,20 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                                    <div className="font-bold text-slate-200 text-sm">{opt.label}</div>
                                </button>
                            ))}
+                       </div>
+                   </div>
+
+                   {/* Preview Panel (New) */}
+                   <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col items-center justify-center relative p-4 shadow-2xl flex-shrink-0">
+                       <div className="absolute top-4 left-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Live Preview</div>
+                       <div className="w-full aspect-square relative flex items-center justify-center">
+                           {/* Glow Effect */}
+                           <div className="absolute inset-0 bg-purple-500/10 blur-3xl rounded-full"></div>
+                           <canvas ref={previewCanvasRef} className="w-full h-full object-contain relative z-10" />
+                       </div>
+                       <div className="mt-4 text-center">
+                           <h3 className="text-xl font-bold text-white">{player.config.name}</h3>
+                           <p className="text-slate-400 text-sm">当前预览效果</p>
                        </div>
                    </div>
                </div>
