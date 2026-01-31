@@ -1,4 +1,5 @@
 
+
 export enum GameStatus {
   MENU = 'MENU',
   PLAYING = 'PLAYING',
@@ -277,6 +278,17 @@ export interface Building {
   cooldown: number; 
 }
 
+// NEW: Treasure Interface
+export interface Treasure {
+  id: string;
+  x: number;
+  y: number;
+  type: 'FEAST' | 'CHEST'; // Feast = huge mass, Chest = huge stats buff
+  status: 'WARNING' | 'ACTIVE';
+  timer: number; // For warning countdown
+  radius: number;
+}
+
 // NEW: Label for dynamic in-game text
 export interface Label {
   x: number;
@@ -296,6 +308,7 @@ export interface GameState {
   projectiles: Projectile[];
   portals: Portal[]; 
   buildings: Building[]; 
+  treasures: Treasure[]; // Added treasures array
   labels: Label[]; // Added
   worldWidth: number;
   worldHeight: number;

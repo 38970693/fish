@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -78,8 +79,8 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
           tailType: 'DEFAULT',
           bodyType: 'DEFAULT',
           eyeType: 'NORMAL',
-          eyebrowType: 'NONE', // New Default
-          trailType: 'NONE'    // New Default
+          eyebrowType: 'NONE', 
+          trailType: 'NONE'    
       }
     },
     entities: [],
@@ -90,6 +91,7 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
     projectiles: [],
     portals: createPortals(),
     buildings: createBuildings(), 
+    treasures: [], // Initial empty treasures
     labels: [], // Initial empty labels
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,

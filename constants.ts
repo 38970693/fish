@@ -1,4 +1,5 @@
 
+
 import { CreatureConfig, CreatureType, BiomeType } from './types';
 
 export const WORLD_SIZE = 6000; // Increased from 4000
@@ -42,6 +43,16 @@ export const GAME_MECHANICS = {
   TORPEDO_DAMAGE: 150,
   TORPEDO_SPEED: 10, 
   TORPEDO_COOLDOWN: 60
+};
+
+// Treasure Event Config
+export const TREASURE_CONFIG = {
+    SPAWN_INTERVAL: 3600, // 60 seconds (at 60fps)
+    WARNING_DURATION: 180, // 3 seconds
+    RADIUS: 60,
+    DETECTION_RANGE: 2500, // Range at which fish swarm to it
+    MASS_REWARD: 500, // Huge chunk of mass
+    BUFF_DURATION: 1200 // 20 seconds of super buff
 };
 
 // Biome Definitions
