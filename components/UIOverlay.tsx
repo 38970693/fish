@@ -95,8 +95,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
     return () => cancelAnimationFrame(frameId);
   }, [status, player.cosmetics, player.type]); 
 
-  const handleAdReviveClick = () => { if (isWatchingAd) return; setIsWatchingAd(true); setTimeout(() => { setIsWatchingAd(false); if (onRevive) onRevive(true); }, 2000); };
-
   if (status === GameStatus.SHOP) {
       const cosmetics = player.cosmetics; const updateCosmetic = (key: keyof Cosmetics, value: any) => { if (onUpdateCosmetics) onUpdateCosmetics({ ...cosmetics, [key]: value }); };
       const TEETH_OPTIONS: {label: string, value: TeethType, icon: string}[] = [ {label: '普通', value: 'NORMAL', icon: '🦷'}, {label: '大金牙', value: 'GOLD', icon: '💰'}, {label: '锯齿', value: 'SHARP', icon: '🔪'}, {label: '吸血鬼', value: 'VAMPIRE', icon: '🧛'}, {label: '牙套', value: 'BRACES', icon: '😬'}, {label: '倒钩', value: 'CURVED', icon: '🪝'}, {label: '双排', value: 'DOUBLE_ROW', icon: '🦈'}, {label: '剑齿', value: 'SABER', icon: '🗡️'}, {label: '缺牙', value: 'GAPPED', icon: '🥴'}, {label: '钻石', value: 'DIAMOND', icon: '💎'}, {label: '彩虹', value: 'RAINBOW', icon: '🌈'}, {label: '兔牙', value: 'BUGS', icon: '🐰'}, {label: '方块', value: 'BLOCKY', icon: '🧱'} ];
@@ -122,7 +120,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
            <div className="w-full max-w-7xl h-[90vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800">
                    <div className="flex items-center gap-4"><div className="bg-purple-500/20 p-3 rounded-xl border border-purple-500/50"><ShoppingBag className="text-purple-400" size={32} /></div><div><h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">深海商场</h2><p className="text-slate-400 text-sm">打造你的专属怪兽</p></div></div>
-                   <button onClick={() => setGameStatus && setGameStatus(GameStatus.PLAYING)} className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-white"><X size={28} /></button>
+                   <button onClick={() => setGameStatus && setGameStatus(GameStatus.MENU)} className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-white"><X size={28} /></button>
                </div>
                <div className="flex flex-1 overflow-hidden">
                    <div className="w-64 bg-slate-800/50 flex flex-col border-r border-slate-700 flex-shrink-0 overflow-y-auto scrollbar-hide">
@@ -157,17 +155,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
                        <div className="mt-4 text-center"><h3 className="text-xl font-bold text-white">{player.config.name}</h3><p className="text-slate-400 text-sm">当前预览效果</p></div>
                    </div>
                </div>
-               <div className="p-4 border-t border-slate-700 bg-slate-800 flex justify-between items-center px-8"><div className="text-slate-400 text-sm">已选择: <span className="text-purple-400 font-bold">{shopTab === 'TEETH' ? TEETH_OPTIONS.find(o=>o.value===cosmetics.teeth)?.label : shopTab === 'SKIN' ? SKIN_OPTIONS.find(o=>o.value===cosmetics.skinColor)?.label : shopTab === 'PATTERN' ? PATTERN_OPTIONS.find(o=>o.value===cosmetics.pattern)?.label : shopTab === 'ACCESSORY' ? ACCESSORY_OPTIONS.find(o=>o.value===cosmetics.accessory)?.label : shopTab === 'TAIL' ? TAIL_OPTIONS.find(o=>o.value===cosmetics.tailType)?.label : shopTab === 'BODY' ? BODY_OPTIONS.find(o=>o.value===cosmetics.bodyType)?.label : shopTab === 'EYE' ? EYE_OPTIONS.find(o=>o.value===cosmetics.eyeType)?.label : shopTab === 'EYEBROW' ? EYEBROW_OPTIONS.find(o=>o.value===cosmetics.eyebrowType)?.label : shopTab === 'TRAIL' ? TRAIL_OPTIONS.find(o=>o.value===cosmetics.trailType)?.label : SCALE_OPTIONS.find(o=>o.value===cosmetics.scaleType)?.label}</span></div><button onClick={() => setGameStatus && setGameStatus(GameStatus.PLAYING)} className="px-10 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-bold flex items-center gap-2 shadow-lg hover:shadow-green-500/30 transition-all hover:-translate-y-0.5"><Check size={20} /> 完成搭配</button></div>
+               <div className="p-4 border-t border-slate-700 bg-slate-800 flex justify-between items-center px-8"><div className="text-slate-400 text-sm">已选择: <span className="text-purple-400 font-bold">{shopTab === 'TEETH' ? TEETH_OPTIONS.find(o=>o.value===cosmetics.teeth)?.label : shopTab === 'SKIN' ? SKIN_OPTIONS.find(o=>o.value===cosmetics.skinColor)?.label : shopTab === 'PATTERN' ? PATTERN_OPTIONS.find(o=>o.value===cosmetics.pattern)?.label : shopTab === 'ACCESSORY' ? ACCESSORY_OPTIONS.find(o=>o.value===cosmetics.accessory)?.label : shopTab === 'TAIL' ? TAIL_OPTIONS.find(o=>o.value===cosmetics.tailType)?.label : shopTab === 'BODY' ? BODY_OPTIONS.find(o=>o.value===cosmetics.bodyType)?.label : shopTab === 'EYE' ? EYE_OPTIONS.find(o=>o.value===cosmetics.eyeType)?.label : shopTab === 'EYEBROW' ? EYEBROW_OPTIONS.find(o=>o.value===cosmetics.eyebrowType)?.label : shopTab === 'TRAIL' ? TRAIL_OPTIONS.find(o=>o.value===cosmetics.trailType)?.label : SCALE_OPTIONS.find(o=>o.value===cosmetics.scaleType)?.label}</span></div><button onClick={() => setGameStatus && setGameStatus(GameStatus.MENU)} className="px-10 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-bold flex items-center gap-2 shadow-lg hover:shadow-green-500/30 transition-all hover:-translate-y-0.5"><Check size={20} /> 完成搭配</button></div>
            </div>
         </div>
       );
   }
 
   if (status === GameStatus.PLAYING) {
-    const squadCount = entities.filter(e => e.ownerId === 'player').length;
-    const basketCount = player.basket ? player.basket.reduce((acc, item) => acc + item.count, 0) : 0;
-    const basketWeight = player.basket ? player.basket.reduce((acc, item) => acc + item.totalWeight, 0) : 0;
-    const biome = BIOME_CONFIGS[player.currentBiome];
     const nextSpawnInFrames = TREASURE_CONFIG.SPAWN_INTERVAL - (time % TREASURE_CONFIG.SPAWN_INTERVAL);
     const secondsRemaining = Math.ceil(nextSpawnInFrames / 60);
     const isTreasureActive = treasures && treasures.length > 0;
@@ -175,18 +169,32 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
     return (
       <div className="absolute inset-0 pointer-events-none p-4">
         <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto transition-all">
-             <div className={`flex items-center gap-3 px-6 py-2 rounded-full border shadow-2xl backdrop-blur-md transition-all duration-500 ${isTreasureActive ? 'bg-amber-500/20 border-amber-500/50 shadow-amber-500/20' : 'bg-slate-900/60 border-slate-700/50 shadow-black/40'}`}>
-                 {isTreasureActive ? ( <><div className="relative"><Gift className="text-amber-400 animate-bounce" size={20} /><div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></div></div><span className="text-amber-200 font-black text-sm tracking-widest animate-pulse">宝贝已降临 · 正在争夺中!</span></> ) : ( <><Clock className="text-cyan-400" size={18} /><div className="flex flex-col"><span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter leading-none">Next Treasure</span><span className="text-white font-black text-lg leading-none tabular-nums">{secondsRemaining}s</span></div><div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden border border-white/5 ml-1"><div className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000 ease-linear" style={{ width: `${(1 - (nextSpawnInFrames / TREASURE_CONFIG.SPAWN_INTERVAL)) * 100}%` }}></div></div></> )}
+             <div className={`flex items-center gap-3 px-6 py-2 rounded-full border shadow-2xl backdrop-blur-md transition-all duration-500 ${isTreasureActive ? 'bg-amber-500/20 border-amber-400 scale-110 shadow-amber-500/50' : 'bg-slate-900/60 border-slate-700'}`}>
+                 {isTreasureActive ? (
+                     <><Gift className="text-amber-400 animate-bounce" size={20} /><span className="text-amber-100 font-black text-sm tracking-widest animate-pulse">宝贝降临 · 抢夺中!</span></>
+                 ) : (
+                     <><Clock className="text-cyan-400" size={18} /><span className="text-white font-black text-lg tabular-nums">{secondsRemaining}s</span><div className="w-16 h-1.5 bg-slate-800 rounded-full ml-1 overflow-hidden"><div className="h-full bg-cyan-500 transition-all duration-1000 ease-linear" style={{ width: `${(1-nextSpawnInFrames/TREASURE_CONFIG.SPAWN_INTERVAL)*100}%` }}></div></div></>
+                 )}
              </div>
         </div>
 
         <div className="flex flex-col gap-2 pointer-events-auto">
-          <div className="bg-slate-900/50 backdrop-blur p-4 rounded-lg border border-slate-700 w-64 shadow-xl"><div className="flex items-center gap-2 mb-2"><div className="w-10 h-10 rounded-full border-2 border-white/20 bg-black/40 flex items-center justify-center"><div className="w-6 h-6 rounded-full" style={{ backgroundColor: player.config.color }}></div></div><div><div className="text-white font-bold text-lg leading-none">{player.config.name}</div><div className="text-slate-400 text-xs">Tier {player.config.tier}</div></div></div><div className="flex justify-between items-center text-sm mb-1"><span className="text-slate-300 font-semibold">重量</span><span className="text-white font-mono text-lg">{Math.floor(player.weight)} kg</span></div><div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden mb-3"><div className={`h-full transition-all duration-300 ${player.radius < 10 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} style={{ width: `${Math.min(100, (player.radius / 500) * 100)}%` }}></div></div><div className="flex justify-between text-xs items-center mt-2 pt-2 border-t border-slate-700/50"><div className="flex items-center gap-2"><span className="text-green-300 font-bold flex items-center gap-1"><Users size={12}/> 战队</span><span className="text-white font-mono">{squadCount} / {GAME_MECHANICS.MAX_SQUAD_SIZE}</span></div>{onSwitchSquad && squadCount > 0 && ( <button onClick={onSwitchSquad} className="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow flex items-center gap-1 transition-all active:scale-95"><Shuffle size={10}/> 切换视角</button> )}</div></div>
-          <div className="bg-slate-900/60 backdrop-blur border border-slate-600 p-3 rounded-lg shadow-xl w-64"><div className="flex items-center gap-2 mb-1" style={{ color: biome.color }}><MapPin size={18} /><span className="font-black text-lg">{biome.name}</span></div><p className="text-xs text-slate-300 leading-tight">{biome.description}</p></div>
+          <div className="bg-slate-900/50 backdrop-blur p-4 rounded-lg border border-slate-700 w-64 shadow-xl">
+             <div className="text-white font-bold text-lg leading-none mb-1">{player.config.name}</div>
+             <div className="text-slate-400 text-xs mb-2">重量: {Math.floor(player.weight)} kg</div>
+             <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 transition-all" style={{ width: `${Math.min(100, (player.radius/500)*100)}%` }}></div>
+             </div>
+          </div>
         </div>
-        <div className="absolute bottom-4 left-4 pointer-events-none flex flex-col items-start gap-1"><canvas ref={miniMapRef} className="rounded-full shadow-2xl border-4 border-slate-600 bg-slate-900/90" /><div className="bg-slate-900/80 p-2 rounded text-[10px] text-slate-400 font-mono border border-slate-700"><div className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-500 rounded-sm"></span> 建筑</div><div className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-400 rounded-full"></span> 传送阵</div><div className="flex items-center gap-1"><span className="w-2 h-2 bg-cyan-400 rounded-full"></span> 玩家</div><div className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span> 宝贝(闪烁)</div></div></div>
-        <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2 pointer-events-auto"><div className="bg-slate-900/80 backdrop-blur border border-slate-600 p-3 rounded-xl shadow-2xl w-64 transition-all hover:scale-105"><div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-2"><div className="flex items-center gap-2 text-white font-bold"><Fish className="text-orange-400" size={20}/>我的鱼篓</div><div className="text-xs text-slate-400 font-mono">{basketCount} 条 / +{Math.floor(basketWeight)}kg</div></div><div className="max-h-32 overflow-y-auto mb-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-700">{player.basket && player.basket.length > 0 ? ( player.basket.map((item, idx) => ( <div key={idx} className="flex justify-between items-center text-xs bg-slate-800/50 p-1 rounded"><span className="text-slate-200">{CREATURES[item.type].name}</span><div className="flex items-center gap-2"><span className="text-green-400 font-mono">+{Math.floor(item.totalWeight)}kg</span><span className="bg-slate-700 text-white px-1.5 rounded-full text-[10px]">x{item.count}</span></div></div> )) ) : ( <div className="text-slate-500 text-xs text-center py-4 italic">空空如也... 去捕点鱼吧!</div> )}</div><button onClick={onDigest} disabled={basketCount === 0} className={`w-full py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${basketCount > 0 ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg shadow-green-900/50 animate-pulse' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}><Utensils size={16}/>一键吞噬消化</button></div></div>
-        <div className="absolute top-4 right-4 flex flex-col gap-2 items-end pointer-events-auto">{onToggleGodMode && ( <button onClick={onToggleGodMode} className={`${player.isGodMode ? 'bg-amber-500 text-black animate-none' : 'bg-amber-600/80 text-white animate-pulse'} hover:bg-amber-400 px-3 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-1 transition-colors`}><Crown size={12}/> {player.isGodMode ? '关闭上帝模式' : '变身深海巨怪'}</button> )}{onToggleAutoMode && ( <button onClick={onToggleAutoMode} className={`px-3 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-1 transition-colors ${player.isAutoMode ? 'bg-green-600 text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}><Bot size={12}/> {player.isAutoMode ? '自动挂机中' : '开启挂机'}</button> )}<div className="flex gap-1 flex-wrap justify-end max-w-xs">{player.traits.map(t => ( <span key={t} className="px-2 py-1 bg-indigo-600/80 text-xs rounded text-white font-bold shadow-sm">{t}</span> ))}</div></div>
+
+        <div className="absolute bottom-4 left-4 pointer-events-none flex flex-col items-start gap-1">
+            <canvas ref={miniMapRef} className="rounded-full shadow-2xl border-4 border-slate-600 bg-slate-900/90" />
+            <div className="bg-slate-900/80 p-2 rounded text-[10px] text-slate-400 font-mono border border-slate-700 mt-2">
+                <div className="flex items-center gap-2"><span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span> 宝贝(闪烁提醒)</div>
+                <div className="flex items-center gap-2"><span className="w-2 h-2 bg-cyan-400 rounded-full"></span> 玩家</div>
+            </div>
+        </div>
       </div>
     );
   }
@@ -195,11 +203,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
         <style>{`
-          @keyframes wobble {
+          @keyframes wobble-strong {
             0%, 100% { transform: rotate(-3deg) scale(1); }
             50% { transform: rotate(3deg) scale(1.1); }
           }
-          .animate-wobble-strong { animation: wobble 2s ease-in-out infinite; }
+          .animate-wobble-strong { animation: wobble-strong 2s ease-in-out infinite; }
           @keyframes glow-pulse {
             0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
             50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.8); }
@@ -207,14 +215,44 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
           .animate-glow-purple { animation: glow-pulse 3s infinite; }
         `}</style>
 
-        {showRules && ( <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50 p-4" onClick={() => setShowRules(false)}><div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-8 relative" onClick={e => e.stopPropagation()}><button onClick={() => setShowRules(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X size={32}/></button><h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6 text-center">🌊 生存指南</h2><div className="space-y-6 text-slate-300"><div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50"><h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2"><Fish className="text-yellow-400"/> 核心法则</h3><p>大鱼吃小鱼，小鱼吃虾米。控制你的鱼吞噬比自己小的生物来增加体重。体重达到一定程度后会自动<strong>进化</strong>成更强大的物种！</p></div><div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50"><h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2"><Zap className="text-cyan-400"/> 操作说明</h3><ul className="list-disc pl-5 space-y-2"><li><strong>移动：</strong> 鼠标移动控制方向。</li><li><strong>冲刺：</strong> 按住 <span className="bg-slate-700 px-2 py-0.5 rounded text-white font-mono text-sm border border-slate-600">空格键</span> 消耗体力加速冲撞。</li><li><strong>攻击：</strong> 拾取鱼雷后，点击 <span className="bg-slate-700 px-2 py-0.5 rounded text-white font-mono text-sm border border-slate-600">鼠标左键</span> 发射鱼雷攻击远程敌人。</li></ul></div><div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50"><h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2"><MapPin className="text-green-400"/> 地图与设施</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm"><div className="flex items-start gap-2"><span className="text-2xl">🛍️</span><div><strong className="text-pink-400">深海商场</strong><br/>位于地图四个角落，进入可更换皮肤和饰品。</div></div><div className="flex items-start gap-2"><span className="text-2xl">🏥</span><div><strong className="text-red-400">急救站</strong><br/>靠近可瞬间回满生命值。</div></div><div className="flex items-start gap-2"><span className="text-2xl">⚔️</span><div><strong className="text-orange-400">军火库</strong><br/>位于深渊区域，补充大量鱼雷弹药。</div></div><div className="flex items-start gap-2"><span className="text-2xl">⛩️</span><div><strong className="text-purple-400">龙王庙</strong><br/>随机获得强力BUFF（护盾、加速或增重）。</div></div></div></div></div><div className="mt-8 text-center"><button onClick={() => setShowRules(false)} className="px-12 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-cyan-500/30 transition-all hover:-translate-y-1">我明白了</button></div></div></div> )}
+        {showRules && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-[60] p-4" onClick={() => setShowRules(false)}>
+                <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-8 relative" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => setShowRules(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X size={32}/></button>
+                    <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6 text-center">🌊 生存指南</h2>
+                    <div className="space-y-6 text-slate-300">
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2"><Fish className="text-yellow-400"/> 核心法则</h3>
+                            <p>吞噬比自己小的生物来增加体重。体重达到一定程度后会自动<strong>进化</strong>成更强大的物种！</p>
+                        </div>
+                        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                            <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2"><Zap className="text-cyan-400"/> 操作说明</h3>
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li><strong>移动：</strong> 鼠标移动控制方向。</li>
+                                <li><strong>冲刺：</strong> 按住 <span className="bg-slate-700 px-2 py-0.5 rounded text-white font-mono text-sm border border-slate-600">空格键</span> 消耗能量加速。</li>
+                                <li><strong>攻击：</strong> 拾取鱼雷后，点击 <span className="bg-slate-700 px-2 py-0.5 rounded text-white font-mono text-sm border border-slate-600">鼠标左键</span> 发射。</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div className="mt-8 text-center">
+                        <button onClick={() => setShowRules(false)} className="px-12 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-cyan-500/30 transition-all hover:-translate-y-1">我明白了</button>
+                    </div>
+                </div>
+            </div>
+        )}
         
         <div className="max-w-4xl w-full flex flex-col items-center justify-center gap-8 p-8">
             <div className="text-center w-full max-w-2xl">
-                <div className="bg-slate-900/60 p-10 rounded-3xl border border-slate-700/50 shadow-2xl backdrop-blur-md mb-12 relative overflow-hidden group"><div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-20 bg-gradient-to-b from-cyan-500/10 to-transparent blur-xl pointer-events-none"></div><div className="flex items-center justify-center gap-6 mb-4"><div className="relative"><Fish size={64} className="text-orange-400 animate-bounce drop-shadow-lg" /><div className="absolute -top-2 -right-2 text-xl animate-ping">🫧</div></div><h1 className="relative text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-500 drop-shadow-[0_4px_10px_rgba(34,211,238,0.5)] py-2" style={{ textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>欢乐鱼塘</h1><div className="relative"><Fish size={64} className="text-cyan-400 animate-bounce delay-75 drop-shadow-lg scale-x-[-1]" /><div className="absolute -top-4 -left-2 text-xl animate-pulse">🫧</div></div></div><p className="relative text-cyan-100 text-xl tracking-[0.2em] font-bold drop-shadow-sm uppercase">Happy Fish Pond · Evolutionary Journey</p></div>
+                <div className="bg-slate-900/60 p-10 rounded-3xl border border-slate-700/50 shadow-2xl backdrop-blur-md mb-12 relative overflow-hidden group">
+                    <div className="flex items-center justify-center gap-6 mb-4">
+                        <Fish size={64} className="text-orange-400 animate-bounce" />
+                        <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-500 py-2">欢乐鱼塘</h1>
+                        <Fish size={64} className="text-cyan-400 animate-bounce delay-75 scale-x-[-1]" />
+                    </div>
+                    <p className="text-cyan-100 text-xl tracking-[0.2em] font-bold uppercase">Evolutionary Journey</p>
+                </div>
                 
                 <div className="flex flex-col items-center gap-8">
-                    {/* PRIMARY ACTION: SHOP / DRESS UP */}
                     <div className="relative">
                         <div className="absolute -top-4 -right-4 z-10 bg-pink-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-lg border-2 border-white animate-bounce">
                            打扮一番！
@@ -257,13 +295,29 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onEvolve, onR
   }
 
   if (status === GameStatus.GAME_OVER) {
-    if (isWatchingAd) { return ( <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50"><div className="text-center"><div className="text-4xl animate-bounce mb-4">📺</div><h2 className="text-2xl font-bold text-white mb-2">广告播放中...</h2><div className="w-64 h-2 bg-slate-800 rounded mt-4 overflow-hidden"><div className="h-full bg-yellow-500 animate-[width_2s_linear_forwards] w-0"></div></div></div></div> ); }
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-red-950/40 backdrop-blur-sm z-50">
-        <div className="max-w-xl w-full p-8 bg-slate-900/90 border border-red-900 rounded-2xl shadow-2xl text-center backdrop-blur-md"><h2 className="text-4xl font-black text-red-500 mb-2">游戏结束</h2><p className="text-slate-300 mb-6">你被陨石击中 (或者被吃光了)...</p><div className="grid grid-cols-2 gap-4 mb-8"><div className="bg-slate-800 p-3 rounded"><div className="text-xs text-slate-400">最终重量</div><div className="text-xl font-bold text-white">{Math.floor(player.weight)} kg</div></div><div className="bg-slate-800 p-3 rounded"><div className="text-xs text-slate-400">物种</div><div className="text-xl font-bold text-white">{player.config.name}</div></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><button onClick={() => onRevive && onRevive(false)} className="py-4 px-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded-lg"><RefreshCw size={24} className="mx-auto mb-2"/>重新开始</button><button onClick={handleAdReviveClick} className="py-4 px-2 bg-gradient-to-br from-yellow-600 to-orange-700 hover:from-yellow-500 hover:to-orange-600 text-white font-bold rounded-lg shadow-lg relative overflow-hidden group"><div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div><Play size={24} fill="white" className="mx-auto mb-2"/>复活 (无限)</button></div></div>
+        <div className="max-w-xl w-full p-8 bg-slate-900/90 border border-red-900 rounded-2xl shadow-2xl text-center backdrop-blur-md">
+            <h2 className="text-4xl font-black text-red-500 mb-2">游戏结束</h2>
+            <p className="text-slate-300 mb-6">物竞天择，适者生存...</p>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-slate-800 p-3 rounded">
+                    <div className="text-xs text-slate-400">最终重量</div>
+                    <div className="text-xl font-bold text-white">{Math.floor(player.weight)} kg</div>
+                </div>
+                <div className="bg-slate-800 p-3 rounded">
+                    <div className="text-xs text-slate-400">生存时长</div>
+                    <div className="text-xl font-bold text-white">{Math.floor(time/60)}s</div>
+                </div>
+            </div>
+            <button onClick={() => onRestart()} className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded-lg transition-all flex items-center justify-center gap-2">
+                <RefreshCw size={24}/> 返回大厅
+            </button>
+        </div>
       </div>
     );
   }
+  
   return null;
 };
 
