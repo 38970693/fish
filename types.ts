@@ -1,44 +1,55 @@
 
+
 export enum GameStatus {
   MENU = 'MENU',
   PLAYING = 'PLAYING',
   EVOLVING = 'EVOLVING',
   GAME_OVER = 'GAME_OVER',
   VICTORY = 'VICTORY',
-  SHOP = 'SHOP',
-  BATTLE_TEST = 'BATTLE_TEST'
+  SHOP = 'SHOP'
 }
 
 export enum BiomeType {
-  SHALLOWS = 'SHALLOWS',
-  REEF = 'REEF',
-  SWAMP = 'SWAMP',
-  ABYSS = 'ABYSS'
+  SHALLOWS = 'SHALLOWS', // Top Left
+  REEF = 'REEF',         // Top Right
+  SWAMP = 'SWAMP',       // Bottom Left
+  ABYSS = 'ABYSS'        // Bottom Right
 }
 
 export enum CreatureType {
+  // Tier 0 (Food)
   PLANKTON = 'PLANKTON',
-  CLOWN_FISH = 'CLOWN_FISH',
-  BLUE_TANG = 'BLUE_TANG',
-  TURTLE = 'TURTLE',
+  
+  // Tier 1 (Starters / Small)
+  CLOWN_FISH = 'CLOWN_FISH',   // Balanced
+  BLUE_TANG = 'BLUE_TANG',     // Fast
+  TURTLE = 'TURTLE',           // Tanky
   JELLYFISH = 'JELLYFISH',
+  
+  // Tier 2 (Medium)
   SEAHORSE = 'SEAHORSE',
   SQUID = 'SQUID', 
   PUFFER_FISH = 'PUFFER_FISH',
   CRAB = 'CRAB',
   ELECTRIC_EEL = 'ELECTRIC_EEL',
+  
+  // Tier 3 (Large)
   STINGRAY = 'STINGRAY',
   SWORD_FISH = 'SWORD_FISH',
   HAMMERHEAD = 'HAMMERHEAD',
   ANGLER_FISH = 'ANGLER_FISH',
-  AROWANA = 'AROWANA',
-  FUR_SEAL = 'FUR_SEAL',
-  GREAT_WHITE = 'GREAT_WHITE',
-  ORCA = 'ORCA',
-  NARWHAL = 'NARWHAL',
-  MERMAID = 'MERMAID',
-  KRAKEN = 'KRAKEN',
-  MASCOT = 'MASCOT'
+  AROWANA = 'AROWANA',         // New: Gold Arowana
+  FUR_SEAL = 'FUR_SEAL',       // New: Mammal
+  
+  // Tier 4 (Apex)
+  GREAT_WHITE = 'GREAT_WHITE', // Shark
+  ORCA = 'ORCA',               // Whale
+  NARWHAL = 'NARWHAL',         // New: Unicorn of the sea
+  MERMAID = 'MERMAID',         // New: Mythical
+  KRAKEN = 'KRAKEN',           // Boss
+  
+  // SPECIAL
+  MASCOT = 'MASCOT'            // New Year Mascot
 }
 
 export interface CreatureConfig {
@@ -49,12 +60,12 @@ export interface CreatureConfig {
   speed: number;
   health: number;
   damage: number;
-  weightValue: number;
+  weightValue: number; // Replaces XP value
   behavior: 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'AMBUSH' | 'BOSS' | 'MASCOT';
   special?: 'POISON' | 'SHOCK' | 'SPIKE' | 'LURE' | 'CAMO' | 'NONE' | 'SHELL';
   tier: 0 | 1 | 2 | 3 | 4;
-  description?: string;
-  nativeBiome?: BiomeType;
+  description?: string; // For selection menu
+  nativeBiome?: BiomeType; // Preferred biome
 }
 
 export interface BasketItem {
@@ -63,16 +74,49 @@ export interface BasketItem {
   totalWeight: number;
 }
 
-export type TeethType = 'NORMAL' | 'SHARP' | 'VAMPIRE' | 'BRACES' | 'GOLD' | 'CURVED' | 'DOUBLE_ROW' | 'SABER' | 'GAPPED' | 'DIAMOND' | 'RAINBOW' | 'BUGS' | 'BLOCKY';
-export type PatternType = 'NONE' | 'STRIPES' | 'SPOTS' | 'TIGER' | 'DOTS' | 'CAMO' | 'ZEBRA' | 'LEOPARD' | 'HEART' | 'STAR' | 'CIRCUIT' | 'LAVA' | 'KOI' | 'SKELETON' | 'LIGHTNING' | 'CLOUD' | 'CHECKER' | 'VINES' | 'TARGET' | 'GALAXY' | 'SMILEY' | 'FIREY' | 'RUNE' | 'CANDY';
-export type ScaleType = 'NONE' | 'SHINY' | 'DRAGON' | 'STONE' | 'FEATHER' | 'MECHANICAL' | 'GLOW' | 'MOSAIC' | 'CRYSTAL' | 'VOID' | 'PIXEL' | 'ARMOR' | 'DIAMOND_PLATE' | 'SLIME' | 'BIO_HAZARD';
-export type AccessoryType = 'NONE' | 'GOLD_CHAIN' | 'PEARL_NECKLACE' | 'JADE_PENDANT' | 'SUNGLASSES' | 'CROWN' | 'BOW_TIE' | 'DIAMOND_RING' | 'MEDAL' | 'SCARF' | 'HEADPHONES' | 'FLOWER' | 'EYEPATCH' | 'HALO' | 'UNICORN_HORN';
-export type TailType = 'DEFAULT' | 'CRESCENT' | 'FORKED' | 'FAN' | 'TRIDENT' | 'LOBSTER' | 'MECHANICAL' | 'GHOST' | 'RIBBON';
-export type BodyType = 'DEFAULT' | 'ROUND' | 'SLENDER' | 'CHUNKY' | 'BOX' | 'STAR' | 'MERMAID' | 'RAY' | 'EEL';
-export type MouthType = 'TRIANGLE' | 'CIRCLE' | 'SQUARE' | 'FLAT' | 'BEAK' | 'CURVE';
-export type EyeType = 'NORMAL' | 'ANIME' | 'MAD' | 'DERP' | 'CYBORG' | 'DEAD' | 'LOVE' | 'HYPNO' | 'CAT' | 'FIRE' | 'BUTTON' | 'GOGGLES';
-export type EyebrowType = 'NONE' | 'ANGRY' | 'SAD' | 'CONFUSED' | 'THICK' | 'UNI' | 'TIERED';
-export type TrailType = 'NONE' | 'BUBBLES' | 'RAINBOW' | 'FIRE' | 'GLITTER' | 'HEARTS' | 'ELECTRIC' | 'SLIME';
+export type TeethType = 
+  | 'NORMAL' | 'SHARP' | 'VAMPIRE' | 'BRACES' | 'GOLD' 
+  | 'CURVED' | 'DOUBLE_ROW' | 'SABER' | 'GAPPED' | 'DIAMOND' 
+  | 'RAINBOW' | 'BUGS' | 'BLOCKY';
+
+export type PatternType = 
+  | 'NONE' | 'STRIPES' | 'SPOTS' | 'TIGER' 
+  | 'DOTS' | 'CAMO' | 'ZEBRA' | 'LEOPARD' 
+  | 'HEART' | 'STAR' | 'CIRCUIT' | 'LAVA' | 'KOI' | 'SKELETON'
+  | 'LIGHTNING' | 'CLOUD' | 'CHECKER' | 'VINES' | 'TARGET' 
+  | 'GALAXY' | 'SMILEY' | 'FIREY' | 'RUNE' | 'CANDY';
+
+export type ScaleType = 
+  | 'NONE' | 'SHINY' | 'DRAGON' | 'STONE' 
+  | 'FEATHER' | 'MECHANICAL' | 'GLOW' | 'MOSAIC' 
+  | 'CRYSTAL' | 'VOID' | 'PIXEL'
+  | 'ARMOR' | 'DIAMOND_PLATE' | 'SLIME' | 'BIO_HAZARD';
+
+export type AccessoryType = 
+  | 'NONE' | 'GOLD_CHAIN' | 'PEARL_NECKLACE' | 'JADE_PENDANT' 
+  | 'SUNGLASSES' | 'CROWN' | 'BOW_TIE' | 'DIAMOND_RING' 
+  | 'MEDAL' | 'SCARF' | 'HEADPHONES' | 'FLOWER' | 'EYEPATCH' | 'HALO' | 'UNICORN_HORN';
+
+export type TailType = 
+  | 'DEFAULT' | 'CRESCENT' | 'FORKED' | 'FAN' | 'TRIDENT' 
+  | 'LOBSTER' | 'MECHANICAL' | 'GHOST' | 'RIBBON';
+
+export type BodyType = 
+  | 'DEFAULT' | 'ROUND' | 'SLENDER' | 'CHUNKY' | 'BOX' 
+  | 'STAR' | 'MERMAID' | 'RAY' | 'EEL';
+
+// NEW: Eye Types
+export type EyeType = 
+  | 'NORMAL' | 'ANIME' | 'MAD' | 'DERP' | 'CYBORG' | 'DEAD' 
+  | 'LOVE' | 'HYPNO' | 'CAT' | 'FIRE' | 'BUTTON' | 'GOGGLES';
+
+// NEW: Eyebrow Types
+export type EyebrowType = 
+  | 'NONE' | 'ANGRY' | 'SAD' | 'CONFUSED' | 'THICK' | 'UNI' | 'TIERED';
+
+// NEW: Trail Types
+export type TrailType = 
+  | 'NONE' | 'BUBBLES' | 'RAINBOW' | 'FIRE' | 'GLITTER' | 'HEARTS' | 'ELECTRIC' | 'SLIME';
 
 export interface Cosmetics {
   teeth: TeethType;
@@ -82,10 +126,9 @@ export interface Cosmetics {
   accessory: AccessoryType;
   tailType: TailType;
   bodyType: BodyType;
-  mouthType: MouthType;
   eyeType: EyeType; 
-  eyebrowType: EyebrowType;
-  trailType: TrailType;
+  eyebrowType: EyebrowType; // Added
+  trailType: TrailType;     // Added
 }
 
 export interface Entity {
@@ -106,14 +149,17 @@ export interface Entity {
   aggroTimer?: number; 
   mouthOpenValue: number; 
   isHidden?: boolean; 
+  
   isIdle: boolean;
   lureActive: boolean;
   camoActive: boolean;
   ambushTimer: number;
+
   animOffset: number; 
   renderScale: number; 
   isInvulnerable?: boolean; 
   speedBoostTimer?: number; 
+  
   happyTimer?: number;
   fearTimer?: number;
   speechBubble?: { text: string; timer: number; color: string } | null;
@@ -142,13 +188,16 @@ export interface PlayerState extends Entity {
   isAutoMode?: boolean; 
   reviveCount: number; 
   isVip?: boolean; 
+  
   shieldTimer: number;
   invulnerableTimer: number; 
   torpedoCount: number;
   torpedoCooldown: number;
+  
   isOverdrive: boolean;
   currentBiome: BiomeType;
   biomeDebuffTimer: number; 
+  
   cosmetics: Cosmetics;
 }
 
@@ -211,7 +260,6 @@ export interface Portal {
   y: number;
   radius: number;
   angle: number;
-  name?: string;
 }
 
 export enum BuildingType {
@@ -230,16 +278,18 @@ export interface Building {
   cooldown: number; 
 }
 
+// NEW: Treasure Interface
 export interface Treasure {
   id: string;
   x: number;
   y: number;
-  type: 'FEAST' | 'CHEST'; 
+  type: 'FEAST' | 'CHEST'; // Feast = huge mass, Chest = huge stats buff
   status: 'WARNING' | 'ACTIVE';
-  timer: number; 
+  timer: number; // For warning countdown
   radius: number;
 }
 
+// NEW: Label for dynamic in-game text
 export interface Label {
   x: number;
   y: number;
@@ -258,8 +308,8 @@ export interface GameState {
   projectiles: Projectile[];
   portals: Portal[]; 
   buildings: Building[]; 
-  treasures: Treasure[]; 
-  labels: Label[]; 
+  treasures: Treasure[]; // Added treasures array
+  labels: Label[]; // Added
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };
