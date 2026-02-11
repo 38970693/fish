@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
-import { GameState, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Projectile, Building, BuildingType, Portal, Cosmetics } from '../types';
+import { GameState, GameStatus, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Projectile, Building, BuildingType, Portal, Cosmetics } from '../types';
 import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 
@@ -187,7 +187,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     }
 
     let bodyFill: string | CanvasGradient = entity.config.color;
-    if (isPlayer && cosmetics && cosmetics.skinColor !== 'DEFAULT') {
+    if (cosmetics && cosmetics.skinColor !== 'DEFAULT') {
         const skin = cosmetics.skinColor;
         if (skin.startsWith('GRADIENT_')) {
             const grad = ctx.createLinearGradient(-radius, -radius * 0.5, radius, radius * 0.5);
@@ -215,7 +215,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
          ctx.beginPath();
          if (type === CreatureType.PLANKTON) { ctx.arc(0, 0, radius, 0, Math.PI * 2); }
          else {
-            const bodyType = (isPlayer && cosmetics) ? cosmetics.bodyType : 'DEFAULT';
+            const bodyType = cosmetics ? cosmetics.bodyType : 'DEFAULT';
             ctx.moveTo(0, 0); 
             if (bodyType === 'ROUND' || bodyType === 'DEFAULT') { ctx.arc(0, 0, radius, mouthGap, -mouthGap); }
             else if (bodyType === 'SLENDER') { ctx.ellipse(0, 0, radius * 1.2, radius * 0.8, 0, mouthGap, -mouthGap); }
@@ -239,7 +239,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         ctx.save(); ctx.translate(-radius * 0.6, 0);
         const tailWag = Math.sin(visualTime * 0.4 + animOffset) * 0.4; ctx.rotate(tailWag);
         ctx.fillStyle = bodyFill; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2;
-        const tailType = (isPlayer && cosmetics) ? cosmetics.tailType : 'DEFAULT';
+        const tailType = cosmetics ? cosmetics.tailType : 'DEFAULT';
         ctx.beginPath();
         if (tailType === 'DEFAULT') { ctx.moveTo(0, 0); ctx.lineTo(-radius * 0.8, -radius * 0.6); ctx.lineTo(-radius * 0.8, radius * 0.6); }
         else if (tailType === 'CRESCENT') { ctx.arc(-radius*0.5, 0, radius*0.6, 0.5, -0.5, true); }
@@ -251,7 +251,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         else if (tailType === 'MECHANICAL') { ctx.rect(-radius, -radius*0.3, radius, radius*0.6); }
         else if (tailType === 'GHOST') { ctx.moveTo(0,0); ctx.quadraticCurveTo(-radius, -radius*0.5, -radius*1.5, 0); ctx.quadraticCurveTo(-radius, radius*0.5, 0, 0); }
         ctx.closePath(); ctx.fill(); ctx.stroke();
-        if (isPlayer && cosmetics && cosmetics.pattern !== 'NONE') { ctx.clip(); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(-radius*2, -radius, radius*3, radius*2); }
+        if (cosmetics && cosmetics.pattern !== 'NONE') { ctx.clip(); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(-radius*2, -radius, radius*3, radius*2); }
         ctx.restore();
     }
 
@@ -260,7 +260,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         ctx.fillStyle = cosmetics?.pattern === 'LAVA' ? '#7f1d1d' : '#450a0a'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius * 0.95, -mouthGap, mouthGap); ctx.fill();
         ctx.save(); defineBodyPath();
         ctx.fillStyle = bodyFill; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2; ctx.fill();
-        if (isPlayer && cosmetics && cosmetics.pattern !== 'NONE') {
+        if (cosmetics && cosmetics.pattern !== 'NONE') {
             ctx.save(); ctx.clip(); ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; 
             const seed = parseInt(entity.id.substring(0, 4), 36);
             switch(cosmetics.pattern) {
@@ -290,7 +290,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
             }
             ctx.restore();
         }
-        if (isPlayer && cosmetics && cosmetics.scaleType !== 'NONE') {
+        if (cosmetics && cosmetics.scaleType !== 'NONE') {
             ctx.save(); ctx.clip(); ctx.lineWidth = 3; 
             switch(cosmetics.scaleType) {
                 case 'SHINY': ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; for (let y = -radius; y < radius; y += 15) { const off = (y % 30 === 0) ? 0 : 7.5; for (let x = -radius; x < radius; x += 15) { ctx.beginPath(); ctx.arc(x + off, y, 7.5, 0, Math.PI); ctx.stroke(); } } ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'; ctx.beginPath(); ctx.ellipse(-radius*0.2, -radius*0.2, radius*0.4, radius*0.2, -0.5, 0, Math.PI*2); ctx.fill(); break;
@@ -311,7 +311,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
             ctx.restore();
         }
         ctx.stroke(); ctx.restore();
-        let toothCount = Math.max(3, Math.floor(radius / 8)); const toothSize = (radius * 0.8) / toothCount; const teethType = (isPlayer && cosmetics) ? cosmetics.teeth : 'NORMAL';
+        let toothCount = Math.max(3, Math.floor(radius / 8)); const toothSize = (radius * 0.8) / toothCount; const teethType = cosmetics ? cosmetics.teeth : 'NORMAL';
         if (teethType === 'GOLD') { const tGrad = ctx.createLinearGradient(0, -radius, 0, radius); tGrad.addColorStop(0, '#fef08a'); tGrad.addColorStop(0.5, '#eab308'); tGrad.addColorStop(1, '#a16207'); ctx.fillStyle = tGrad; ctx.shadowColor = '#facc15'; ctx.shadowBlur = 5; }
         else if (teethType === 'VAMPIRE' || teethType === 'SHARP' || teethType === 'NORMAL') ctx.fillStyle = '#ffffff';
         else if (teethType === 'BRACES') ctx.fillStyle = '#d1d5db';
@@ -333,7 +333,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
              ctx.restore();
         };
         drawToothRow(true); drawToothRow(false);
-        const eyeX = radius * 0.2; const eyeY = radius * 0.45; const eyeSize = radius * 0.22; const eyeType = (isPlayer && cosmetics) ? cosmetics.eyeType : 'NORMAL';
+        const eyeX = radius * 0.2; const eyeY = radius * 0.45; const eyeSize = radius * 0.22; const eyeType = cosmetics ? cosmetics.eyeType : 'NORMAL';
         ctx.save();
         const drawSingleEye = (x: number, y: number, size: number) => {
             if (eyeType === 'NORMAL') { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(x + size*0.3, y, size*0.4, 0, Math.PI*2); ctx.fill(); }
@@ -351,13 +351,13 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         };
         if (eyeType !== 'DERP') { drawSingleEye(eyeX, -eyeY, eyeSize); drawSingleEye(eyeX, eyeY, eyeSize); }
         else { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(eyeX, -eyeY, eyeSize, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(eyeX, -eyeY-eyeSize*0.4, eyeSize*0.3, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(eyeX, eyeY, eyeSize, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(eyeX+eyeSize*0.3, eyeY+eyeSize*0.4, eyeSize*0.3, 0, Math.PI*2); ctx.fill(); }
-        if (isPlayer && cosmetics && cosmetics.eyebrowType && cosmetics.eyebrowType !== 'NONE') {
+        if (cosmetics && cosmetics.eyebrowType && cosmetics.eyebrowType !== 'NONE') {
             ctx.fillStyle = 'black'; const browY = eyeY + eyeSize * 1.2; const browX = eyeX; const browW = eyeSize * 2.5; const browH = eyeSize * 0.5;
             const drawBrow = (yFactor: number) => { ctx.save(); ctx.translate(browX, yFactor * browY); if (cosmetics.eyebrowType === 'ANGRY') { ctx.rotate(yFactor * -0.3); ctx.fillRect(-browW/2, -browH/2, browW, browH); } else if (cosmetics.eyebrowType === 'SAD') { ctx.rotate(yFactor * 0.3); ctx.fillRect(-browW/2, -browH/2, browW, browH); } else if (cosmetics.eyebrowType === 'THICK') ctx.fillRect(-browW/2, -browH, browW, browH*2); else if (cosmetics.eyebrowType === 'CONFUSED') { if (yFactor === -1) ctx.translate(0, -eyeSize); ctx.fillRect(-browW/2, -browH/2, browW, browH); } else if (cosmetics.eyebrowType === 'TIERED') { ctx.fillRect(-browW/2, -browH/2, browW, browH/2); ctx.fillRect(-browW/2, -browH*1.5, browW, browH/2); } ctx.restore(); };
             if (cosmetics.eyebrowType === 'UNI') { ctx.fillRect(eyeX - eyeSize, -eyeSize*0.5, eyeSize*0.5, eyeSize*2.5); ctx.fillRect(eyeX - eyeSize, -eyeY - eyeSize, eyeSize*2, eyeSize*0.5); ctx.fillRect(eyeX - eyeSize, eyeY + eyeSize*0.5, eyeSize*2, eyeSize*0.5); } else { drawBrow(-1); drawBrow(1); }
         }
         ctx.restore();
-        if (isPlayer && cosmetics && cosmetics.accessory && cosmetics.accessory !== 'NONE') {
+        if (cosmetics && cosmetics.accessory && cosmetics.accessory !== 'NONE') {
             ctx.save(); const acc = cosmetics.accessory;
             if (acc === 'GOLD_CHAIN') { ctx.beginPath(); ctx.ellipse(0, 0, radius * 0.8, radius * 0.9, 0, 0, Math.PI * 2); ctx.strokeStyle = '#facc15'; ctx.lineWidth = 6; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.fillStyle = '#facc15'; ctx.font = `bold ${radius * 0.5}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, radius * 0.5); }
             else if (acc === 'PEARL_NECKLACE') { ctx.beginPath(); ctx.ellipse(0, 0, radius * 0.7, radius * 0.8, 0, 0, Math.PI*2); ctx.lineWidth = 6; ctx.strokeStyle = '#f3f4f6'; ctx.setLineDash([1, 6]); ctx.lineCap = 'round'; ctx.stroke(); }
@@ -414,13 +414,25 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
     const render = () => {
         try {
-            const { player, entities, particles, obstacles, powerUps, hazards, projectiles, portals, buildings, camera, labels, treasures } = gameState;
+            const { player, entities, particles, obstacles, powerUps, hazards, projectiles, portals, buildings, camera, labels, treasures, status } = gameState;
             const visualTime = performance.now() / 16; 
             ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.translate(canvas.width / 2, canvas.height / 2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.x, -camera.y);
 
             // 1. 地图背景
             drawMapBackground(ctx);
+
+            // --- BATTLE TEST ARENA VISUAL ---
+            if (status === GameStatus.BATTLE_TEST) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(220, 38, 38, ${0.4 + Math.sin(visualTime * 0.1) * 0.2})`;
+                ctx.lineWidth = 15;
+                ctx.setLineDash([30, 20]);
+                ctx.arc(MAP_SHAPE_CONFIG.CENTER_X, MAP_SHAPE_CONFIG.CENTER_Y, 800, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
 
             // 2. 障碍物
             obstacles.forEach(obs => { ctx.fillStyle = obs.type === 'SEAWEED' ? '#4d7c0f' : '#475569'; ctx.beginPath(); ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI*2); ctx.fill(); });

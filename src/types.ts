@@ -5,7 +5,8 @@ export enum GameStatus {
   EVOLVING = 'EVOLVING',
   GAME_OVER = 'GAME_OVER',
   VICTORY = 'VICTORY',
-  SHOP = 'SHOP'
+  SHOP = 'SHOP',
+  BATTLE_TEST = 'BATTLE_TEST'
 }
 
 export enum BiomeType {
@@ -104,16 +105,15 @@ export type BodyType =
   | 'DEFAULT' | 'ROUND' | 'SLENDER' | 'CHUNKY' | 'BOX' 
   | 'STAR' | 'MERMAID' | 'RAY' | 'EEL';
 
-// NEW: Eye Types
+export type MouthType = 'TRIANGLE' | 'CIRCLE' | 'SQUARE' | 'FLAT' | 'BEAK' | 'CURVE';
+
 export type EyeType = 
   | 'NORMAL' | 'ANIME' | 'MAD' | 'DERP' | 'CYBORG' | 'DEAD' 
   | 'LOVE' | 'HYPNO' | 'CAT' | 'FIRE' | 'BUTTON' | 'GOGGLES';
 
-// NEW: Eyebrow Types
 export type EyebrowType = 
   | 'NONE' | 'ANGRY' | 'SAD' | 'CONFUSED' | 'THICK' | 'UNI' | 'TIERED';
 
-// NEW: Trail Types
 export type TrailType = 
   | 'NONE' | 'BUBBLES' | 'RAINBOW' | 'FIRE' | 'GLITTER' | 'HEARTS' | 'ELECTRIC' | 'SLIME';
 
@@ -125,9 +125,10 @@ export interface Cosmetics {
   accessory: AccessoryType;
   tailType: TailType;
   bodyType: BodyType;
+  mouthType: MouthType;
   eyeType: EyeType; 
-  eyebrowType: EyebrowType; // Added
-  trailType: TrailType;     // Added
+  eyebrowType: EyebrowType;
+  trailType: TrailType;
 }
 
 export interface Entity {
@@ -259,6 +260,7 @@ export interface Portal {
   y: number;
   radius: number;
   angle: number;
+  name?: string;
 }
 
 export enum BuildingType {
@@ -277,18 +279,16 @@ export interface Building {
   cooldown: number; 
 }
 
-// NEW: Treasure Interface
 export interface Treasure {
   id: string;
   x: number;
   y: number;
-  type: 'FEAST' | 'CHEST'; // Feast = huge mass, Chest = huge stats buff
+  type: 'FEAST' | 'CHEST'; 
   status: 'WARNING' | 'ACTIVE';
-  timer: number; // For warning countdown
+  timer: number; 
   radius: number;
 }
 
-// NEW: Label for dynamic in-game text
 export interface Label {
   x: number;
   y: number;
@@ -307,7 +307,7 @@ export interface GameState {
   projectiles: Projectile[];
   portals: Portal[]; 
   buildings: Building[]; 
-  treasures: Treasure[]; // Added treasures array
+  treasures: Treasure[]; 
   labels: Label[]; 
   worldWidth: number;
   worldHeight: number;

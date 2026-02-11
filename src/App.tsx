@@ -3,14 +3,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
 import { GameState, GameStatus, CreatureType, BiomeType, Cosmetics } from './types';
-import { WORLD_SIZE, CREATURES, BOOST_CONFIG, PROTECTION_CONFIG } from './constants';
-import { updateGame, createObstacles, createBuildings, createPortals, manualSquadSwitch, digestBasket } from './gameEngine';
+import { WORLD_SIZE, CREATURES, BOOST_CONFIG, PROTECTION_CONFIG, MAP_SHAPE_CONFIG } from './constants';
+import { updateGame, createObstacles, createBuildings, createPortals, manualSquadSwitch, digestBasket, createEntity } from './gameEngine';
 
-const createInitialState = (options: { isPremium?: boolean, startType?: CreatureType, cosmetics?: Cosmetics } = {}): GameState => {
+const createInitialState = (options: { startType?: CreatureType, cosmetics?: Cosmetics } = {}): GameState => {
   let startType = options.startType || CreatureType.CLOWN_FISH;
   const baseConfig = CREATURES[startType];
-  const startX = WORLD_SIZE / 2;
-  const startY = WORLD_SIZE / 2;
+  const startX = MAP_SHAPE_CONFIG.CENTER_X;
+  const startY = MAP_SHAPE_CONFIG.CENTER_Y;
 
   return {
     status: GameStatus.MENU,
@@ -18,10 +18,8 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
       id: 'player', type: startType, x: startX, y: startY, vx: 0, vy: 0,
       radius: baseConfig.baseRadius, angle: 0, health: baseConfig.health, maxHealth: baseConfig.health,
       speed: baseConfig.speed * 1.2, config: baseConfig, weight: 5, evolutionPoints: 0,
-      traits: options.isPremium ? ['复仇者'] : [],
-      stats: { speedMult: 1, sizeMult: 1, defenseMult: 1, visionRadius: 1 },
-      eatenHistory: {} as Record<CreatureType, number>,
-      basket: [], mouthOpenValue: 0, animOffset: 0, renderScale: 1.0, isInvulnerable: false,
+      traits: [], stats: { speedMult: 1, sizeMult: 1, defenseMult: 1, visionRadius: 1 },
+      eatenHistory: {} as Record<CreatureType, number>, basket: [], mouthOpenValue: 0, animOffset: 0, renderScale: 1.0, isInvulnerable: false,
       boost: { current: BOOST_CONFIG.MAX_ENERGY, max: BOOST_CONFIG.MAX_ENERGY, active: false },
       isGodMode: false, isAutoMode: false, reviveCount: 0, isIdle: false, lureActive: false,
       camoActive: false, ambushTimer: 0, shieldTimer: 0, invulnerableTimer: 0, evolutionVisualTimer: 0,
@@ -29,7 +27,7 @@ const createInitialState = (options: { isPremium?: boolean, startType?: Creature
       biomeDebuffTimer: 0,
       cosmetics: options.cosmetics || {
           teeth: 'NORMAL', skinColor: 'DEFAULT', pattern: 'NONE', scaleType: 'NONE', accessory: 'NONE',
-          tailType: 'DEFAULT', bodyType: 'DEFAULT', eyeType: 'NORMAL', eyebrowType: 'NONE', trailType: 'NONE'    
+          tailType: 'DEFAULT', bodyType: 'DEFAULT', mouthType: 'TRIANGLE', eyeType: 'NORMAL', eyebrowType: 'NONE', trailType: 'NONE'    
       }
     },
     entities: [], particles: [], obstacles: createObstacles(), powerUps: [], hazards: [], projectiles: [],
@@ -75,6 +73,23 @@ const App: React.FC = () => {
     return () => cancelAnimationFrame(id);
   }, [gameLoop]);
 
+  const startBattleTest = () => {
+      const state = createInitialState({ startType: CreatureType.GREAT_WHITE });
+      state.status = GameStatus.BATTLE_TEST;
+      state.camera.zoom = 0.6;
+      
+      // 创建一个 AI 对手
+      const opponent = createEntity(CreatureType.ORCA, MAP_SHAPE_CONFIG.CENTER_X + 400, MAP_SHAPE_CONFIG.CENTER_Y);
+      opponent.cosmetics = {
+          ...opponent.cosmetics!,
+          teeth: 'SHARP',
+          skinColor: '#1e293b',
+          mouthType: 'TRIANGLE'
+      };
+      state.entities = [opponent];
+      gameStateRef.current = state;
+  };
+
   return (
     <div className="w-full h-screen overflow-hidden bg-slate-900 relative select-none">
       <GameCanvas 
@@ -89,24 +104,12 @@ const App: React.FC = () => {
             const currentCos = gameStateRef.current.player.cosmetics;
             gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos });
             gameStateRef.current.status = GameStatus.PLAYING;
-            gameStateRef.current.player.invulnerableTimer = PROTECTION_CONFIG.NEWBIE_DURATION;
         }}
+        onStartBattleTest={startBattleTest}
         onRestart={() => { gameStateRef.current = createInitialState(); }}
-        onRevive={(ad) => {
-            if (ad) {
-                gameStateRef.current.player.health = gameStateRef.current.player.maxHealth;
-                gameStateRef.current.status = GameStatus.PLAYING;
-            } else {
-                gameStateRef.current = createInitialState();
-            }
-        }}
-        onToggleGodMode={() => { gameStateRef.current.player.isGodMode = !gameStateRef.current.player.isGodMode; }}
-        onToggleAutoMode={() => { gameStateRef.current.player.isAutoMode = !gameStateRef.current.player.isAutoMode; }}
-        onSwitchSquad={() => { manualSquadSwitch(gameStateRef.current); }}
-        onDigest={() => { digestBasket(gameStateRef.current); }}
+        onEvolve={() => {}}
         onUpdateCosmetics={(cos) => { gameStateRef.current.player.cosmetics = cos; }}
         setGameStatus={(s) => { gameStateRef.current.status = s; }}
-        onEvolve={() => {}}
       />
     </div>
   );
