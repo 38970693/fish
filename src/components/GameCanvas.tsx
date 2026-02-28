@@ -114,6 +114,65 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     ctx.beginPath(); ctx.arc(eyeX+radius*0.05, eyeY, radius*0.1, 0, Math.PI*2); ctx.fill();
 
     ctx.restore();
+
+    // 绘制血条 (非微型生物)
+    if (type !== CreatureType.PLANKTON && type !== CreatureType.MASCOT) {
+        ctx.save();
+        ctx.translate(entity.x, entity.y);
+        const barW = radius * 1.8; // 稍微加宽
+        const barH = 6; // 稍微加厚
+        const barY = -radius - 20;
+        
+        // 背景阴影
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        
+        // 背景
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.beginPath();
+        ctx.roundRect(-barW / 2, barY, barW, barH, 3);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        
+        // 血量
+        const healthPct = Math.max(0, entity.health / entity.maxHealth);
+        const gradient = ctx.createLinearGradient(-barW / 2, 0, barW / 2, 0);
+        
+        if (isPlayer) {
+            gradient.addColorStop(0, '#06b6d4');
+            gradient.addColorStop(1, '#22d3ee');
+        } else {
+            // 根据血量改变颜色
+            if (healthPct < 0.3) {
+                gradient.addColorStop(0, '#ef4444');
+                gradient.addColorStop(1, '#f87171');
+                // 低血量闪烁
+                if (Math.sin(visualTime * 0.2) > 0) {
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#ef4444';
+                }
+            } else {
+                gradient.addColorStop(0, '#f97316');
+                gradient.addColorStop(1, '#fb923c');
+            }
+        }
+        
+        ctx.fillStyle = gradient;
+        if (healthPct > 0) {
+            ctx.beginPath();
+            ctx.roundRect(-barW / 2, barY, barW * healthPct, barH, 3);
+            ctx.fill();
+        }
+        
+        // 边框
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-barW / 2, barY, barW, barH, 3);
+        ctx.stroke();
+        ctx.restore();
+    }
 };
 
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouseDown, onMouseUp }) => {

@@ -179,9 +179,6 @@ export const createBuildings = (): Building[] => {
     spawn(BuildingType.ARMORY, BiomeType.ABYSS, 2);
     spawn(BuildingType.SHRINE, BiomeType.SWAMP, 1);
     spawn(BuildingType.SHRINE, BiomeType.REEF, 1);
-    buildings.push({
-        id: 'shop-1', x: MAP_SHAPE_CONFIG.CENTER_X - 400, y: MAP_SHAPE_CONFIG.CENTER_Y - 400, type: BuildingType.SHOP, radius: BUILDING_CONFIGS.SHOP.radius, cooldown: 0
-    });
     return buildings;
 };
 
@@ -256,8 +253,30 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
 
   // 基础碰撞伤害
   let damage = attacker.config.damage;
+  
+  // 背后突袭暴击逻辑
+  let backstabAngleDiff = angleToVictim - victim.angle;
+  while (backstabAngleDiff > Math.PI) backstabAngleDiff -= Math.PI * 2;
+  while (backstabAngleDiff < -Math.PI) backstabAngleDiff += Math.PI * 2;
+  
+  const backstabThreshold = Math.PI / 3; // 60度范围内算背刺
+  let isCrit = false;
+  if (Math.abs(backstabAngleDiff) < backstabThreshold) {
+      const critMult = 1 + (1 - Math.abs(backstabAngleDiff) / backstabThreshold); // 1.0 到 2.0
+      damage *= critMult;
+      isCrit = critMult > 1.5;
+  }
+
   victim.health -= damage;
-  particles.push(createParticle(victim.x, victim.y, 'red'));
+  
+  if (isCrit) {
+      for(let i=0; i<5; i++) particles.push(createParticle(victim.x, victim.y, '#fbbf24'));
+      if (!attacker.speechBubble) {
+          attacker.speechBubble = { text: "背刺暴击!", timer: 30, color: '#fbbf24' };
+      }
+  } else {
+      particles.push(createParticle(victim.x, victim.y, 'red'));
+  }
   
   if (attacker.radius > victim.radius * 1.1) {
       attacker.renderScale = 1.1;
@@ -266,7 +285,7 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
 };
 
 export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSpacePressed: boolean, isMouseDown: boolean, screenWidth: number, screenHeight: number): GameState => {
-  if (state.status === GameStatus.MENU) return state;
+  if (state.status === GameStatus.MENU || state.status === GameStatus.SHOP) return state;
   state.time++;
 
   if (state.status === GameStatus.PLAYING && state.entities.length < MAX_ENTITIES) {

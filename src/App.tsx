@@ -44,6 +44,8 @@ const App: React.FC = () => {
   const keysRef = useRef({ space: false });
   const isMouseDownRef = useRef(false);
 
+  const prevStatusRef = useRef<GameStatus>(GameStatus.MENU);
+
   useEffect(() => {
     const interval = setInterval(() => setUiState({ ...gameStateRef.current }), 100);
     return () => clearInterval(interval);
@@ -104,12 +106,49 @@ const App: React.FC = () => {
             const currentCos = gameStateRef.current.player.cosmetics;
             gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos });
             gameStateRef.current.status = GameStatus.PLAYING;
+            setUiState({ ...gameStateRef.current });
         }}
-        onStartBattleTest={startBattleTest}
-        onRestart={() => { gameStateRef.current = createInitialState(); }}
+        onStartBattleTest={() => {
+            startBattleTest();
+            setUiState({ ...gameStateRef.current });
+        }}
+        onRestart={() => { 
+            gameStateRef.current = createInitialState(); 
+            setUiState({ ...gameStateRef.current });
+        }}
         onEvolve={() => {}}
-        onUpdateCosmetics={(cos) => { gameStateRef.current.player.cosmetics = cos; }}
-        setGameStatus={(s) => { gameStateRef.current.status = s; }}
+        onUpdateCosmetics={(cos) => { 
+            gameStateRef.current.player.cosmetics = cos; 
+            setUiState({ ...gameStateRef.current });
+        }}
+        onExitShop={() => {
+            const currentStatus = gameStateRef.current.status;
+            if (currentStatus !== GameStatus.SHOP) return;
+            
+            // 核心逻辑：退出商店即进入/继续游戏
+            if (prevStatusRef.current === GameStatus.MENU) {
+                // 如果是从主菜单进的，直接开启游戏
+                gameStateRef.current.status = GameStatus.PLAYING;
+            } else {
+                // 如果是在游戏中进的，恢复之前的状态（PLAYING 或 BATTLE_TEST）
+                gameStateRef.current.status = prevStatusRef.current;
+            }
+            setUiState({ ...gameStateRef.current });
+        }}
+        setGameStatus={(s) => { 
+            const currentStatus = gameStateRef.current.status;
+            
+            if (s === GameStatus.SHOP) {
+                if (currentStatus !== GameStatus.SHOP) {
+                    prevStatusRef.current = currentStatus;
+                }
+                gameStateRef.current.status = GameStatus.SHOP;
+            } else {
+                gameStateRef.current.status = s; 
+            }
+            
+            setUiState({ ...gameStateRef.current });
+        }}
       />
     </div>
   );
