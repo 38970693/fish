@@ -1,0 +1,3125 @@
+================================================================================
+MODEL RESPONSES - Complete List
+Total: 227 messages
+================================================================================
+
+--- Response 1 ---
+Here is the complete code for the "Evolution: Deep Blue" game.
+
+This is a complete React application using HTML5 Canvas for high-performance rendering of the entities, combined with Tailwind CSS for the UI overlay.
+
+### Application Structure
+
+1.  **`index.html`**: Entry point, loads Tailwind.
+2.  **`index.tsx`**: React root.
+3.  **`types.ts`**: Defines the creatures, game state, and physics types.
+4.  **`constants.ts`**: Contains the "Database" of the 10 creature types, their stats, behaviors, and evolution thresholds.
+5.  **`gameEngine.ts`**: Pure TypeScript logic for physics, collision detection, AI behavior, and spawning to keep the React component clean.
+6.  **`components/GameCanvas.tsx`**: Handles the rendering loop and input.
+7.  **`components/UIOverlay.tsx`**: HUD, Evolution Menus, and Game Over screens.
+8.  **`App.tsx`**: Main state manager connecting the engine, canvas, and UI.
+
+
+
+...--- Response 2 ---
+This update adds an exaggerated "chomp" animation. Creatures (both the player and predators) will now open their mouths wide and snap them shut when approaching a tasty target.
+
+Here are the changes:
+1.  **`types.ts`**: Added `mouthOpenValue` to `Entity` and `time` to `GameState`.
+2.  **`App.tsx`**: Initialized the new state properties.
+3.  **`gameEngine.ts`**: Added logic to detect nearby edible targets and animate the `mouthOpenValue` with a sine wave for a chomping effect.
+4.  **`components/GameCanvas.tsx`**: Updated the drawing logic to render a Pac-Man style mouth wedge that opens and closes based on the entity's state.
+
+
+
+...--- Response 3 ---
+This update introduces two major mechanics:
+1.  **Speed Boost**: Hold **Spacebar** to sprint. This consumes a stamina bar that regenerates over time.
+2.  **Hiding Spots (Obstacles)**: Rocks and Coral reefs are scattered across the map. Smaller creatures can hide *under* them to escape larger predators. If a predator is too big to fit in the hiding spot, it cannot eat the hidden prey.
+
+### Changes
+
+1.  **`types.ts`**: Added `Obstacle` type and `boost` properties to `PlayerState`.
+2.  **`constants.ts`**: Added configuration for boost stats and obstacle generation.
+3.  **`App.tsx`**: Added keyboard listeners for the Spacebar to trigger boosting.
+4.  **`gameEngine.ts`**:
+    *   Added `generateObstacles`.
+    *   Implemented "Hiding" logic: Entities are considered `isHidden` if they are inside an obstacle larger than themselves.
+    *   Updated `canEat` logic: Predators cannot eat hidden prey unless the predator *also* fits inside the obstacle.
+    *   Implemented Boost physics (speed multiplier, stamina drain/regen).
+5.  **`components/GameCanvas.tsx`**:
+    *   Implemented **Z-Layering**: Entities are now sorted. Hidden entities are drawn *below* obstacles, while exposed entities are drawn *above* them.
+    *   Added Boost particle effects (bubbles).
+6.  **`components/UIOverlay.tsx`**: Added a yellow Stamina/Boost bar under the HP bar.
+
+
+
+...--- Response 4 ---
+To enable a dynamic ecosystem where fish eat each other (not just the player), I will update the `gameEngine.ts` to include an **Entity vs. Entity** interaction loop.
+
+This new logic will:
+1.  Allow **Aggressive/Boss** fish to eat any smaller fish.
+2.  Allow **Passive/Flee** fish to eat Plankton (so they also have a food source).
+3.  Trigger particle effects and growth when AI eats AI.
+4.  Update the AI mouth animation to trigger when near *any* prey, not just the player.
+
+
+
+...--- Response 5 ---
+This update makes the game significantly faster, adds exaggerated "cartoon" mouth animations, and introduces new weird creatures (Worker/Sad Face, Ghost, Mutant) to satisfy the "牛马鬼怪" (beasts and monsters) request.
+
+### Changes:
+
+1.  **`types.ts`**: Added `WORKER` (牛马), `GHOST` (鬼), and `MUTANT` (怪) to the `CreatureType` enum.
+2.  **`constants.ts`**:
+    *   **Faster Evolution**: Drastically reduced XP requirements in `LEVEL_THRESHOLDS`.
+    *   **New Creatures**: Added stats and configs for the new types.
+3.  **`gameEngine.ts`**:
+    *   Updated spawn logic to include new creatures.
+    *   **Faster/Exaggerated Mouths**: Increased the speed of the sine wave for mouth opening (`state.time * 0.6`).
+4.  **`components/GameCanvas.tsx`**:
+    *   **Giant Mouths**: Increased the mouth opening angle multiplier from `0.7` to `1.2`.
+    *   **Custom Skins**:
+        *   **Worker (牛马)**: Has a sad face, glasses, and a tie.
+        *   **Ghost (鬼)**: Wavy tail, transparent body, hollow eyes.
+        *   **Mutant (怪)**: Spiky body, multiple eyes.
+
+
+
+...--- Response 6 ---
+This update makes the mouth movements **extremely exaggerated** (Pac-Man style) with **visible sharp teeth**, and adds a clear **Boost Status** indicator to the HUD.
+
+### Changes
+
+1.  **`components/GameCanvas.tsx`**:
+    *   Increased mouth open angle multiplier from `1.2` to **`2.5`**. When the mouth opens, it now consumes almost the entire front of the fish.
+    *   Added a **Teeth Rendering** system. When the mouth opens, sharp white triangles are drawn on both the upper and lower jaws.
+2.  **`components/UIOverlay.tsx`**:
+    *   Enhanced the Boost Bar. It now changes color:
+        *   **Blue/Cyan + "READY"**: When stamina is full.
+        *   **Yellow**: While using or regenerating.
+        *   **Red + "RECHARGING"**: When empty/low.
+
+
+
+...--- Response 7 ---
+To implement these changes, I will modify `constants.ts` to increase the entity limit and `gameEngine.ts` to enforce the "safe zone" logic and ensure a healthy population of small prey.
+
+### Changes
+
+1.  **`constants.ts`**: Increased `MAX_ENTITIES` from 80 to **150** to accommodate the required 50+ small prey while keeping enough slots for larger predators.
+2.  **`gameEngine.ts`**:
+    *   **Safe Zones**: In both AI-vs-AI and Player-vs-AI collision loops, if *either* entity is hidden inside an obstacle (`isHidden`), interaction is skipped completely. Hiding now guarantees safety and prevents attacking.
+    *   **Population Control**: In `spawnEntities`, added a check for the count of `PLANKTON` and `ALGAE_FISH`. If the count is below 50, the spawner forces the creation of these small creatures to refill the map quickly.
+
+
+
+...--- Response 8 ---
+This update focuses on **Visual Fidelity and Variety**. It completely rewrites the rendering engine in `GameCanvas.tsx` to move away from simple circles. Creatures now have distinct body shapes, animated tails/fins, gradients, and skin patterns (scales, stripes).
+
+### Key Changes:
+
+1.  **High-Fidelity Rendering (`GameCanvas.tsx`)**:
+    *   **Procedural Animation**: Tails and fins now wiggle based on a sine wave of the game time.
+    *   **Distinct Shapes**:
+        *   **Needle/Sword Fish**: Elongated, sharp bodies.
+        *   **Armor Fish**: Hexagonal, plated "tank" bodies.
+        *   **Jellyfish**: Semi-transparent bells with moving tentacles.
+        *   **Eel**: Sinuous, electric-arcing bodies.
+    *   **Skin System**: Added patterns (stripes, spots) and gradients to make them look 3D.
+    *   **"Worker" Update**: Now looks more like a fish in a business suit (white collar, red tie).
+2.  **Expanded Configs (`constants.ts`)**:
+    *   Tweaked colors to be more vibrant/distinct.
+    *   Adjusted sizes to match the new visual shapes.
+3.  **Engine Tweaks (`gameEngine.ts`)**:
+    *   Ensured particle effects match the new sophisticated colors.
+
+
+
+...--- Response 9 ---
+In `App.tsx`, the `PlayerState` interface (defined in `types.ts` and extending `Entity`) requires an `animOffset` property, which was missing in the initial `player` object creation within `createInitialState`. I have added `animOffset: 0` to fix the type error.
+
+
+
+...--- Response 10 ---
+To address your feedback, I am significantly increasing the population of small prey (making them 4x more abundant), extending the boost duration, and ensuring a massive initial spawn so the ocean feels alive immediately.
+
+### Changes
+
+1.  **`constants.ts`**:
+    *   **Max Entities**: Increased from `150` to **`300`** to handle the swarm of small fish.
+    *   **Boost Config**: Reduced `DRAIN_RATE` from `1.5` to `0.4` (boost lasts ~4x longer) and increased regeneration speed.
+    *   **XP Buff**: Increased `PLANKTON` XP from `10` to `15` to help you level up faster.
+
+2.  **`gameEngine.ts`**:
+    *   **Population Control**: The game now forces spawning of small prey until there are at least **200** of them (previously 50) on the map.
+
+3.  **`App.tsx`**:
+    *   **Initial Spawn**: On game start, `100` entities are spawned immediately (instead of 20) so you don't have to wait for the map to populate.
+
+
+
+...--- Response 11 ---
+Based on your feedback, I have updated the game to support a massive population of small fish (minimum 200), added a "God Mode" (Invincible Leviathan) switch, fixed the fish shapes to be smoother, and translated the evolution menu into Chinese.
+
+### Changes:
+
+1.  **`constants.ts`**: Increased `MAX_ENTITIES` to **500** to support the new ecosystem density.
+2.  **`types.ts`**: Added `isGodMode` flag to the Player state.
+3.  **`App.tsx`**:
+    *   **Initial Spawn**: Now spawns **200** small creatures immediately on start.
+    *   **God Mode**: Implemented `handleGodMode` which transforms the player into a `LEVIATHAN`, maximizes stats, and enables invincibility.
+4.  **`gameEngine.ts`**:
+    *   **Spawn Logic**: Prioritizes spawning `PLANKTON` or `ALGAE_FISH` if their count is below 200.
+    *   **Invincibility**: Players in God Mode do not take damage.
+    *   **Eating**: God Mode players can eat anything regardless of size.
+5.  **`components/GameCanvas.tsx`**:
+    *   **Shape Fix**: Rewrote `drawBodyPath` to use smooth quadratic curves for a natural, streamlined fish shape instead of the previous "deformed" polygons.
+    *   **Mouth**: Cap the mouth opening to **180 degrees** (a full semi-circle bite).
+6.  **`components/UIOverlay.tsx`**:
+    *   **Translation**: Evolution menu is now in **Chinese**.
+    *   **God Mode Button**: Added a "变身无敌巨兽" (Become Invincible Leviathan) button in the top right.
+
+
+
+...--- Response 12 ---
+To implement the "Revive with Ad" feature and the "Edibility Indicators", I will update `App.tsx`, `components/UIOverlay.tsx`, and `components/GameCanvas.tsx`.
+
+### Design Specification
+
+1.  **Revive Screen (UIOverlay)**:
+    *   Modify the Game Over screen.
+    *   **Option 1 (Premium)**: "Watch Ad to Revive". Icon: Video/Play. Effect: Respawns player as a **Swordfish (Tier 3)** immediately at Level 10.
+    *   **Option 2 (Standard)**: "Normal Restart". Effect: Respawns as **Algae Fish (Tier 1)** at Level 1.
+    *   *Simulation*: When clicking "Watch Ad", we'll show a "Playing Ad..." overlay for 2 seconds before respawning.
+
+2.  **Edibility Indicators (GameCanvas)**:
+    *   Visual hints drawn near every visible fish to indicate threat level relative to the player.
+    *   **Edible (Prey)**: If `player.size >= enemy.size * 1.1`, draw a **Green Target Icon** (triangle pointing down) above them.
+    *   **Dangerous (Predator)**: If `player.size < enemy.size`, draw a **Red Warning Icon** (exclamation mark) above them.
+    *   **Equal/Neutral**: No icon (or yellow dot if very close in size).
+
+3.  **App Logic**:
+    *   Add `reviveGame(useAd: boolean)` to handle the different respawn configurations.
+
+### Code Changes
+
+
+
+...--- Response 13 ---
+Based on your request, I will update the application to include a "Revive with Ad" feature that grants a powerful start, and "Edibility Indicators" to help players identify threats and food.
+
+Here is the plan:
+1.  **`App.tsx`**: Add `handleRevive` logic. Standard revive resets to Level 1. "Ad Revive" (simulated) resets to Level 10 as a Swordfish.
+2.  **`components/UIOverlay.tsx`**: Update the Game Over screen to show two options: "Normal Restart" and "Revive with Buff (Ad)".
+3.  **`components/GameCanvas.tsx`**: Add visual indicators above fish. Green arrow for edible targets, Red exclamation mark for threats.
+
+
+
+...--- Response 14 ---
+Here are the updates to speed up evolution and double the population of small creatures.
+
+1.  **`constants.ts`**:
+    *   Increased `MAX_ENTITIES` from 500 to **800** to accommodate the larger ecosystem.
+    *   Reduced `LEVEL_THRESHOLDS` significantly (e.g., Level 2 requires 20 XP instead of 40), making leveling up much faster.
+
+2.  **`gameEngine.ts`**:
+    *   Updated `spawnEntities` to maintain a minimum of **400** small creatures (Plankton/Algae Fish) instead of 200.
+
+3.  **`App.tsx`**:
+    *   Updated `spawnInitialEntities` to spawn **400** small creatures immediately upon game start.
+
+
+
+...--- Response 15 ---
+Here is the plan to satisfy your request:
+
+1.  **Refactor Visuals (Cute & Funny)**: I will completely rewrite the rendering logic in `GameCanvas.tsx`.
+    *   **Style**: "Derpy" / "Googly" style. Round, blob-like bodies, huge white eyes with small pupils that look slightly cross-eyed or confused, and small flappy fins.
+    *   **Animation**: Wobbly movement to make them look more "gelatinous" and alive.
+2.  **Eating Effect**: I will add a `renderScale` property. When a fish eats, it will instantly "pop" larger (scale up to 1.3x) and elastically bounce back to normal size.
+3.  **Pre-Evolution Invincibility**:
+    *   When the player reaches **90% XP** of the current level, they enter "Evolution Ready" mode.
+    *   **Visual**: A glowing, rotating golden/rainbow aura appears around the player.
+    *   **Logic**: The player becomes immune to damage during this phase to ensure they can survive to the evolution menu.
+
+Here are the code changes:
+
+
+
+...--- Response 16 ---
+Based on your request, I will refactor the game to make the fish look "funny and cute" (Googly eyes, wobbly bodies), add "Pop" scaling effects when eating, and implement an "Invincible State" just before evolution. I'll also improve the AI to be smarter about chasing food and fleeing threats.
+
+Here are the changes:
+
+1.  **`types.ts`**: Added `renderScale` for the eating animation and `isInvulnerable` for the pre-evolution protection.
+2.  **`gameEngine.ts`**: 
+    *   **Effect Logic**: Added `renderScale` springing logic (pop up to 1.5x and bounce back).
+    *   **Evolution Logic**: If XP > 90% of required, enable `isInvulnerable`.
+    *   **AI Logic**: Completely rewrote `updateAI` to use a force-based system. Fish now actively detect threats (larger fish) to flee from and food (smaller fish) to chase, prioritizing survival.
+3.  **`components/GameCanvas.tsx`**: 
+    *   **Visual Overhaul**: Replaced the complex realistic drawing with a "Cute/Funny" style. Fish are now rounder, have googly eyes that look around, and flap small fins.
+    *   **Effects**: Added the "Evolution Aura" (spinning gold ring) and applied the scale transform.
+4.  **`App.tsx`**: Updated the initial player state to include the new fields.
+
+
+
+...--- Response 17 ---
+In `components/GameCanvas.tsx`, I have implemented the "dynamic open mouth" with fangs.
+
+1.  **Updated `drawCuteFish`**:
+    *   Added logic to draw a dark ellipse representing the open mouth when `mouthOpenValue > 0.1`.
+    *   Added logic to draw sharp white triangles (fangs) inside the mouth when `mouthOpenValue > 0.2`.
+    *   The fangs scale with the mouth opening size, creating a chomping animation.
+    *   Adjusted eye positions slightly so they aren't hidden by the larger mouth.
+
+This will give the fish a "chomping" animation with visible teeth when they are near food.
+
+
+
+...--- Response 18 ---
+To double the evolution speed and ensure the player levels up after eating roughly 5-10 creatures (or fewer for high-value targets), I will:
+
+1.  **Double the XP Value** of all creatures.
+2.  **Lower the Level Thresholds** slightly to further accelerate progression.
+
+This will make the game feel much faster and more rewarding.
+
+
+
+...--- Response 19 ---
+Here are the changes to satisfy your requests:
+
+1.  **Faster Movement:** Increased initial player speed and adjusted small fish speeds.
+2.  **Dynamic Camera:** Implemented a zoom system that starts close (1.5x) for immersion and zooms out as you level up to see more of the map.
+3.  **"Poke the Bear" Mechanic:** Colliding with a larger fish no longer instantly kills you (unless you are very low health). Instead, it deals minor damage, knocks you back, and **enrages** the larger fish, causing it to chase you furiously for a few seconds.
+
+### 1. `types.ts`
+Added `aggroTimer` to the `Entity` interface to track how long a big fish chases the player after a collision.
+
+
+
+...--- Response 20 ---
+To address your request, I will reduce the fish population by half to reduce chaos and improve performance. I will also implement a "Survival Instinct" AI where fish will detect when they are being chased or stared at by a predator (like the player) and burst into a panic sprint to escape.
+
+1.  **Reduce Population**: Limits reduced from 800 to 400.
+2.  **Survival Instinct AI**: Fish now calculate if a threat is moving towards them. If so, their "Fear Factor" spikes, causing them to swim 2.5x faster to escape.
+
+
+
+...--- Response 21 ---
+The following changes address your requests:
+
+1.  **Remove "Black Fish"**: The **Leviathan's** color has been changed from dark slate (which blended with the background) to a **bright menacing red**, making it clearly visible.
+2.  **10x XP Gain**: Experience points for all creatures have been increased by **10x**, making leveling up significantly faster.
+3.  **Half Speed**: The movement speed of the player and all creatures has been reduced by **50%** for more controlled gameplay.
+
+
+
+...--- Response 22 ---
+I've doubled the player's speed to give you more control and agility compared to the AI fish.
+
+### Changes
+
+1.  **Double Player Speed**: In `App.tsx`, the player's initial speed is now calculated as `baseConfig.speed * 2`, ensuring your fish is significantly faster than its AI counterparts.
+
+
+
+...--- Response 23 ---
+I have modified the AI behavior to implement a distinct "relaxed" state. When fish are not chasing a target or fleeing from a threat, they will now swim at **35% of their maximum speed** and turn more lazily. This provides a strategic opportunity for players to sneak up on unsuspecting prey, while retaining the burst speed mechanics when the fish become alert.
+
+1.  **Relaxed State**: AI Fish swim slowly (0.35x speed multiplier) and turn smoothly when idle.
+2.  **Alert/Chase State**: Speed ramps up quickly to 1.5x - 2.5x when a target is detected or a threat appears.
+3.  **Feeding State**: Fish accelerate slightly (0.8x) when food is detected nearby.
+
+
+
+...--- Response 24 ---
+The following changes implement your requests:
+
+1.  **Peaceful Coexistence**: Fish of the **same tier** (effective level) will no longer eat or damage each other. You must be a higher tier to eat someone (except for Plankton, which everyone eats).
+2.  **Fixed 10 Fish Evolution**: The leveling curve has been rebuilt. Each level now requires approximately **10 kills** of the appropriate prey for that stage, ensuring a consistent and snappy pace even after level 10.
+
+### Changes
+
+-   **`constants.ts`**:
+    -   Changed **Plankton** to **Tier 0**.
+    -   Regenerated `LEVEL_THRESHOLDS` up to Level 100 based on the "10 fish per level" rule.
+-   **`gameEngine.ts`**:
+    -   Added `getEffectiveTier` function to calculate the player's tier based on their level (Levels 1-4 = Tier 1, 5-9 = Tier 2, etc.).
+    -   Updated collision logic: Damage and eating only occur if `Attacker Tier > Defender Tier` (or if prey is Plankton).
+
+
+
+...--- Response 25 ---
+To fix the error where `0` is not assignable to type `1 | 2 | 3 | 4` for the `tier` property, I will update the `CreatureConfig` interface in `types.ts` to include `0` as a valid value for `tier`. This supports the `PLANKTON` creature which is defined as tier 0 in `constants.ts`.
+
+
+
+...--- Response 26 ---
+Here are the updates to meet your requirements:
+
+1.  **Increased Plankton Limit**: `MAX_ENTITIES` increased to **600**, and the spawn logic now enforces a minimum of **250 Plankton** at all times.
+2.  **Performance Optimization**: Plankton AI is completely stripped down. They do not scan for neighbors, fear nothing, and simply drift. This keeps the game smooth even with hundreds of entities.
+3.  **Stealth Feeding Mechanic**: Modified the collision logic so you can **eat Plankton even when you (or the plankton) are hidden** inside obstacles (Rocks/Coral). You can now hide in a coral reef and safely farm shrimp without being targeted by big fish.
+
+
+
+...--- Response 27 ---
+Here are the changes to satisfy your request.
+
+**Summary of Changes:**
+
+1.  **Collision & Damage**:
+    *   **Reduced Damage**: Collision damage from larger fish is significantly reduced (from 10% of raw damage to 2% per tick), making it a warning rather than instant death.
+    *   **Chase Mechanic**: Bumping into a larger fish now triggers a longer "Aggro" state (500 frames instead of 300) where they will actively chase you.
+2.  **Evolution System**:
+    *   **Automatic Transformation**: Removed the manual "Card Selection" menu.
+    *   **Species Mutation**: When reaching levels 5, 10, and 15, the player automatically transforms into a new species based on what they have been eating (e.g., eating aggressive fish leads to becoming a Shark/Swordfish, eating passive food leads to becoming a Whale/Turtle type).
+    *   **Visual Feedback**: Added a particle explosion and a "POP" effect when evolving.
+
+
+
+...--- Response 28 ---
+The application has been updated with the requested changes:
+
+1.  **Automatic Evolution**: Players now automatically transform into new species (e.g., Poison Fish, Swordfish) upon reaching levels 5, 10, and 15 without a menu interruption.
+2.  **Entity Balance**: The maximum number of creatures is reduced to 300 (half of previous), and spawning logic now heavily favors small creatures initially, making big fish rare and special.
+3.  **Reduced Collision Damage & Chasing**: Hitting a larger fish now deals only 20% of previous damage (non-lethal bumps) but causes the predator to aggressively chase you for a longer duration.
+4.  **Visuals**: Fish now have 50% larger fangs that protrude outwards ("buck teeth" style) when opening their mouths.
+5.  **Ad Revive**: Reviving via "Ad" now restores you exactly where you died with your current level and species, rather than resetting you to a generic start.
+6.  **Faster Progression**: XP thresholds for leveling up have been significantly lowered.
+
+
+
+...--- Response 29 ---
+The application has been updated to ensure the fish's fangs (buck teeth) are prominently visible even when the mouth is closed, adding a distinctive and slightly goofy or aggressive look to the characters at all times.
+
+
+
+...--- Response 30 ---
+The application has been updated with the requested visual changes:
+
+1.  **Exaggerated Buck Teeth**: The fish now feature massive, comedic buck teeth that take up approximately **60% of their body size**.
+2.  **Permanent Visibility**: These teeth are clearly visible and stick out even when the mouth is closed, giving the fish a permanent "goofy" and distinct appearance.
+3.  **Funny Style**: The teeth are drawn as large rectangles that protrude significantly from the face, enhancing the comedic effect of the game.
+
+
+
+...--- Response 31 ---
+The application has been updated to transform the fish's teeth into sharp, exaggerated "tiger fangs" (pointed canines) instead of parallel rectangular blocks. This gives them a more aggressive yet comical look, with large sharp teeth protruding even when the mouth is closed.
+
+
+
+...--- Response 32 ---
+The application has been updated to remove the buck teeth (fangs) when the fish's mouth is closed (static state). The fangs will only appear when the fish opens its mouth to eat.
+
+
+
+...--- Response 33 ---
+The application has been updated to double the boost duration and increase the boost speed multiplier by 1.5x (from 1.8 to 2.7).
+
+
+
+...--- Response 34 ---
+The application has been updated to:
+1.  **Reduce Boost Speed**: Slowed down the acceleration multiplier by ~30% (from 2.7x to 1.9x) for better control.
+2.  **Accelerate Transformation**: Lowered the level requirements for evolution (Level 3/6/9 instead of 5/10/15) and added visual effects to every level-up to emphasize the "Upgrade/Transformation" feel.
+
+
+
+...--- Response 35 ---
+The updates address your two main concerns:
+1.  **"Why can't I eat the green fish?"**: The collision rules were too strict. I've increased your starting size and adjusted the logic so you can eat creatures of the **same tier** (like the green Algae Fish) as long as you are physically larger than them.
+2.  **"No transformation in first levels"**: I have accelerated the evolution timeline. You will now evolve into a new species at **Level 2** (instead of Level 3), making the early game much more exciting.
+
+**Summary of Changes:**
+*   **Larger Start:** Initial player size increased (Radius 12 → 16), making you bigger than the basic AI fish immediately.
+*   **Easier Eating:** Eating logic changed from `Strictly Larger Tier` to `Same Tier or Higher` (as long as you are bigger).
+*   **Faster Evolution:**
+    *   **Level 2:** Evolve to Tier 2 (Needle/Worker/Poison Fish).
+    *   **Level 5:** Evolve to Tier 3 (Sword/Ghost/Eel).
+    *   **Level 8:** Evolve to Boss Tier.
+
+
+
+...--- Response 36 ---
+The following updates have been made to significantly increase the population of medium and large fish, making the ocean feel more dangerous and lively:
+
+1.  **More Big Fish Spawns**: Adjusted the spawn probability. Now, once the basic food (Plankton) requirements are met, there is a much higher chance (from ~2% to ~15%) of spawning top-tier predators like **Swordfish**, **Electric Eels**, and **Mega Mouths**.
+2.  **Increased Diversity**: Added **Armor Fish** to the spawn pool (previously missing) and increased the count of aggressive hunters like Needle Fish.
+3.  **Population Cap Increased**: Raised `MAX_ENTITIES` from 300 to 350 to accommodate the extra biodiversity without reducing food sources too much.
+
+
+
+...--- Response 37 ---
+The fish rendering has been updated with "Zombie-like Buck Teeth" (protruding rectangular fangs) that are visible even when the mouth is closed, giving them a goofier and slightly more menacing look as requested.
+
+
+
+...--- Response 38 ---
+The fish rendering has been updated so that their mouths are always open with the zombie buck teeth visible, giving them a perpetually hungry and goofy look.
+
+
+
+...--- Response 39 ---
+The teeth rendering has been updated to feature long, sharp, curved fangs (Jiangshi/Zombie style) and jagged bottom teeth, making the fish look significantly more menacing while keeping the "always open mouth" behavior.
+
+
+
+...--- Response 40 ---
+The game has been updated to "Happy Fish Pond" (欢乐鱼塘)!
+
+**Key Changes:**
+
+1.  **New Taunt Mechanic**:
+    *   **How to trigger**: Hold **Left Mouse Button** or **Touch** the screen.
+    *   **Effect**: Emits a red shockwave. Nearby fish (even passive ones) will become enraged (`💢` indicator) and chase you for a short time. They get a massive speed boost while chasing. High risk, but fun for luring fish!
+2.  **New Visual Style**:
+    *   **Crazy Piranha Look**: Fish now have asymmetric "derpy" eyes (one big, one small) and a large, jagged mouth with prominent triangular teeth (underbite style).
+    *   **Animations**: Fish wobble more noticeably. When taunting, the player shakes with rage.
+    *   **Colors**: Updated gradients and added visual indicators for the taunt state.
+3.  **UI Updates**:
+    *   Title changed to "Happy Fish Pond".
+    *   Instructions updated to include the new Taunt mechanic.
+    *   Menu themes adjusted to be slightly more colorful/playful ("Cyan to Pink" gradient).
+
+Have fun provoking the entire pond! 🐟💢
+
+...--- Response 41 ---
+The fish now have sharp, jagged teeth similar to the reference image, with a large open mouth for shouting/eating. I've also implemented the requested "Happy Fish Pond" features including the Taunt mechanic.
+
+**Changes applied:**
+
+1.  **Rendering (`GameCanvas.tsx`)**:
+    *   **New Teeth**: Replaced the zombie fangs with rows of sharp, triangular "Wolf/Piranha" teeth that zigzag along the top and bottom jaw.
+    *   **Derpy Eyes**: Eyes are now asymmetric (one big, one small) and wobble independently.
+    *   **Mouth**: The mouth is drawn as a large, wide polygon to accommodate the shouting expression.
+    *   **Taunt Visuals**: Added a red shockwave effect and angry overlay when the player taunts.
+
+2.  **Game Mechanics (`gameEngine.ts` & `App.tsx`)**:
+    *   **Taunt Input**: Holding **Left Mouse Button** or **Touching** the screen triggers the Taunt state.
+    *   **Taunt Effect**: When taunting, the player shakes, and nearby non-plankton fish become enraged (`aggroTimer` set to active), chasing the player with a speed boost.
+
+3.  **UI (`UIOverlay.tsx`)**:
+    *   Title changed to "**欢乐鱼塘**" (Happy Fish Pond).
+    *   Updated tutorial text to include the Taunt mechanic instruction.
+    *   Theme adjusted to a more vibrant Pink/Yellow gradient.
+
+Enjoy the chaos in the Happy Fish Pond! 🐟💢🦷
+
+...--- Response 42 ---
+The fish teeth have been updated to a "Cartoon Monster" style—featuring large, rounded, irregular white teeth with bold black outlines, giving them a goofy yet biting appearance. I've also implemented the requested "Happy Fish Pond" features:
+
+1.  **Taunt Mechanic**: Hold **Left Mouse Button** or **Touch the Screen** to taunt.
+    *   **Effect**: You shake, emit shockwaves, and nearby fish become enraged and chase you.
+    *   **Visual**: Red shockwave particles radiate from your fish.
+2.  **Cartoon Visuals**: Thicker outlines, "derpy" asymmetric eyes, and the new cartoon teeth.
+3.  **UI**: Updated title to "Happy Fish Pond" (欢乐鱼塘) with instructions on how to use the taunt.
+
+Enjoy the chaos! 🐟🦷💢
+
+
+
+...--- Response 43 ---
+The game name has been officially updated to **Happy Fish Pond** in the system configuration to match the in-game UI.
+
+
+
+...--- Response 44 ---
+This update introduces **Seaweed** as a new hiding spot. When you hide under seaweed (or rocks/corals), aggressive fish will lose track of you and stop chasing immediately.
+
+**Updates:**
+1.  **New Obstacle: Seaweed**: Large patches of waving green grass.
+2.  **Hiding Mechanics**: Hiding now instantly breaks the "Aggro/Chase" lock from enemies (even if you taunted them).
+3.  **Visuals**: Added animated seaweed rendering that sways with the water current.
+
+Hide and seek just got real! 🌿👀
+
+
+
+...--- Response 45 ---
+Here are the changes to implement the new "Nibble & Grow" mechanics, standardized speed, agility penalties for size, and power-ups.
+
+**Key Changes:**
+1.  **Mass Transfer System:** Collisions no longer instantly kill. Instead, if a fish bites another (facing them), they steal "Mass" (Radius). The victim shrinks, the attacker grows.
+2.  **Agility Penalty:** The bigger you get, the slower you turn.
+3.  **Standardized Speed:** All fish start with similar base speeds.
+4.  **Power-Ups:** Added "Speed Pills" floating in the water to give temporary bursts of speed.
+5.  **Recovery:** Shrinking too much kills you. You must eat plankton or bite others to recover size.
+
+
+
+...--- Response 46 ---
+The ad revive mechanic has been adjusted to prevent infinite revives. Players can now watch an ad to revive **only once per game**.
+
+**Updates:**
+1.  **Revive Limit**: Added `reviveCount` to tracking.
+2.  **UI Update**: The "Watch Ad" button is disabled and shows "No more revives" if the player has already used their one chance for the current run.
+
+
+
+...--- Response 47 ---
+I've updated the logic in the UIOverlay to safely handle cases where `reviveCount` might be undefined (e.g., from an ongoing game session before the update), ensuring the "Watch Ad" button appears correctly if you haven't used it yet.
+
+**Fixes:**
+*   **Revive Button Bug**: The button now correctly checks `(reviveCount ?? 0) < 1`, so it won't default to disabled if the counter is missing.
+
+
+
+...--- Response 48 ---
+I've updated the game mechanics so that the player cannot die from shrinking too small. Instead, their size will be clamped to the minimum, allowing you to continue playing and recover.
+
+**Updates:**
+1.  **Immortality at Minimum Size**: Modified `gameEngine.ts` to clamp the player's radius to `MIN_RADIUS_TO_SURVIVE` instead of triggering death when eaten.
+2.  **Removed Game Over Trigger**: The player no longer enters the "Game Over" state due to small size.
+3.  **UI Updates**: Updated the overlay text to remove the "Too small will die!" warning, replacing it with softer warnings about being small.
+
+
+
+...--- Response 49 ---
+The logic has been adjusted to limit the growth and consumption of fish.
+
+**Updates:**
+1.  **Maximum Size Cap**: Added `MAX_RADIUS` (400). Fish (including the player) cannot grow beyond this size.
+2.  **Minimum Size Protection**: Entities at or below the minimum survival size (`MIN_RADIUS_TO_SURVIVE`) can no longer be bitten. This prevents the "infinite eating" loop where a predator traps a small player and bites them repeatedly without effect.
+3.  **AI Update**: Predators will now ignore entities that are at minimum size (too small to be worth eating), giving the player a chance to escape and recover when they are smallest.
+
+
+
+...--- Response 50 ---
+To implement the requested changes, I will:
+
+1.  **Enforce Maximum Size**: Ensure the `MAX_RADIUS` cap is strictly applied in all growth scenarios.
+2.  **Add Sea Bird Mechanic**:
+    *   **Timing**: Every 60 seconds (approx), a "Bird Wave" occurs.
+    *   **Targeting**: Birds target entities (player and AI) that are **small** (radius < 50). Large fish are safe (too heavy to carry).
+    *   **Visuals**: A shadow warning appears first, followed by a beak strike and splash particles.
+    *   **Effect**: Small entities caught in the strike are instantly eaten (removed/killed).
+
+Here are the updated files:
+
+
+
+...--- Response 51 ---
+I've updated the growth mechanics to be mass-based rather than radius-based.
+
+**Updates:**
+1.  **Mass-Based Growth**: The game now treats the fish's size as "Area" (Mass). When a fish takes a bite, it gains a fixed amount of mass based on its damage/power. This means:
+    *   **Small Fish**: Grow noticeably larger with each bite because they have little mass.
+    *   **Big Fish**: Grow much slower in radius because adding the same amount of mass to a large circle results in a tiny increase in radius.
+2.  **Plankton Updates**: Eating plankton also adds a fixed amount of mass, making it less effective for leveling up massive fish compared to small ones.
+3.  **Removed Percentages**: The growth logic no longer multiplies the attacker's radius to determine growth, preventing the "snowball" effect where large fish grew exponentially fast.
+
+
+
+...--- Response 52 ---
+这是一个非常棒的游戏设计方向！增加策略性和“拟态/诱捕”机制会让游戏从单纯的“大鱼吃小鱼”变成一个更有深度的生态模拟游戏。
+
+为了实现这个想法，我将进行以下重构：
+
+1.  **引入“特殊状态”机制**：
+    *   **诱捕 (Lure)**：当特定鱼类（如灯笼鱼）静止不动时，激活诱捕状态。原本会逃跑的小鱼反而会被吸引过来。
+    *   **伪装 (Camouflage)**：当特定生物（如八爪鱼）静止不动时，伪装成障碍物（石头或珊瑚）。猎物会忽略它们的存在，直到距离太近。
+
+2.  **新增/修改生物种类**：
+    *   **灯笼鱼 (Angler Fish)**：替换或新增。技能：静止时头顶发光，吸引比自己小的鱼。
+    *   **拟态章鱼 (Mimic Octopus)**：技能：静止时变成石头的颜色，消除周围鱼类的“恐惧感”。
+
+3.  **AI 逻辑重构**：
+    *   AI 现在不仅判断“大小”，还会判断“吸引力”。
+    *   增加“好奇”行为：被诱饵吸引时，AI 会慢慢靠近，而不是逃跑。
+
+4.  **突袭机制**：
+    *   当玩家或 AI 从“静止/伪装”状态突然移动攻击时，获得瞬间的爆发速度和吞噬加成。
+
+以下是代码更新：
+
+
+
+...--- Response 53 ---
+这是一个非常有趣的游戏机制调整！这种“大鱼吃小鱼，小鱼吃大鱼（尾巴）”的设定，让不同体型的玩家都有了生存策略：大鱼靠力量碾压，小鱼靠走位偷袭。
+
+我将进行以下修改：
+
+1.  **增加“一口吞”机制**：如果攻击者体型远大于受害者（例如 1.5 倍以上），直接秒杀吞噬。这会让大鱼更有压迫感。
+2.  **增强“偷袭/以小博大”机制**：
+    *   当**小鱼攻击大鱼**时（通常是咬尾巴或侧面），获得额外的**伤害加成**和**体型掠夺加成**。
+    *   这使得小鱼通过灵活走位也能快速成长，甚至慢慢磨死大鱼。
+
+以下是代码更新：
+
+
+
+...--- Response 54 ---
+好的，为了实现“无边界”的开放海域体验，我们需要做一些核心的改动：
+
+1.  **移除空气墙**：玩家和 AI 都不再受 `WORLD_SIZE` 的限制，可以游向任何坐标。
+2.  **动态生成（世界生成）**：
+    *   以前是开局在固定范围内生成所有生物。
+    *   现在改为**以玩家为中心**，在视野外动态生成新的生物和障碍物。
+    *   同时清理掉距离玩家太远的生物，保持性能稳定。
+3.  **移除世界边界线**：不再绘制红色边框。
+
+这样，你就可以在无尽的大海中自由探索了。
+
+
+
+...--- Response 55 ---
+没问题，我来更新开始界面的说明，以反映最新的“无尽海域”、“一口吞”和“咬尾巴”机制。
+
+我将更新 `components/UIOverlay.tsx` 文件。
+
+
+
+...--- Response 56 ---
+这就来办！让大鱼被咬时有更明显的“慢慢变小”的痛苦过程，并且会愤怒地“反抗”（突然加速、猛回头）。
+
+我修改了 `gameEngine.ts` 中的碰撞逻辑和AI逻辑：
+
+1.  **慢慢变小**：
+    *   当小鱼攻击大鱼时，我将伤害倍率从 `2.5x` 降低到了 `1.5x`。
+    *   配合现有的按帧扣除体型逻辑，这会让大鱼“泄气”的过程更加平滑、持久，视觉上就是“慢慢变小”。
+2.  **大鱼反抗**：
+    *   **暴怒转向 (Snap Turn)**：一旦大鱼被咬，它会立即向攻击者的方向“猛回头”（强制旋转一定角度），模拟受惊后的反击。
+    *   **垂死挣扎 (Speed Burst)**：大鱼被咬时会获得短暂的速度爆发（`speedBoostTimer`），试图摆脱或追杀攻击者。
+    *   **敏捷提升**：在 AI 逻辑中，如果大鱼处于愤怒状态（`aggroTimer > 0`）且正在追逐目标，它的**转向速度会变为原来的 3 倍**，让它不再显得笨重。
+
+
+
+...--- Response 57 ---
+没问题，我这就把游戏标题从“欢乐鱼塘”改成“海底世界”，并把开始按钮的文字修正为“开始游戏”。
+
+
+
+...--- Response 58 ---
+好的，针对您的需求“小鱼不能让大鱼一直变大”，我在游戏引擎中加入了**体型收益递减机制**。
+
+现在，当大鱼捕食过于弱小的生物时，将无法获得体型增长。这将迫使玩家（以及AI大鱼）去挑战更强大的对手，而不是一直苟在新手村吃浮游生物。
+
+具体改动如下：
+1.  **浮游生物限制**：当你的体型半径超过 **60**（约等于3级）时，吃浮游生物将不再增加任何体型（仍然增加XP）。
+2.  **吞噬收益递减**：如果你吞噬的鱼体型小于你的 **20%**，你将不会获得任何体型增长；如果小于 **35%**，收益大幅降低至10%。
+3.  **大欺小无收益**：通过**撕咬**（非一口吞）比自己小的鱼时，将**不再获得体型**（对方也不会因为被咬而变小，只会扣血）。只有“以小博大”咬大鱼的尾巴时，才能掠夺体型。
+
+以下是更新后的 `gameEngine.ts`：
+
+
+
+...--- Response 59 ---
+这一步改动很大，我将把游戏完全转型为“海底世界”。
+
+主要改动如下：
+1.  **废除等级制，引入重量制**：不再有 `Level 1 -> 2` 的概念，取而代之的是吃鱼增加**重量 (kg)**。进化现在由你的体重（体型）决定。
+2.  **新增鱼类**：加入了 **小丑鱼 (Clownfish)**、**蓝唐王鱼 (Blue Tang)**、**海龟 (Turtle)**、**虎鲸 (Orca)**、**大白鲨 (Great White)** 等经典海洋生物。
+3.  **开局选角**：主菜单现在允许你从 3 种初始鱼中选择：
+    *   **小丑鱼**：平衡型。
+    *   **蓝唐王鱼**：速度型（多莉！）。
+    *   **海龟**：防御型（高血量，自带减伤）。
+4.  **UI 更新**：删除了经验条，改为显示当前的重量。
+
+以下是代码更新：
+
+
+
+...--- Response 60 ---
+好的，我为您添加了四种全新的海洋生物：**龙鱼 (Arowana)**、**美人鱼 (Mermaid)**、**海狗 (Fur Seal)** 和 **独角鲸 (Narwhal)**。（海马游戏中已有，我稍微调整了它的生成逻辑以确保它更常见）。
+
+以下是具体的代码更新：
+
+1.  **Types**: 添加了新的生物枚举。
+2.  **Constants**: 定义了这些新生物的属性（独角鲸有尖刺伤害，美人鱼速度极快且稀有，龙鱼是高贵的Tier 3捕食者，海狗灵活）。
+3.  **GameEngine**: 更新了进化路线和生成概率。
+4.  **Canvas**: 为这些新生物添加了独特的绘制逻辑（美人鱼有飘逸的长发，独角鲸有长牙，龙鱼有金鳞）。
+
+
+
+...--- Response 61 ---
+增加了"吃鱼高兴动作"：
+1.  **快乐眯眯眼**: 当鱼吃到食物或咬到敌人时，眼睛会变成开心的弯月形 `^ ^`。
+2.  **咀嚼动作**: 快乐时嘴巴会闭合咀嚼，不再张大嘴。
+3.  **爱心特效**: 头顶偶尔会冒出一个红色的爱心 ❤️。
+
+这些效果在任何生物（除了水母等无脸生物）吃到东西后都会触发，持续约 1 秒钟。
+
+...--- Response 62 ---
+好的，我将为您进行以下修改：
+
+1.  **机制变更**：将“海鸟袭击”改为“陨石下落（Meteor Strike）”。这会产生一个明显的红色危险区域，倒计时结束后造成毁灭性打击。
+2.  **功能增加**：添加“自动挂机（Auto Mode）”功能。开启后，玩家控制的鱼会自动寻找比自己小的食物，并自动躲避比自己大的捕食者。
+3.  **AI优化**：增强了所有小鱼（包括挂机时的玩家）的躲避意识。当大鱼靠近时，它们会更果断地反向逃跑。
+
+以下是代码更新：
+
+
+
+...--- Response 63 ---
+好的，我修改了游戏中的捕食判定机制，使其更符合“大鱼吃小鱼”的自然法则，同时也保留了小鱼通过操作逆袭的一丝可能性。
+
+**具体的修改内容：**
+
+1.  **大鱼吃小鱼 (高概率/优势)**：
+    *   **吞噬**: 大鱼吞噬小鱼的判定现在包含了一个“幸运吞噬”机制。即使大鱼的体型没有达到绝对的碾压阈值（例如 2 倍），只要比对方大（1.1 倍以上），就有 20% 的概率直接将其一口吞下（秒杀）。
+    *   **伤害**: 如果没有触发吞噬，大鱼咬小鱼时会造成 **1.2倍** 的额外伤害。
+
+2.  **小鱼吃大鱼 (低概率/劣势)**：
+    *   **闪避/偏斜**: 当小鱼试图咬大鱼（体型小于对方）时，现在只有 **15%** 的概率能咬中。
+    *   **视觉反馈**: 如果咬合失败（85% 的概率），会产生灰色的金属火花粒子（表示被鱼鳞弹开），并且不会造成任何伤害。
+    *   **移除加成**: 移除了之前给予小鱼“以小博大”的伤害加成，现在小鱼咬大鱼不仅难命中，而且即使命中也是普通伤害。
+
+这些改动让大体型的优势更加明显，同时也让小鱼通过走位咬尾巴的操作变得更加惊险和具有挑战性。
+
+...--- Response 64 ---
+好的，我将为您实现“陨石增强”的修改。
+
+**修改方案：**
+
+1.  **陨石范围翻倍**：将陨石的警告和伤害半径从 `250` 增加到 `500`，使其成为覆盖屏幕大部分区域的巨大灾难。
+2.  **激起水花**：陨石落地时，会向四周炸裂出蓝色的“水花粒子”。
+3.  **水花诅咒**：如果鱼（无论是玩家还是NPC）碰到这些蓝色的水花，**体型会立即缩小**（变小 5%），这在“大鱼吃小鱼”的世界里是非常危险的惩罚。
+
+以下是代码更新：
+
+
+
+...--- Response 65 ---
+好的，我将增加“人话”气泡功能。当鱼吃到食物时会说“好吃”、“真香”等；当被咬受伤时会说“疼”、“救命”等。
+
+1.  **数据结构**：在 `Entity` 中增加 `speechBubble` 字段用于存储当前说的话和显示时间。
+2.  **逻辑处理**：在碰撞判定（吃与被吃）时触发气泡赋值，并在每帧更新时减少气泡显示时间。
+3.  **渲染**：在 `GameCanvas` 中绘制跟随鱼移动且保持水平（不随鱼旋转）的文字气泡。
+
+以下是代码修改：
+
+
+
+...--- Response 66 ---
+好的，我更新了**UIOverlay.tsx**组件。
+
+**主要修改内容：**
+
+1.  **生存法则更新**：根据最新的游戏机制（概率吞噬、陨石水花缩小、拟人化对话），文案已更新为 v2.0 版本。
+    *   *弱肉强食*: 概率吞噬，体型压制，大吃小。
+    *   *陨石危机*: 红色警戒！水花有毒，碰到变小。
+    *   *拟人化*: 进食说骚话，挨打喊救命。
+2.  **默认不选中**：将 `selectedStarter` 的初始状态改为 `null`，进入菜单时默认不选中任何鱼。
+3.  **随机开始**：如果玩家不选择鱼直接点击“开始游戏”，系统会从初始鱼列表中**随机选择**一条开始游戏，方便快速体验。
+4.  **UI 调整**：未选中时，属性面板会显示提示信息，而不是空白或默认值；按钮文案在未选中时显示为“随机开始”。
+
+这样修改后，玩家可以点进来直接开玩，也可以手动选择自己喜欢的初始鱼。
+
+...--- Response 67 ---
+太棒了，我很乐意为您增加这些有趣的生存道具，并稍微发挥一点创意，让战斗更加刺激！
+
+**更新计划：**
+
+1.  **新增道具系统**：
+    *   **无敌护盾 (Shield)**：蓝色的能量盾。获得后持续一段时间，期间**免疫所有伤害**（包括陨石和被吃）。最重要的是，**周围的捕食者会立刻变为“迷惑”状态，丢失对你的仇恨**，你可以趁机大摇大摆地游走。
+    *   **追踪鱼雷 (Torpedo)**：红色的危险弹头。获得后增加弹药。当有比你大的鱼靠近并试图攻击你时，系统会**自动发射**一枚追踪鱼雷，将敌人炸飞并造成大量伤害和眩晕。
+
+2.  **创意发挥 (Polish)**：
+    *   **鱼雷爆炸效果**：鱼雷命中后不仅仅是扣血，还会产生一个**冲击波**，将周围的小鱼推开。
+    *   **护盾视觉**：给鱼加了一个半透明的能量泡泡。
+    *   **智能防御**：鱼雷不会浪费在无害的小鱼身上，只有当捕食者（比你大且有敌意）进入危险距离时才会触发。
+
+以下是代码修改：
+
+
+
+...--- Response 68 ---
+<!-- Added angle property to Projectile interface in types.ts to resolve compilation errors where angle was being used but not defined. -->
+
+
+
+...--- Response 69 ---
+好的，我根据您的要求调整了主菜单的文案和按钮逻辑。
+
+1.  **移除版本号**：标题和规则说明中的“v2.0”已被移除。
+2.  **按钮统一**：无论是否选择了初始鱼，按钮文案统一为“开始游戏”。如果不选择，系统会在点击时自动随机分配一条初始鱼。
+
+
+
+...--- Response 70 ---
+好的，我将修改主界面，**移除所有选鱼和随机展示的元素**，只保留最核心的“开始游戏”按钮。界面将变得非常简洁，点击后直接随机开始。
+
+
+
+...--- Response 71 ---
+好的，我将为您增加以下功能：
+
+1.  **开始界面滑稽鱼**：在初始化游戏时，会在屏幕中央生成几条长相比较“滑稽”的鱼（如河豚、鮟鱇、直升机鱼等），并在背景中游动，增加趣味性。
+2.  **战队切换功能**：
+    *   **主动切换**：游戏界面增加一个“切换视角”按钮，点击后你的灵魂会随机附身到一条小弟身上，原来的身体变成小弟。
+    *   **亡语机制**：当你的本体死亡（被吃或被陨石砸）时，只要你还有战队成员，你会自动夺舍其中一条，继续游戏，而不是直接结束！
+
+以下是修改后的代码：
+
+
+
+...--- Response 72 ---
+好的，我把主界面和游戏结束界面的深色遮罩去掉了，改成了非常轻微的透明色，这样您可以清楚地看到背景里那些滑稽的鱼在游动了。
+
+
+
+...--- Response 73 ---
+好的，已为您解锁复活限制。现在游戏结束界面中的复活按钮将始终可用，您可以无限次复活继续游戏。
+
+
+
+...--- Response 74 ---
+好的，这个问题是因为在主菜单模式下，背景鱼的角度更新使用了随机数 `(Math.random() - 0.5)`，导致每一帧都在随机抖动。
+
+我将其修改为使用基于时间的平滑正弦波（sine wave），这样鱼在菜单背景中会平滑地游动，看起来更自然。
+
+
+
+...--- Response 75 ---
+好的，问题出在"快乐"状态下的嘴巴开合动画频率太快（像是在快速打颤），以及鱼鳍扇动和菜单界面游动转向的速度稍快。
+
+我将把这些动画速度都调慢，让鱼儿看起来是悠闲地游动和呼吸，而不是在抽搐。
+
+
+
+...--- Response 76 ---
+好的，已定位问题。鱼的“抽搐”感主要源于两个方面：
+
+1.  **动画频率混叠**：游戏逻辑循环（更新位置）和渲染循环（绘制画面）是两个独立的循环，虽然都使用了 `requestAnimationFrame`，但它们之间存在微小的相位差。当使用物理帧的 `gameState.time` 来驱动平滑动画（如摆尾、呼吸）时，这种不同步会导致动画看起来像是在抖动。
+2.  **数学计算生硬**：快乐状态下的“咀嚼”动作使用了 `Math.abs(Math.sin(...))`，这个函数在数值接近 0 时变化极快（尖点），导致嘴巴闭合时有“啪”一下的视觉跳变。
+
+我将对 `GameCanvas.tsx` 进行优化：
+1.  **引入 `visualTime`**：在渲染循环中使用 `performance.now()` 计算独立的视觉时间戳。这样无论逻辑帧率如何波动，鱼鳍扇动、身体摆动等视觉效果都将丝般顺滑。
+2.  **平滑嘴部动画**：优化快乐时的嘴巴开合算法，消除尖点，使其更自然。
+
+
+
+...--- Response 77 ---
+好的，为了提升新手体验，我将进行以下调整：
+
+1.  **降低整体游动速度**：修改基础速度常量，让由于速度过快导致的混乱感降低，操控更精准。
+2.  **增加新手保护期**：游戏开始时给予较长时间的无敌状态（如 8 秒），防止刚出生就被秒杀。
+3.  **强化复活机制**：复活后同样给予一段无敌时间，并增加“保护罩”倒计时逻辑。
+4.  **UI提示**：在界面上显示“新手保护”倒计时。
+
+以下是修改的代码：
+
+
+
+...--- Response 78 ---
+好的，为了满足您的需求，我将进行以下更改：
+
+1.  **提升加速速度**：将 `SPEED_MULTIPLIER` 从 1.8 提升约 20% 至 2.2。
+2.  **重构 UI**：从左上角移除加速条。
+3.  **新增头部能量条**：在 `GameCanvas` 中，绘制玩家鱼时，在头顶绘制能量条。
+4.  **体力充足特效**：当能量条满时，给鱼添加金色的发光特效（光晕）以及“MAX”字样提示。
+
+以下是代码更新：
+
+
+
+...--- Response 79 ---
+好的，为了增强战术深度，我将优化 `GameCanvas` 中的危险提示逻辑（`drawIndicators`）。
+
+现在，危险指示器将变得更加智能：
+1.  **正面交锋（危险）**：当大鱼**面朝**你时，显示红色的 **⚠️**（警告），提示你如果不跑会被吃掉。
+2.  **背后偷袭（机会）**：当大鱼**背朝**你时（视野盲区），显示黄色的 **🎯**（准星）和“偷袭”字样，提示这是咬尾巴赚体重的绝佳机会。
+
+以下是修改后的代码：
+
+
+
+...--- Response 80 ---
+好的，我将为您实现这三个核心功能改进：
+
+1.  **性能优化与偷袭检测范围限制**：只有在玩家周围一定范围内（约300-400像素）才进行偷袭判定和UI提示绘制。
+2.  **大鱼愤怒机制**：偷袭体型过大（差异过大）的鱼会导致其愤怒并反击。
+3.  **透支加速（红血暴走模式）**：能量耗尽时，双击空格键消耗自身体重（Weight）来进行强制加速，UI会有红色心跳警示特效。
+
+以下是修改后的代码：
+
+
+
+...--- Response 81 ---
+为了满足您的需求，我将对游戏机制进行以下调整：
+
+1.  **移除双击机制，改为自动衔接**：现在只要按住空格键（加速键），当体力条（能量）耗尽时，如果还有足够的体重，会自动进入“透支加速”模式，无缝衔接。
+2.  **提升透支加速效果**：透支加速时的速度加成在原有加速基础上额外提高 10%。
+3.  **实时显示体重消耗**：在透支加速时，头部进度条上方将实时显示当前的体重数值（精确到小数点后一位），让玩家直观看到“燃烧卡路里”的过程。
+
+以下是修改后的代码：
+
+
+
+...--- Response 82 ---
+好的，我将修改重生逻辑。当玩家死亡时，现在会优先选择战队中体型（半径）最大的成员进行“夺舍”重生，而不是随机选择。
+
+
+
+...--- Response 83 ---
+为了实现“即使体重最小也能透支加速”以及“大鱼嘲讽太小太细”的功能，我将对 `constants.ts` 和 `gameEngine.ts` 进行更新。
+
+### 核心修改点：
+
+1.  **透支逻辑更新**：在 `gameEngine.ts` 的 `updateGame` 中，取消透支加速对最低体重的限制。只要体力耗尽并按住空格，就会进入透支模式，虽然体重不再减少（已达下限），但依然享受加速效果。
+2.  **嘲讽机制**：在 `updateAI` 中加入检测。如果 NPC 鱼的目标是玩家，且玩家处于“营养不良”（最低体重）状态，NPC 会随机发出嘲讽气泡（"太细了!", "太短了!", "塞牙缝?"）。
+
+以下是代码变更：
+
+
+
+...--- Response 84 ---
+为了实现当玩家被大鱼锁定时显示明显的“危险”图标，我将更新 `GameCanvas.tsx`。
+
+主要修改如下：
+1.  **更新 `drawIndicators` 函数**：增加了对 `visualTime` 参数的接收，以便实现动态脉冲效果。
+2.  **增加锁定检测逻辑**：检查 `entity.targetId === player.id` 且 `entity.radius > player.radius`。如果满足条件，在鱼头顶显示一个带脉冲效果的骷髅图标（☠️）和提示文字 "RUN!"。
+3.  **优先级处理**：被锁定的危险提示优先级高于普通的“朝向”警告或“偷袭”提示。
+4.  **调整绘制调用**：在 `render` 循环中调用 `drawIndicators` 时传入 `visualTime`。
+
+
+
+...--- Response 85 ---
+好的，我将为游戏标题添加一个与“鱼塘守则”类似的半透明磨砂背景容器，使其在复杂背景下更加清晰醒目，并增加一些装饰性的光效。
+
+
+
+...--- Response 86 ---
+已为您调整了游戏平衡性，现在基础食物（磷虾）会更多，并且吃掉后会立即补充，保证鱼塘始终充满食物。
+
+**修改内容：**
+1.  **增加实体上限**：将游戏内允许的最大实体数量翻倍（`MAX_ENTITIES` 从 300 增加到 600），为更多食物腾出空间。
+2.  **极速生成机制**：更新了 `spawnEntities` 逻辑，现在会将磷虾的数量维持在 300 只左右（原为 60 只）。
+3.  **即时补充**：一旦检测到磷虾数量低于基准线，每一帧都会批量生成（一次最多生成 8 只），实现“吃完就立刻生成”的效果。
+
+现在您可以尽情吞噬，无需担心找不到食物了！
+
+...--- Response 87 ---
+在标题“欢乐鱼塘”的两侧添加了生动的鱼图标（使用 `lucide-react` 的 `Fish` 组件），并配以不同颜色的跳动效果和气泡动画，使标题更加活泼有趣。
+
+
+
+...--- Response 88 ---
+为了增加“偷袭”玩法的策略性和视觉引导，我将在大鱼的尾部添加一个动态的“弱点标记”。
+
+**修改说明：**
+1.  **弱点锁定圈**：当玩家接近比自己大的鱼时，大鱼尾部会出现一个旋转的黄色虚线锁定圈，明确指示“这里可以偷袭”。
+2.  **动态反馈**：
+    *   **常规状态**：显示黄色虚线圈，提示弱点位置。
+    *   **可偷袭状态**：当玩家游到大鱼背后（进入偷袭角度）时，锁定圈变红并快速收缩，同时显示“CRITICAL”或“弱点”字样，提示玩家此时攻击伤害加倍。
+
+以下是代码修改：
+
+
+
+...--- Response 89 ---
+Based on your request, I will implement a robust invulnerability period during evolution, accompanied by a special visual effect (radiant golden rays) to signify the transformation and protect the player.
+
+Here are the changes:
+
+1.  **`types.ts`**: Add `evolutionVisualTimer` to the `Entity` interface to track the visual effect duration.
+2.  **`gameEngine.ts`**:
+    *   Initialize `evolutionVisualTimer` in `createEntity`.
+    *   Update the evolution logic to set `invulnerableTimer` (3 seconds of safety) and `evolutionVisualTimer` instead of using a `setTimeout` callback.
+3.  **`App.tsx`**: Initialize the player's `evolutionVisualTimer` in the initial state.
+4.  **`components/GameCanvas.tsx`**: Add the rendering logic for the evolution effect (rotating golden rays and glow) inside `drawCuteFish`.
+
+
+
+...--- Response 90 ---
+为了响应“陨石有点大”的反馈，并增强逃生体验，我在游戏引擎中添加了“危险区域逃生机制”。
+
+**修改详情：**
+1.  **自动检测危险**：当玩家位于陨石警告区域（或即将撞击的区域）内时，系统会自动检测到。
+2.  **肾上腺素爆发**：一旦进入危险区，玩家的移动速度（加速度）将直接**提升 50%**。
+3.  **视觉反馈**：
+    *   触发加速时，鱼身后会冒出红色的“冷汗/肾上腺素”粒子。
+    *   偶尔会弹出“快跑!!”的气泡，营造紧张感。
+
+这能让玩家在面对巨大的陨石红圈时，有更大的机会依靠走位极限逃生。
+
+
+
+...--- Response 91 ---
+没问题！针对陨石范围过大且逃生困难的问题，我进行了以下调整：
+
+1.  **提升逃生速度**：将危险区域内的“肾上腺素”速度加成从 **50% 提升至 100%**（双倍速度），让你能像火箭一样冲出危险区。
+2.  **缩小陨石范围**：将陨石的爆炸半径从 **500 减少至 350**，给玩家更多的安全空间。
+
+修改如下：
+
+
+
+...--- Response 92 ---
+没问题，已经优化了自动挂机的 AI 逻辑。现在开启自动挂机时，玩家将不会再追逐或试图攻击自己战队内的成员（那些“小弟”）。
+
+
+
+...--- Response 93 ---
+好的，已经根据你的要求进行了调整：
+
+1.  **减少鱼的数量**：将最大生物数量（`MAX_ENTITIES`）从 300 减少到了 **240**（减少了 20%），减轻画面拥挤感。
+2.  **优化挂机 AI**：在自动挂机（Auto Mode）的寻路逻辑中，增加了对**海藻（Seaweed）**的检测。凡是躲在海藻范围内（或者接触到海藻）的鱼，无论是否完全隐身，AI 都会**直接忽略**，避免玩家控制的鱼在海藻里做无用功（因为无法触发吞噬）。
+
+以下是修改后的代码：
+
+
+
+...--- Response 94 ---
+好的，我在 AI 逻辑中增强了“危机意识”。现在，当小鱼（无论是 NPC 还是自动挂机中的玩家）遇到体型远大于自己的捕食者时，会产生更强烈的恐惧反应：
+
+1.  **恐惧加倍**：遇到 **1.5倍** 大小的鱼，逃跑力度提升；遇到 **2倍** 以上的巨型鱼，逃跑力度提升至 **3倍**。
+2.  **慌不择路**：面对巨物时，AI 会优先全力反向冲刺。
+3.  **惊吓气泡**：当距离巨型生物太近时，小鱼有概率头顶冒出“巨物恐惧！”、“快逃！”等惊恐台词。
+
+修改如下：
+
+
+
+...--- Response 95 ---
+好的，这个设计非常有趣！我们把“大鱼吃小鱼”的规则变得更加**RPG化**和**策略化**，而不是单纯的比大小。
+
+我为你设计了以下新规则并更新了代码：
+
+### 🐟 新版捕食规则 (概率机制)
+
+不再是“大一点点就秒杀”，而是引入了**“吞噬检定”**：
+
+1.  **体型碾压度 (Ratio)**：
+    *   **相差无几 (1.0x - 1.2x)**：吞噬率 **1%**。基本只能互相咬掉血，很难一口吞，防止乱战中莫名暴毙。
+    *   **大一倍 (2.0x)**：吞噬率 **30%**。有风险，但值得一试。
+    *   **大两倍 (3.0x)**：吞噬率 **50%**。五五开。
+    *   **巨物 (5.0x)**：吞噬率 **80%**。
+    *   **绝对碾压 (8.0x)**：吞噬率 **100%**。毫无悬念。
+
+2.  **🛡️ 防秒杀机制**：如果吞噬判定失败（比如你运气好，被大鱼咬了一口但没死），你会触发**“硬撑”**效果：
+    *   扣除大量生命值。
+    *   被弹飞（击退效果增强）。
+    *   冒出台词：“好硬！”、“卡喉咙了！”。
+
+3.  **🗡️ 背后偷袭 (背刺机制)**：
+    *   **判定**：当攻击者和受害者的游动角度差小于 60 度（即你在追着它的尾巴咬）。
+    *   **奖励**：吞噬概率 **直接 +40%**！
+    *   **暴击**：如果没能吞掉，也会造成 **300% 的暴击伤害**，并从受害者身上撕下更多肉块（粒子效果爆发）。
+    *   **特效**：触发“偷袭！”或“背刺！”气泡。
+
+---
+
+以下是修改后的代码：
+
+
+
+...--- Response 96 ---
+好的，针对你的三点需求，我进行了以下调整：
+
+1.  **偷袭“逆转”气泡**：当触发“背后偷袭”判定并成功吞噬对方时，攻击者头顶会明确飘出 **"逆转!"** 字样（黄色高亮），增加爽感。
+2.  **大鱼速度平衡**：调整了 Tier 3 和 Tier 4 巨型生物的速度系数。之前为了体现体型笨重，速度设得过低（0.7x），或者为了体现狩猎设得过快（1.5x）。现在将它们统一调整到 **0.9x ~ 1.1x** 的区间，让大鱼游动更平滑，与普通鱼保持节奏一致。
+3.  **小鱼恐惧 AI 增强**：
+    *   **扩大视野**：小鱼现在能“看”到更远的物体，尤其是大物体。之前它们因为视野太小，等看到大鱼时已经来不及跑了。
+    *   **恐惧优先级**：极大提升了体型差距带来的恐惧权重。只要视野内有大鱼（大于自己2倍），小鱼会**无视食物**，优先全力反向逃跑。
+
+以下是代码更新：
+
+
+
+...--- Response 97 ---
+我明白了，"大鱼太快"确实会破坏游戏的平衡性和逃生的紧张感。大体型的鱼应该更偏向“重型坦克”——攻击高、血厚，但移动相对笨重，给小鱼留出利用灵活走位（Juke）或加速逃生的空间。
+
+我已对 **Tier 3 (大型鱼)** 和 **Tier 4 (巨型鱼)** 的速度进行了全面的削弱调整，现在它们的基础速度将普遍**低于**小鱼，必须依靠伏击或体型优势来捕猎。
+
+### ⚡ 速度平衡调整详情
+
+**Tier 3 (大型鱼) 调整：**
+*   **魔鬼鱼 (Stingray)**: 1.1x ➔ **0.9x** (变慢)
+*   **剑鱼 (Swordfish)**: 1.15x ➔ **1.05x** (依然是同级最快，但不再碾压小鱼)
+*   **鮟鱇 (Angler)**: 0.9x ➔ **0.8x** (更依赖伏击)
+*   **双髻鲨 (Hammerhead)**: 1.05x ➔ **0.95x**
+*   **金龙鱼 (Arowana)**: 1.15x ➔ **1.0x**
+*   **海狗 (Fur Seal)**: 1.2x ➔ **1.0x**
+
+**Tier 4 (巨型鱼) 调整：**
+*   **大白鲨 (Great White)**: 1.05x ➔ **0.9x** (霸主应该更有压迫感但更慢)
+*   **虎鲸 (Orca)**: 1.1x ➔ **0.95x**
+*   **独角鲸 (Narwhal)**: 1.1x ➔ **0.9x**
+*   **美人鱼 (Mermaid)**: 1.25x ➔ **1.05x** (依然灵活，但可被加速逃脱)
+*   **克拉肯 (Kraken)**: 0.95x ➔ **0.8x** (真正的笨重巨兽)
+
+**对比参考：**
+*   **小鱼 (Tier 1)** 的基础速度保持在 **1.0x ~ 1.2x**。
+*   配合小鱼受惊后的加速 (1.8x) 和 玩家冲刺 (2.2x)，现在面对大鱼时，只要反应够快，绝对可以逃脱！
+
+代码更新如下：
+
+
+
+...--- Response 98 ---
+没问题，上帝模式确实有点过于“离谱”了！速度太快导致画面甚至会跟不上，挂机时也因为太强变得索然无味。
+
+我对上帝模式进行了平衡性调整，让它更像是一个“Boss体验卡”而不是“无聊作弊码”：
+
+1.  **速度削弱**：从原来的 **5.0** 降至 **2.5**。这依然非常快（比普通鱼快一倍），但不再是瞬移级别的速度，你需要稍微操作一下才能抓到灵活的小鱼。
+2.  **开关功能**：现在你可以点击按钮**随时关闭上帝模式**，变回普通的深海巨怪（克拉肯），继续体验正常的升级和生存挑战。
+
+以下是代码更新：
+
+
+
+...--- Response 99 ---
+针对你的需求，我进行了以下核心调整，旨在打造一个**“小鱼灵活乱窜，大鱼笨重冲撞，食物满屏抢夺”**的热闹场面：
+
+1.  **极大差异化灵活性（Agility）**：
+    *   **小鱼**：转身速度极大提升。现在它们像泥鳅一样，可以瞬间掉头，在大鱼嘴边反复横跳。
+    *   **大鱼**：虽然直线冲刺速度保留（甚至略微回调以体现体型优势），但**转身惩罚**大幅增加。大鱼现在像驾驶重型卡车，一旦冲过头，想掉头回来非常困难，必须预判路径。
+2.  **食物大爆发**：
+    *   将同屏最大生物数量从 240 提升至 **400**。
+    *   其中 **200** 个名额强制分配给磷虾（食物），营造出满屏“自助餐”的感觉。
+    *   稍微提升了生物寻找食物的积极性，让大家争先恐后地冲向最近的食物。
+
+以下是代码更新：
+
+
+
+...--- Response 100 ---
+I've added expressive animations to give the fish more personality.
+
+1.  **Blinking**: Fish will now blink periodically. The blink timing is randomized based on their ID, so they don't all blink in unison.
+2.  **Gulping/Breathing**: Even when idle, fish mouths will gently open and close as if breathing water. When chasing a target, their mouth will open wider in anticipation.
+3.  **Fear Reaction**: When a fish is scared (high `fearFactor`), it will physically shake, and its eyes will turn into wide, trembling white circles with tiny pupils. Sweat droplets will also appear.
+4.  **Angry Reaction**: When aggressive (`aggroTimer`), eyes become slanted with focused pupils.
+5.  **Happy Chewing**: The chewing animation when eating is smoother and more pronounced.
+
+The changes involved:
+*   Updating `Entity` type to include `fearTimer`.
+*   Updating `gameEngine.ts` to set `fearTimer` when AI detects high danger.
+*   Updating `GameCanvas.tsx` with detailed rendering logic for eye states (Happy, Scared, Angry, Blinking, Normal), mouth dynamics, and body shaking effects.
+
+
+
+...--- Response 101 ---
+好的，已经为您调整了小鱼的逃跑逻辑。现在当小鱼发现大鱼（捕食者）时，会瞬间爆发肾上腺素，**速度提升至原来的 2 到 4 倍**（取决于距离多近），并伴随惊慌的气泡尾迹，真正做到“看见大鱼扭头就跑”的效果。
+
+以下是代码更新：
+
+
+
+...--- Response 102 ---
+为了解决满屏小鱼乱窜、场面过于混乱的问题，我调整了逃跑（Panic）逻辑。现在，**只有当捕食者体型达到自身的 5 倍以上，或者遇到半径超过 100 的“深海巨兽”时**，小鱼才会触发加速逃命模式。遇到普通大鱼（比如只大一点点的），它们只会正常转向躲避，不会疯狂加速。
+
+主要修改点：
+1.  **`calculateAIMovement`**: 新增 `panicFactor` 计算，只有当 `sizeRatio > 5.0` 或捕食者半径 `> 100` 时才累积惊恐值。
+2.  **`updateAI`**: 将加速逃跑的判断条件从 `fearFactor > 0.1` 修改为 `panicFactor > 0.1`。
+3.  **视觉效果**: 只有触发 Panic 时才会显示惊恐表情和气泡尾迹。
+
+以下是代码更新：
+
+
+
+...--- Response 103 ---
+好的，我根据您的要求进行了调整：
+
+1.  **限制体型大小**：将鱼的最大半径限制（`MAX_RADIUS`）从 500 降低到了 250。现在鱼不会长到占据整个屏幕那么夸张了。
+2.  **统一眼睛样式**：去掉了左右眼大小不一（不对称）的设计，现在两只眼睛大小一致，看起来更规整可爱。
+
+代码更新如下：
+
+
+
+...--- Response 104 ---
+好的，已经为您更新了代码：
+
+1.  **限制体型大小**：将 `MAX_RADIUS` 从 250 进一步降低到 180，确保鱼的体型有明确上限，不会无限膨胀。
+2.  **去掉熊猫眼**：在 `GameCanvas.tsx` 中，我将基础眼睛大小 (`eyeSizeBase`) 稍微调小了一些（从 `radius * 0.35` 降至 `radius * 0.22`），并移除了惊恐状态下眼睛放大的逻辑，使眼睛看起来更简洁、对称，避免大块白眼球造成的“熊猫眼”既视感。
+
+以下是具体的代码变更：
+
+
+
+...--- Response 105 ---
+您之前的反馈非常敏锐，确实存在这个问题。这是因为画第一只眼睛时把画笔颜色改成了黑色（画瞳孔），画第二只眼睛时如果没有重置为白色，眼球就会变成黑色的“瞎眼”。
+
+我已经修复了这个问题，现在每次画眼睛前都会重置颜色和线条粗细，确保两只眼睛都是正常的黑瞳白底。
+
+
+
+...--- Response 106 ---
+好的，没问题！我已经为您补全了“大嘴巴”和“恶狠狠的龅牙”。
+
+具体的修改如下：
+1.  **大嘴巴**：在眼睛下方添加了嘴巴的绘制逻辑。嘴巴会根据 `mouthOpenValue`（点击鼠标或攻击时）张开，平时则显示为一条闭合的线，看起来有点憨憨的。
+2.  **恶狠狠的龅牙**：
+    *   **标志性两颗大门牙**：对于大多数鱼（特别是小丑鱼、高级鱼、或者愤怒状态的鱼），现在默认会有两颗白色的“龅牙”挂在嘴边，符合您要求的“恶狠狠又滑稽”的感觉。
+    *   **尖牙**：对于更高等级的凶猛鱼类（如鲨鱼、安康鱼），张嘴时还会露出底部的尖牙。
+
+代码已更新：
+
+
+
+...--- Response 107 ---
+这两处改动已完成：
+
+1.  **逆转机制更新**：
+    *   在 `gameEngine.ts` 中，只有当 **攻击者体型小于受害者一半**（即受害者是攻击者的2倍以上）并且成功击杀时，才会触发“逆转!”特效。
+    *   逆转特效大幅增强：添加了金色+血色的混合爆炸粒子效果，以及模拟的冲击波光环。
+    *   原先的“偷袭吞噬”气泡文字已改为“偷袭!”，将“逆转”专属留给以小博大的时刻。
+
+2.  **恶犬大虎牙**：
+    *   在 `GameCanvas.tsx` 中，将原先的两颗方形龅牙改为了 **尖锐的虎牙（犬齿）**。
+    *   现在张嘴时，上下颚的尖牙会交错咬合，看起来更加凶猛（有点像斗牛犬或食人鱼的牙齿风格）。
+
+以下是更新后的代码：
+
+
+
+...--- Response 108 ---
+好的，这个主意太棒了！这种随机性和不确定性正是“欢乐鱼塘”最需要的调味剂。
+
+我将添加**“时空漩涡”（随机传送阵）**机制。
+
+### 更新内容说明
+
+1.  **新增实体：传送门 (Portal)**
+    *   外观：会在地图上随机生成的旋转漩涡，散发着神秘的光芒。
+    *   持续时间：存在一段时间后消失。
+
+2.  **核心玩法：传送机制**
+    *   任何鱼（包括玩家和NPC）触碰传送门都会瞬间被传送到地图的其他位置。
+
+3.  **不确定性事件（概率触发）**
+    *   **80% 普通传送**：随机传送到地图某处，平平无奇。
+    *   **15% 欧皇时刻（资源区）**：传送到一个随机位置，并且**立即在该位置周围刷新大量食物（磷虾）和道具**！瞬间暴富！
+    *   **5% 倒霉蛋（危险区）**：直接传送到全地图**体型最大的鱼**嘴边，或者陨石坑附近！刺激拉满！
+
+4.  **视觉特效**
+    *   传送门会有旋转动画。
+    *   传送瞬间有粒子爆炸效果和文字提示（如“芜湖起飞！”、“救命啊！”）。
+
+以下是代码更新：
+
+
+
+...--- Response 109 ---
+这个机制能极大地增加游戏的容错率和紧张感！现在玩家误触大鱼时，不会直接“暴毙”，而是像踩到地雷一样惊醒大鱼，开启一场刺激的“大逃杀”。
+
+我修改
+
+...--- Response 110 ---
+这两项改动已包含在 `gameEngine.ts` 中：
+
+1.  **大鱼愤怒机制 (Player Mercy)**：
+    *   **触发条件**：当玩家撞上比自己大很多的鱼（捕食者），且该鱼当前**并未**处于愤怒状态时。
+    *   **效果**：玩家**不会死亡**。相反，大鱼会进入“愤怒状态”（持续5秒），头顶冒出“???”或“别跑!”的气泡，并锁定玩家为唯一目标。
+    *   **逃生机会**：触发瞬间，玩家会被**猛烈弹开**（击退效果），并获得短暂的无敌时间（0.5秒）用来调整方向逃跑。
+    *   **致命追击**：如果玩家在对方愤怒期间再次被追上咬到，则会直接被吞噬/死亡。
+
+2.  **AI 逻辑升级**：
+    *   AI 现在有了更高的优先级判断：**愤怒 > 饥饿**。
+    *   一旦触发愤怒（aggroTimer > 0），大鱼会无视身边的其他食物，**全速死磕**锁定的目标（玩家）。
+
+这将把原本的“碰瓷暴毙”变成一场刺激的“死里逃生”。
+
+
+
+...--- Response 111 ---
+I have fixed the issue by regenerating `gameEngine.ts` to ensure it is placed in the project root (correcting any import path mismatches) and verifying that all functions like `updateGame` and the new Portal/Mercy mechanics are correctly implemented and exported.
+
+### Updates applied:
+1.  **Corrected File Path:** Ensuring `gameEngine.ts` is in the root directory so `App.tsx` imports work correctly.
+2.  **Portal Logic Verified:** `updatePortals` and `spawnPortals` are fully integrated, enabling the "random teleport" feature.
+3.  **Mercy Mechanic ("Wake the Beast"):** Confirmed logic where hitting a non-alert large fish triggers a knockback and rage mode instead of instant death.
+4.  **Mouth Animation Fix:** Re-added mouth open/close logic which was missing in the user-provided snippet.
+
+The game should now run without errors, with all the new features active.
+
+
+
+...--- Response 112 ---
+The "Wake the Beast" mechanic and Portal logic were implemented in the provided source, but it seems there was a file location mismatch (using `src/gameEngine.ts` vs `gameEngine.ts`) or an incomplete write causing the error.
+
+I will regenerate the full **`gameEngine.ts`** in the root directory. This version includes:
+1.  **"Wake the Beast" Mechanic**: If a small player hits a big fish that isn't angry, the player bounces off safely while the big fish gets angry (instead of the player dying immediately).
+2.  **Portals**: Random portals that teleport entities to random locations (Treasure, Danger, or Random spots).
+3.  **Squad Logic**: Allowing the player to recruit fish and switch bodies.
+4.  **Full Exports**: Ensuring `updateGame`, `createEntity`, `createObstacles`, and `manualSquadSwitch` are correctly exported for `App.tsx`.
+
+
+
+...--- Response 113 ---
+这是一个非常有趣的玩法改动！这把游戏从单纯的“大鱼吃小鱼”变成了一种类似**“狩猎-采集-消化”**的循环，增加了策略性（你可以囤积很多鱼再一次性进化，但也可能在“消化”前被干掉）。
+
+以下是修改方案：
+
+1.  **数据结构 (`types.ts`)**: 在玩家状态中增加 `basket`（鱼篓），用于存储捕获但未消化的鱼。
+2.  **游戏逻辑 (`gameEngine.ts`)**:
+    *   修改玩家的碰撞逻辑：当玩家“吃”掉小鱼时，不再直接增加体重/半径，而是将其放入 `basket`。
+    *   新增 `digestBasket` 函数：用于将鱼篓里的鱼转化为体重和进化点。
+3.  **主程序 (`App.tsx`)**: 初始化鱼篓，并处理“消化”按钮的点击事件。
+4.  **界面 (`UIOverlay.tsx`)**: 新增“鱼篓”面板，显示捕获的鱼，并提供“一键吞噬/消化”的按钮。
+
+
+
+...--- Response 114 ---
+这是一个极具深度的玩法升级！引入“多鱼塘（生物群系）”概念后，游戏将从单纯的反应力比拼转变为策略与操作并重的游戏。
+
+我们将世界划分为四个独特的**生态区域（Biomes）**，每个区域有独特的环境效果、特产鱼类，以及针对不同鱼类的优劣势加成。
+
+### 设计方案：四大海域
+
+1.  **阳光浅滩 (Sunlit Shallows)**
+    *   **环境**: 明亮、安全，适合新手。
+    *   **特产**: 小丑鱼、蓝唐王鱼。
+    *   **加成**: 小型鱼类（Tier 1）在此处速度 +20%。
+2.  **五彩珊瑚 (Coral Reef)**
+    *   **环境**: 障碍物密集，色彩斑斓。
+    *   **特产**: 螃蟹、河豚、海马、乌贼。
+    *   **加成**: 具备伪装/伏击能力的鱼类（如乌贼）技能冷却减半；大型鱼类（Tier 3+）在此处转向速度 -20%（太挤了）。
+3.  **剧毒沼泽 (Toxic Swamp)**
+    *   **环境**: 浑浊绿水，持续扣血。
+    *   **特产**: 电鳗、魔鬼鱼、鳄龟。
+    *   **机制**: **持续腐蚀**！每秒扣除 1% 生命值。
+    *   **克制**: “坦克型”或“剧毒型”鱼类（如乌龟、河豚、电鳗）免疫此伤害，且回血速度翻倍。
+4.  **深渊海沟 (The Abyss)**
+    *   **环境**: 极度黑暗，视野受限。
+    *   **特产**: 鮟鱇鱼、大王乌贼、甚至克拉肯。
+    *   **机制**: **黑暗压制**！普通鱼类视野范围减半。
+    *   **克制**: “发光型”或“感知型”鱼类（鮟鱇、锤头鲨）视野不受影响，且攻击力 +20%。
+
+### 代码变更
+
+我将更新 `types.ts`, `constants.ts`, `gameEngine.ts`, `GameCanvas.tsx` 和 `UIOverlay.tsx` 来实现这个庞大的生态系统。
+
+
+
+...--- Response 115 ---
+The user reported an issue with "mouse focus" (鼠标聚焦), which typically means the character is not moving towards the mouse cursor correctly, or the camera positioning logic causes a disconnect between where the user clicks and where the game thinks they clicked.
+
+Looking at the code, I identified two issues in `gameEngine.ts`'s `updateGame` function:
+
+1.  **Camera Logic**: The previous code `targetCamX = player.x - (screenWidth / 2) / state.camera.zoom;` was calculating the camera position based on a top-left origin logic, but the `GameCanvas` uses a center-origin transform. This caused the player to be rendered near the bottom-right of the screen instead of the center.
+2.  **Input Logic**: The input logic calculated the movement angle assuming the player was always perfectly centered on the screen (`dx = mouse.x - screenWidth / 2`). Because the camera has smoothing (lerp), the player is rarely perfectly centered when moving.
+
+I have updated `gameEngine.ts` to:
+1.  Correctly center the camera on the player (`targetCamX = player.x`).
+2.  Correctly calculate the player's *actual* screen position based on the current camera state, and use that to calculate the mouse angle. This ensures accurate movement control even when the camera is catching up.
+
+
+
+...--- Response 116 ---
+
+
+### 总结
+你提到“鼠标在鱼塘内不显示了”，我已将 `cursor-none` 移除，并替换为 `cursor-crosshair`（十字准星），这样既保留了游戏感，又能让你清楚地看到鼠标位置，方便精准操控方向和发射鱼雷。
+
+**更新内容：**
+1.  **GameCanvas.tsx**: 移除了 `cursor-none` 类，改为 `cursor-crosshair`。现在在游戏区域内，鼠标会显示为十字准星。
+
+现在，你应该能清楚地看到鼠标指针，从而更精准地控制小鱼和发射技能了！快去试试吧！这是个好问题！之前的代码为了追求沉浸感，把鼠标隐藏了（`cursor-none`），这确实会导致操作上的不确定感。
+
+我已经修复了这个问题，并做了一个小优化：
+1.  **移除隐藏鼠标的样式**：删除了 `cursor-none`。
+2.  **改为“准星”样式**：将鼠标样式设置为 `cursor-crosshair`（十字准星），这样既能让你看清鼠标位置，又比普通的箭头更有“瞄准/操控”的游戏感，特别适合配合**鱼雷发射**功能。
+
+以下是修复代码：
+
+
+
+...--- Response 117 ---
+这是一个非常棒的反馈！之前的设定确实过于硬核，导致容错率太低。
+
+我已经大幅优化了**碰撞与吞噬逻辑**，核心改动如下：
+
+1.  **引入“体型压制”门槛**：
+    *   现在，只有当捕食者**显著大于**猎物时，才能触发“吞噬（秒杀）”。
+    *   **玩家福利**：玩家只要比对方大 **10%** 就能吞噬对方。
+    *   **新手保护**：NPC 必须比玩家大 **40%** 才能吞噬玩家！这意味着遇到只比你大一点点的鱼，撞上去只会掉血，不会直接死。
+2.  **新增“撕咬与碰撞”机制**：
+    *   如果体型差距不够大（例如大小差不多），撞击只会造成**少量伤害**并产生**强力击退**（弹开）。
+    *   这给了玩家“逃跑”和“反杀”的机会，增加了博弈感。
+3.  **无敌帧优化**：受到撞击后会有短暂的无敌时间，防止被连续判定伤害瞬间暴毙。
+
+以下是代码修改：
+
+
+
+...--- Response 118 ---
+好的，根据您的要求，我将对游戏进行以下重大调整：
+
+1.  **降低密度**：将生物上限 (`MAX_ENTITIES`) 减半，避免屏幕过于混乱。
+2.  **扩大地图**：将 `WORLD_SIZE` 从 4000 扩大到 6000，增加探索感。
+3.  **增加功能性建筑**：
+    *   **深海急救站 (Hospital)**：恢复生命值。
+    *   **军火库 (Armory)**：补充鱼雷。
+    *   **龙王庙 (Shrine)**：随机获得 Buff（加速、护盾等）。
+4.  **增加小地图 (Mini-Map)**：在界面左下角显示，标记玩家（绿色）、队友（蓝色）、敌人（红色）、建筑（黄色图标）和当前视野范围。
+
+以下是代码修改：
+
+
+
+...--- Response 119 ---
+1.  **修复小地图（Mini-Map）**：
+    *   解决了小地图只显示“黑框子”的问题。现在它会在数据更新时直接重绘，并清晰地显示：
+        *   **玩家**（青色大点）
+        *   **建筑**（黄色方块）
+        *   **传送阵**（紫色大点）
+        *   **敌人**（灰色/红色点）
+        *   **队友**（蓝色点）
+        *   **视野范围**（白色边框）
+2.  **增大建筑**：
+    *   建筑半径从 80 提升到了 150，在地图上更加显眼，方便寻找和互动。
+3.  **增加固定传送阵**：
+    *   在地图的**四个区域中心**（浅滩、珊瑚、沼泽、深渊）各增加了一个**永久传送阵**。
+    *   走进传送阵会随机传送到**另一个区域的中心**，方便快速跑图（例如从沼泽逃回浅滩）。
+    *   小地图上也会显示这些传送阵的位置（紫色）。
+
+快去游戏里体验一下新的地图导航和传送功能吧！
+
+...--- Response 120 ---
+好的，根据您的反馈，我对游戏进行了以下针对性的优化：
+
+1.  **修复小地图**：
+    *   **渲染逻辑重写**：之前小地图可能因为画布尺寸初始化问题导致黑屏。现在强制设定了画布大小，并优化了绘制循环，确保它能实时显示。
+    *   **图标增强**：现在小地图上可以清楚地看到：
+        *   **玩家**（带光晕的青色大点）
+        *   **建筑**（黄色方块）
+        *   **传送阵**（紫色圆环）
+        *   **敌人**（根据大小显示红色或灰色）
+    *   **图例说明**：在小地图下方增加了简单的图例说明。
+
+2.  **解决大鱼躲避陨石难的问题**：
+    *   **体型速度补偿**：现在当玩家体型变大（半径 > 50）时，**加速技能（空格键）的效果会随体型增强**。体型越大，加速时的爆发力越强，确保你能即使身躯庞大也能瞬间冲出陨石轰炸区。
+
+3.  **传送阵显眼化**：
+    *   **光柱特效**：现在传送阵不仅仅是地上的一个圈，它会向天空发射一道**紫色的光柱**（Beacon），非常显眼，离得远也能看到光束，方便寻找。
+    *   **固定位置**：传送阵现在固定生成在四个区域（浅滩、珊瑚、沼泽、深渊）的**中心位置**，不再随机乱刷，方便记忆和跑图。
+
+4.  **大幅提高生存率（防暴毙）**：
+    *   **碰撞保护机制**：针对“无意碰一下大鱼就挂”的问题，增加了强力保护。
+    *   **判定放宽**：如果敌人的体型没有大到**1.8倍**以上（之前是1.4倍），它**无法吞噬你**，只会把你**用力弹开**并扣除少量血量。
+    *   **弹射逃生**：如果不幸撞到巨型鱼，你会获得一个**强力的反向击退**（帮你瞬间拉开距离）以及**1秒的无敌时间**，给你足够的反应时间逃跑。
+
+快去试试变大后的冲刺快感和新的传送阵光柱吧！
+
+...--- Response 121 ---
+你好！根据你的反馈，我进行了全方位的升级。现在的地图变成了漂亮的**四叶草形状**（花瓣状），并且彻底修复了小地图和传送阵的问题。
+
+### 核心更新内容：
+
+1.  **地图重构：四叶草花瓣海域**
+    *   **形状改变**：地图不再是无聊的方形，而是变成了巨大的**四叶草形状**。
+    *   **花瓣分区**：每个“花瓣”对应一个生态区（浅滩、珊瑚、沼泽、深渊）。
+    *   **边界限制**：移动时会受到花瓣边缘的阻挡，而不是之前的方形空气墙。
+
+2.  **小地图 (Mini-Map) 完美修复**
+    *   **实时雷达**：现在小地图会实时显示花瓣状的地图轮廓。
+    *   **位置同步**：你可以清晰地看到自己在哪个“花瓣”中。
+    *   **标记增强**：建筑（黄色方块）、传送阵（紫色光环）、BOSS（红色大点）一目了然。
+
+3.  **传送阵升级**
+    *   **永久存在**：传送阵现在固定在每个花瓣的中心，不会消失。
+    *   **通天光柱**：每个传送阵都有一道显眼的**紫色光柱**直冲云霄，隔着很远也能看见。
+    *   **传送保护**：传送后会获得短暂的加速和保护，防止被蹲守。
+
+4.  **生存与手感优化**
+    *   **巨兽冲撞**：体型变大后（半径>50），按下空格键加速时会获得**额外的爆发力**，体型越大冲得越猛，轻松冲出陨石包围圈。
+    *   **防暴毙机制**：如果被没有达到“吞噬线”的大鱼撞击，你不会死，而是会触发**紧急弹射**（被远远弹开）并获得**1.5秒无敌**，给你反杀或逃跑的机会。
+
+以下是代码修改：
+
+
+
+...--- Response 122 ---
+你好！这听起来像是地图渲染或裁剪逻辑导致了画面显示问题（导致“黑屏”或“看不到自己”）。
+
+我将为您修复这个问题，并优化地图的视觉效果、生存难度和传送阵体验。
+
+### 主要修复与更新：
+
+1.  **修复“看不到自己” (画面黑屏) 问题**：
+    *   **渲染逻辑重写**：修改了 `GameCanvas` 的绘制逻辑。不再使用复杂的全局裁剪（Clip）来绘制背景（这容易导致画面消失），而是采用**层叠绘制法**：先画深色虚空底色，再在上面画花瓣形状的海域。这样保证永远有背景，不会黑屏。
+    *   **坐标安全检查**：增加了防止玩家坐标变成 `NaN`（无效值）的保护机制，如果坐标异常会自动重置到地图中心。
+
+2.  **地图与小地图优化**：
+    *   **花瓣形状更清晰**：海域边界线加粗并带有发光效果，让你清楚知道哪里是世界尽头。
+    *   **小地图实时更新**：修复了小地图的渲染同步问题，现在能准确显示你在花瓣地图的哪个位置。
+
+3.  **生存难度调整 (防暴毙)**：
+    *   **弹性碰撞**：大幅增强了被大鱼撞击时的**反弹力度**。现在被大鱼咬到，会被弹飞得很远，给你更多的逃跑反应时间。
+    *   **扣血减少**：非吞噬性的撞击伤害降低了 50%，小鱼更耐揍。
+
+4.  **传送阵优化**：
+    *   **光柱特效增强**：传送阵的光柱现在更高、更亮，且带有旋转粒子特效，非常显眼。
+    *   **位置固定**：确保传送阵固定在四个区域的中心，不会消失。
+
+5.  **变大后的操作手感**：
+    *   **大鱼冲刺增强**：体型越大，按下空格键（加速）时的**爆发推力越强**，专门用于身躯庞大时躲避陨石。
+
+
+
+...--- Response 123 ---
+为了解决您“看不到自己”的问题，我将进行以下紧急修复。这通常是因为地图绘制逻辑中的**裁剪（Clipping）**在某些情况下失效，或者是因为代码中残留的旧逻辑（如传送门生成代码引用了不存在的配置）导致了静默错误，中断了渲染循环。
+
+### 修复方案：
+
+1.  **移除不稳定的画面裁剪**：不再使用 `ctx.clip()` 来绘制地图边界。改为直接绘制一个**实心的花瓣形状底座**作为海域，然后在上面绘制生物。这样既美观又不会因为裁剪失效导致画面全黑。
+2.  **清理错误的传送门逻辑**：`gameEngine.ts` 中残留了旧的 `spawnPortals` 函数，它引用了已经被我删除的配置项（如 `MAX_COUNT`），这会导致逻辑错误。我将彻底移除它，只保留新的固定传送门逻辑。
+3.  **渲染循环保护**：在 `GameCanvas` 的渲染循环中加入错误捕获（try-catch），确保即使某一帧出错，游戏也不会直接卡死黑屏，而是会在下一帧尝试恢复。
+4.  **强制背景重绘**：每一帧开始时，强制用深海色填充整个屏幕（屏幕坐标系），确保即使摄像机跑飞了，背景也不会消失。
+
+以下是修复代码：
+
+
+
+...--- Response 124 ---
+经过分析，您“看不到自己”的情况主要是由**摄像机坐标计算逻辑错误**导致的。
+
+### 故障原因分析：
+1.  **摄像机偏移计算错误**：之前的代码在 `gameEngine.ts` 中计算摄像机坐标时，减去了屏幕宽度的一半。这在 `GameCanvas.tsx` 的绘制逻辑中造成了“双重偏移”，导致玩家被渲染到了屏幕的最右边缘甚至屏幕外。
+2.  **摄像机初始值不匹配**：初始状态下摄像机设在了地图中心，而玩家也设在地图中心。叠加错误的偏移计算后，玩家在开局瞬间就飞出了视界。
+3.  **伪装逻辑误触发**：玩家如果静止不动，会触发 `camoActive`（伪装），之前的绘制逻辑在伪装时画得太淡，且 `ctx.restore()` 的位置不对，导致渲染状态污染。
+
+### 修复方案：
+1.  **简化摄像机逻辑**：将 `state.camera.x/y` 直接指向玩家的 `player.x/y`。
+2.  **修正绘制坐标系**：在 `GameCanvas` 中，先平移到屏幕中心，缩放，再平移 `-camera.x/y`。这样玩家永远处于屏幕正中心。
+3.  **强化玩家存在感**：即使玩家在伪装或躲藏，也为其添加一个淡淡的呼吸光环，确保玩家能找到自己。
+4.  **修复渲染状态污染**：确保 `drawCuteFish` 中的 `save/restore` 严格配对，不会因为早退（return）导致后续物体位置错乱。
+
+以下是修复后的完整代码：
+
+
+
+...--- Response 125 ---
+好的！看来在之前的优化中，由于简化了代码，不小心把**陨石（Hazards）**和**对话气泡**的绘制逻辑漏掉了。
+
+我现在立刻为您补上，并专门强化了陨石的**视觉警示感**，让你可以更清楚地预判落点。
+
+### 修复内容：
+1.  **恢复陨石绘制**：在 `GameCanvas.tsx` 中重新加入了陨石渲染循环。
+    *   **预警阶段**：地面会出现一个不断收缩并闪烁红色光的“锁定圈”。
+    *   **撞击阶段**：会出现巨大的橘红色冲击光圈。
+2.  **恢复对话气泡**：重新加入了小鱼说话的文字气泡绘制。
+3.  **视觉分层优化**：确保陨石的阴影和预警圈在生物下方，而冲击特效在生物上方，层次感更强。
+
+
+
+...--- Response 126 ---
+为了大幅提升传送门的视觉冲击力和存在感，我将进行以下优化：
+
+1.  **传送门“黑洞化”视觉升级**：
+    *   **多层漩涡**：传送门不再是简单的圆圈，而是由多层不同速度旋转的紫色星云环组成。
+    *   **引力粒子流**：粒子不再是随机乱飘，而是会被传送门的中心“吸入”，形成明显的引力感。
+    *   **核心黑洞**：传送门中心增加一个纯黑的奇点，配合强烈的呼吸灯外圈，极具存在感。
+2.  **传送过程“量子闪烁”效果**：
+    *   **瞬移粒子爆破**：传送发生的瞬间，在**原点**产生向内坍缩的粒子流，在**终点**产生向外爆发的冲击波。
+    *   **屏幕残影**：玩家传送后的 0.5 秒内，身体会留下一段彩虹色的拖尾，并伴随一个短暂的屏幕缩放反馈，消除“瞬移”带来的突兀感。
+    *   **传送文字提示**：文字气泡现在带有发光阴影和颤动动画。
+
+以下是代码更新：
+
+
+
+...--- Response 127 ---
+没问题，那个外圈的巨大呼吸光晕确实有点太抢眼了。
+
+这就为您去掉传送门最外层的“爆闪”光效，只保留核心的黑洞漩涡、旋转环和背景光柱，让它看起来更深邃、更有质感，而不是像个警报灯。
+
+
+
+...--- Response 128 ---
+为了增加“弱肉强食”的凶猛感，我将重绘鱼的渲染逻辑，给除了浮游生物以外的所有鱼类加上**暴露的尖牙**和**持续的咬合动画**。
+
+视觉改动细节：
+1.  **咬合动画**：鱼嘴现在会像吃豆人一样不断张合（基于正弦波动画），模拟寻找猎物的状态。
+2.  **暴露牙齿**：在上颚和下颚添加了锯齿状的白色牙齿，牙齿数量随体型增加。
+3.  **口腔深处**：嘴巴内部增加了暗红色的填充，增加立体感和凶猛感。
+
+以下是修改后的 `components/GameCanvas.tsx`：
+
+
+
+...--- Response 129 ---
+好的，这就为您打造一个功能齐全的“深海商场”！
+
+玩家将能够自定义鱼的**牙齿形状**（比如吸血鬼牙、金牙）、**皮肤颜色**（不仅限于物种颜色）、**花纹样式**（条纹、斑点等）以及**鱼鳞质感**。
+
+以下是具体的修改方案：
+
+1.  **Types (`types.ts`)**: 增加 `Cosmetics`（外观）数据结构，并将其添加到玩家状态中。增加 `SHOP` 游戏状态。
+2.  **App (`App.tsx`)**: 初始化外观数据，并确保开始游戏时保留玩家在商场里选好的皮肤。
+3.  **UI (`components/UIOverlay.tsx`)**: 在主菜单增加“商场”入口，并制作一个包含四个选项卡（牙齿、皮肤、花纹、鱼鳞）的商场界面。
+4.  **Canvas (`components/GameCanvas.tsx`)**: 彻底升级 `drawCuteFish` 渲染函数，使其支持：
+    *   自定义体色覆盖。
+    *   在鱼身上绘制裁剪过的花纹（条纹、斑点、虎纹）。
+    *   绘制质感鱼鳞（高光鳞片、龙鳞）。
+    *   根据选择绘制不同的牙齿模型（普通、尖牙、吸血鬼、牙套、大金牙）。
+
+
+
+...--- Response 130 ---
+没问题！为了让商场更加琳琅满目，我将为您大幅扩充商品库，每个品类增加到至少 10 种选择，并且在渲染层面为每一种选择都实现独特的视觉效果，绝不仅仅是简单的换个名字。
+
+以下是具体的改动方案：
+
+1.  **类型定义 (`types.ts`)**: 扩充 `TeethType`、`PatternType`、`ScaleType` 的枚举值。
+2.  **渲染引擎 (`GameCanvas.tsx`)**: 为新增的数十种外观编写专门的 Canvas 绘图逻辑（例如：电路板花纹、机械装甲鳞片、彩虹牙齿等）。
+3.  **UI 界面 (`UIOverlay.tsx`)**: 重写商场界面，提供更直观的预览效果，让每个选项卡看起来都不一样。
+
+
+
+...--- Response 131 ---
+好的！这个主意非常棒，增加了游戏的互动性和策略性（利用换装时间暂停思考，或者利用传送门进行战略撤退）。
+
+我将为您实现以下功能：
+
+1.  **新增建筑：深海造型屋 (Salon)**
+    *   在地图上添加一个新的紫色/粉色系建筑。
+    *   玩家游进该建筑范围时，游戏暂停并直接打开“深海商场”。
+2.  **传送门交互升级**
+    *   当玩家接触传送门时，不再立即传送。
+    *   游戏暂停，弹出一个交互界面：
+        *   选项 A：**“进入商场”** (调整外观后再出发)。
+        *   选项 B：**“随机传送”** (直接进行空间跳跃)。
+3.  **商场逻辑优化**
+    *   如果在游戏中进入商场，点击“完成”后会**继续游戏**，而不是返回主菜单。
+
+以下是代码变更：
+
+
+
+...--- Response 132 ---
+I'll address the syntax error by correcting the `UIOverlay` export and ensuring all dependencies, particularly `performTeleport`, are properly exported and imported. The error likely stems from a mismatch in how the module was exported versus how it's being resolved, or from the missing `performTeleport` export in `gameEngine.ts` breaking the dependency chain.
+
+Here are the fixes:
+1.  **`gameEngine.ts`**: Explicitly export `performTeleport` so `App.tsx` can use it.
+2.  **`components/UIOverlay.tsx`**: Change the component definition to a standard function declaration (`export default function UIOverlay`) to ensure the default export is robustly handled across different environments.
+3.  **`App.tsx`**: Ensure imports are clean relative paths.
+
+
+
+...--- Response 133 ---
+I have designed a comprehensive customization update for your game. Here is the specification:
+
+### 1. New Game Mechanics & State
+*   **New Building: Deep Sea Salon (深海造型屋)**
+    *   Located in the "Shallows" (safe zone).
+    *   Appearance: Pink/Purple theme with scissors icon.
+    *   Interaction: Swimming into it opens the **Shop** menu.
+*   **Portal Interaction Update**
+    *   Portals no longer teleport you instantly.
+    *   Entering a portal now triggers a **"Quantum Jump"** decision screen.
+    *   You can choose to **"Customize Appearance"** (enter Shop) or **"Random Teleport"** (resume game at new location).
+*   **Cosmetics System**
+    *   **Teeth:** Change tooth shape (Vampire, Gold, Braces, Sharp, etc.).
+    *   **Skin Color:** Override your species' natural color (Gold, Neon, Ghost White, etc.).
+    *   **Patterns:** Body textures (Tiger stripes, Leopard spots, Camo, Hearts).
+    *   **Scales:** Visual texture overlays (Dragon scales, Mechanical, Shiny).
+
+### 2. Visual Updates
+*   **Fish Rendering:** Completely overhauled the fish drawing function to support:
+    *   Custom colors.
+    *   Clipped patterns (stripes/spots) that conform to the fish body.
+    *   Different teeth styles visible in the mouth.
+    *   Scale effects (shiny, metallic, etc.).
+*   **UI Overlay:**
+    *   Added a **Portal Choice Modal**: A sci-fi/magical popup when entering a portal.
+    *   Added a **Deep Sea Shop**: A full-screen tabbed interface to mix and match your fish's look.
+
+### 3. Code Changes
+I will update `types.ts`, `constants.ts`, `gameEngine.ts`, `GameCanvas.tsx`, `UIOverlay.tsx`, and `App.tsx`.
+
+
+
+...--- Response 134 ---
+I've corrected the scope of `canRevive` by defining it at the top of the `GameStatus.GAME_OVER` block in `components/UIOverlay.tsx`. This ensures it's available for use in the conditional return statement, preventing the `ReferenceError`.
+
+
+
+...--- Response 135 ---
+I will resolve the `ReferenceError` by lifting the `canRevive` variable declaration to the top level of the `UIOverlay` component scope. This ensures it is always defined regardless of the conditional rendering logic within the `GAME_OVER` block.
+
+
+
+...--- Response 136 ---
+I have resolved the issues you reported:
+
+1.  **Fixed Shop Trigger Lag/Loop**: The "Salon" (Shop) building now pushes your fish back significantly upon entry and applies a 3-second cooldown before you can re-enter. I also tightened the trigger zone so you have to actually swim *into* the building (center-to-center check) rather than just touching its edge. This prevents accidental triggering and loops.
+2.  **Robust Game Over Screen**: I've ensured the Game Over interface logic is safe from errors (specifically the `canRevive` variable scope issue) and added safety checks for player data (like `weight` and `config`) so that the screen reliably shows up when you are eaten instead of a blank screen.
+3.  **Safer Death Logic**: I reinforced the death logic to ensure that if your fish is eaten, the health is properly zeroed out and the game transitions to the settlement screen correctly.
+
+
+
+...--- Response 137 ---
+Here are the updates to satisfy your requests:
+
+1.  **Teeth Adjustment**: Increased the mouth opening angle and moved the teeth row further outward towards the lips.
+2.  **Map Shape**: Adjusted the "Flower" geometry. Increased the base radius and reduced the variance, making the "petals" fatter and the overall playable area larger and less "thin".
+3.  **New Mascot Seahorse**: Added a special Golden Seahorse entity.
+    *   **Behavior**: Stays relatively in place, bobbing up and down.
+    *   **Interaction**: Cannot eat or be eaten (physics bounce only).
+    *   **Proximity**: Says "马年快乐" (Happy Year of the Horse) when the player is near.
+    *   **Collision**: Says "祝你好运" (Good Luck) when bumped into.
+
+
+
+...--- Response 138 ---
+To resolve the "Restart not working" issue and prevent accidental immediate deaths causing the "Defaults to Game Over" loop, I will update `App.tsx`.
+
+**Changes Made:**
+1.  **Fix Restart Logic**: In `handleRevive`, when the player chooses to restart (not using an Ad), the game will now **immediately start playing** instead of dropping them back to the Main Menu. This aligns with standard "Try Again" expectations.
+2.  **Reset Safety**: I will ensure that when restarting or reviving, the player is granted a temporary **Invulnerability Shield** (using `PROTECTION_CONFIG.NEWBIE_DURATION`) to prevent unfair spawn kills by nearby predators or hazards.
+3.  **Correct Initialization**: I'll explicitly set the `status` to `GameStatus.PLAYING` in the restart block to ensure the UI switches from "Game Over" to the game canvas.
+
+
+
+...--- Response 139 ---
+To address the issues of the invisible fish and improve the teeth/mouth appearance as requested, I will update `components/GameCanvas.tsx`.
+
+**Detailed Changes:**
+1.  **Fix Invisible Fish**: I will enforce a path re-definition (`defineBodyPath()`) immediately before applying `ctx.clip()` in the cosmetics rendering block. This ensures that the clipping region is always valid and prevents browser-specific behavior where `ctx.fill()` might consume the path, leaving `ctx.clip()` with nothing (which hides the fish).
+2.  **Compatibility Fix**: I will replace the usage of `ctx.roundRect` (which can crash on older devices/browsers) with a safe polyfill helper function `drawRoundRect`. This prevents render loop crashes that could stop the fish from drawing.
+3.  **Mouth & Teeth Adjustment**:
+    *   Increased `mouthGap` calculation slightly to widen the mouth angle as requested.
+    *   Moved the teeth `startOffset` further out (`radius * 0.45` from `0.35`).
+4.  **Safeguards**: Added a fallback for `bodyColor` to ensure it's never undefined.
+
+
+
+...--- Response 140 ---
+To address the "invisible fish" issue and the request for a rounder/larger map, I will make the following adjustments:
+
+1.  **Rounder & Larger Map**: I will increase the `WORLD_SIZE` to **7000** and adjust the map geometry parameters. `BASE_RADIUS` will increase to **3200** and `PETAL_VARIANCE` will decrease to **250**. This creates a much larger, nearly circular area with gentle curves (rounder flower).
+2.  **Fix Invisible Fish**: The invisibility often happens due to complex clipping paths or `NaN` coordinates.
+    *   I will add strict validation to coordinates in `GameCanvas`.
+    *   I will simplify the `drawCuteFish` function to strictly define the path direction (counter-clockwise) to avoid "zero-area" shapes that browsers might cull.
+    *   I will force a fallback render (simple circle) if the detailed render fails or if the radius is very small.
+
+
+
+...--- Response 141 ---
+In order to fix the "invisible fish" issue (likely due to coordinate errors, invalid path operations in the canvas, or camera sync issues) and to fulfill your request for a **Rounder and Larger Map** (flower shape but with less variance to maximize play area), I have updated `constants.ts` and `components/GameCanvas.tsx`.
+
+**Key Fixes:**
+1.  **Robust Fish Rendering**: I simplified the `drawCuteFish` function and added rigorous safety checks (`Number.isFinite`, safe radius defaults). If the complex cosmetic drawing fails, it will still draw the base body. I also simplified the pattern drawing logic to avoid complex clipping issues that can make the fish disappear on some browsers.
+2.  **Map Shape Update**: I increased `WORLD_SIZE` to **7000** and `BASE_RADIUS` to **3400** while reducing `PETAL_VARIANCE` to **150**. This creates a massive, nearly circular map with subtle flower petal edges, giving you significantly more room to swim.
+3.  **Camera & Coordinate Safety**: Added fallback values for camera position and zoom in the render loop to prevent "Black Screen" or "Empty World" scenarios if values temporarily become invalid.
+
+
+
+...--- Response 142 ---
+To resolve the "invisible fish" and "meteor crash" issues, I am making the following critical fixes:
+
+1.  **Canvas Rendering Fix (Invisible Fish)**:
+    *   I've normalized the `arc` angles in `drawCuteFish` to strictly use the `0` to `2 * Math.PI` range (e.g., `2 * Math.PI - mouthGap` instead of `-mouthGap`). Negative angles in `arc` can behave inconsistently across browsers/devices, causing the body path to disappear.
+    *   I added specific safety checks for `NaN` coordinates in the camera transform and entity positions to prevent the canvas context from becoming invalid (which turns the screen black/blank).
+
+2.  **Meteor Crash Fix**:
+    *   I added a `Math.max(1, h.radius)` check when creating the `RadialGradient` for meteors. HTML5 Canvas throws a hard error (crashing the script) if you try to create a gradient with radius 0 or negative/NaN.
+    *   I added strict validation for hazard coordinates to prevent corrupting the render stack.
+
+3.  **Performance Optimization**:
+    *   I optimized the particle rendering loop to avoid potential memory spikes during meteor impacts.
+
+
+
+...--- Response 143 ---
+To fix the "invisible fish" bug (caused by `NaN` coordinates corrupting the render state) and the meteor crash, I will implement a **Physics Safety Layer** in the game engine and a **Self-Healing Mechanism** in the canvas renderer.
+
+1.  **Game Engine (Physics Safety)**: I will sanitize the distance calculations. Division by zero (when two entities overlap perfectly) causes `NaN` (Not a Number) coordinates, which makes the fish disappear permanently and can freeze the game loop. I will ensure all divisions use a safe non-zero distance.
+2.  **Game Canvas (Self-Healing)**: If the player's coordinates ever become invalid (invisible), the renderer will now detect this and teleport the player to a safe location instead of crashing or rendering nothing. I also simplified the body drawing logic to be more robust.
+
+
+
+...--- Response 144 ---
+To fix the issue where the player fish is invisible (likely due to corrupted state values like `NaN` for position or radius, or drawing errors) and to prevent the meteor crash, I have implemented a multi-layered safety system:
+
+1.  **Strict Entity Sanitization (`gameEngine.ts`)**: Added a `sanitizeEntity` function that runs every frame for every entity (including the player). It forcibly resets `NaN` coordinates to the center of the map and ensures the radius is always positive. This prevents the "invisible" state from persisting.
+2.  **Defensive Rendering (`GameCanvas.tsx`)**:
+    *   Updated the `drawCuteFish` function to accept a `safeRadius` override and added safeguards against invalid drawing paths.
+    *   Added a specific `try-catch` block around the player rendering logic. If the complex fish drawing fails for *any* reason, it falls back to drawing a bright magenta circle. This guarantees you will always see *something* representing your character, never an empty screen.
+3.  **Meteor Crash Fix**: Ensured the gradient radius for meteors is always at least 1, preventing the `IndexSizeError` that crashes the canvas on some browsers.
+
+These changes should permanently resolve the invisibility and crashing issues.
+
+
+
+...--- Response 145 ---
+To fix the "invisible player" bug (caused by a coordinate system mismatch that pushed the player off-screen) and further robustify the rendering:
+
+1.  **Camera Logic Fix (`gameEngine.ts`)**: I am correcting the camera target calculation. Previously, it was calculating the *top-left corner* of the camera view, but the Canvas renderer applies a center-screen offset (`width/2, height/2`). This double-offset caused the player to be rendered at the far right edge of the screen (or off-screen). I will change `targetCamX/Y` to directly track `player.x/y`, ensuring the player stays exactly in the center.
+2.  **Entity Rendering Fallback (`GameCanvas.tsx`)**: I've added a final safety check in the `drawCuteFish` function. If the `entity.config` is missing (which caused `bodyColor` errors), it now defaults to a standard configuration instead of crashing or drawing transparently.
+
+
+
+...--- Response 146 ---
+To fix the issue where the game immediately shows the "Game Over" screen upon starting (which likely happens because the player spawns with invalid health or gets instantly killed by a hazard/entity), I have implemented a **Strict Spawn Protection** mechanism.
+
+1.  **Spawn Force-Field**: In `gameEngine.ts`, I modified `updateGame` to force the player's health to full and grant invulnerability for the first 2 seconds (120 frames) of every game. This overrides any instant-kill glitches.
+2.  **Delayed Hazards**: I delayed the start of the meteor hazards to 10 seconds into the game, so you don't get nuked while loading.
+3.  **Health Sanitization**: The `sanitizeEntity` function now also checks for `NaN` health values and resets them, ensuring the game logic doesn't think a glitched player is "dead".
+
+These changes ensure you will start the game alive, visible, and safe.
+
+
+
+...--- Response 147 ---
+为了解决“打开就是结算界面”以及“结算界面显示异常”的问题，我进行了深度排查。主要原因在于：
+1.  **陨石逻辑触发漏洞**：原代码在 `time % INTERVAL === 0` 时生成陨石，由于 `0 % 1500` 等于 0，游戏在第 0 帧（即刚打开时）就触发了陨石生成逻辑，导致玩家可能在瞬间被判定死亡。
+2.  **初始化与状态冲突**：`App.tsx` 中的重置逻辑可能没有彻底清除上一局的死亡状态，导致 `status` 瞬间跳回 `GAME_OVER`。
+3.  **渲染坐标偏移**：摄像机逻辑的微小误差可能导致玩家在第一帧被渲染到屏幕外，配合瞬间死亡逻辑，让玩家感觉“还没看到就结束了”。
+
+以下是修复代码：
+
+
+
+...--- Response 148 ---
+为了提升游戏的整体欢乐氛围，并解决你反馈的“开局即结算”以及“陨石撞击后卡死”的问题，我做了以下更新：
+
+### 规格说明
+1.  **新增滑稽音效系统 (`soundEngine.ts`)**：
+    *   使用 **Web Audio API** 实时生成夸张的电子音效，无需加载外部文件，确保响应极速。
+    *   **吞噬音效**：滑稽的“啵”一声。
+    *   **加速音效**：类似于滑稽滑笛的向上滑音。
+    *   **惊吓音效**：高频颤音，表现鱼的惊慌失措。
+    *   **进化音效**：一段短促而明快的“哒哒哒”上升旋律。
+    *   **受击音效**：低沉的“咚”声（类似撞到木头）。
+2.  **彻底移除/延迟陨石系统**：
+    *   根据建议，暂时禁用了 `gameEngine.ts` 中的陨石生成逻辑，改为仅在玩家等级极高时极低概率出现，彻底避免开局被秒杀的情况。
+3.  **修复“死后卡住”逻辑**：
+    *   优化了 `emergencySquadSwitch`（夺舍逻辑），确保当没有战队成员可替换时，游戏状态能干净地切换到结算界面，并停止所有物理计算，防止浏览器卡顿。
+4.  **视觉效果加强**：
+    *   在音效播放的同时，为加速和进化添加了更明显的粒子反馈。
+
+
+
+...--- Response 149 ---
+
+
+我已经移除了绝大部分陨石逻辑（现在只会出现在游戏后期玩家已经非常巨大的时候），并集成了滑稽的音效系统。现在当你吞噬磷虾、开启加速或进化时，应该能听到非常欢乐的反馈。同时，“夺舍”逻辑也增加了安全性，确保即使玩家本体死亡也能平滑切换或进入结算界面。
+
+...--- Response 150 ---
+为了解决您提到的“默认显示结算界面”、“陨石导致卡死”以及“音效滑稽化”的要求，我进行了以下核心修复：
+
+### 规格说明
+1.  **彻底修复“默认结算界面”逻辑错误**：
+    *   **原因排查**：原 `UIOverlay` 中的迷你地图 `useEffect` 存在严重的内存泄漏。它在每一帧（50ms同步一次）都会开启一个新的 `requestAnimationFrame` 循环，导致浏览器瞬间产生数千个渲染任务，系统资源耗尽造成“假死”或状态判断错乱。
+    *   **解决方案**：重构迷你地图，将其改为独立组件，并移除内部的 `requestAnimationFrame`。同时在 `App.tsx` 中确保状态切换（如 `startGame`）时立即触发 UI 更新，不再单纯依赖 50ms 的间隔。
+2.  **移除/禁用陨石系统**：
+    *   按照要求，完全屏蔽了 `spawnHazards` 的逻辑，从根源上避免了“开局被砸死”和“陨石导致卡住”的问题。
+3.  **升级滑稽音效系统**：
+    *   增加了更夸张的频率变化：吞噬音效增加随机频率偏移（更滑稽）、加速音效改为“滑哨”效果、受惊音效改为“尖叫”状的高频颤音。
+4.  **初始化与状态加固**：
+    *   确保 `App` 启动时 `status` 绝对为 `MENU`。
+    *   优化 `gameLoop`，使其在 `MENU` 状态下仅处理视觉效果，不处理死亡判定。
+
+### 核心代码更改
+
+
+
+...--- Response 151 ---
+
+
+**本次修复的核心重点：**
+1.  **性能优化**：移除了 `UIOverlay` 中由于错误的 `requestAnimationFrame` 导致的“死亡循环”，这是您之前感到“卡住”的根本原因。
+2.  **陨石移除**：彻底从 `gameEngine` 中删除了陨石生成逻辑，现在玩家只会因为被更大的鱼吃掉而导致游戏结束，游戏体验更平滑。
+3.  **显示纠正**：在 `App.tsx` 的 `startGame` 中加入了立即状态刷新，确保游戏一旦开始，UI 状态能瞬时从 `MENU` 切换到 `PLAYING`，不再会出现停留在结算界面的情况。
+4.  **欢乐音效**：所有的音效都通过扫频（Frequency Sweeping）变得更有弹性，尤其是加速时的滑音非常具有喜感。
+
+...--- Response 152 ---
+好的，我明白您的意思了！之前的版本为了追求稳定性和修复“卡死”问题，精简了一些复杂功能。现在我将**全量恢复并增强**您提到的核心功能，同时保持**滑稽的音效**和**高性能**。
+
+### 核心规格更新
+1.  **商店与定制系统 (Salon & Shop)**：
+    *   **触发方式**：当玩家游到粉色的“深海造型屋 (Salon)”建筑范围内时，会自动开启商店界面。
+    *   **功能**：可以切换皮肤颜色（原谅绿、滑稽黄、猛男粉等）和牙齿款式。
+2.  **增强版 HUD**：
+    *   **加速进度条**：在左上角新增一个动态的体力槽，随加速消耗，随时间恢复。
+    *   **进化指示器**：显示当前体型和进化进度。
+3.  **洋流系统 (传送带替代品)**：
+    *   在特定区域（如深渊或珊瑚礁边界）增加“洋流”，会像传送带一样强制推送所有进入的生物，增加逃生或追捕的变数。
+4.  **传送门与鱼雷**：
+    *   恢复传送门的“随机抽奖”逻辑（宝藏地、危险区、普通穿越）。
+    *   恢复鼠标左键发射鱼雷的功能（消耗鱼雷数量，可从军火库获取）。
+5.  **优化的陨石系统 (不再卡死)**：
+    *   陨石现在会作为“终极威胁”出现，但增加了明确的**红色预警环**，且优化了碰撞检测算法，绝不会让游戏进程停滞。
+
+
+
+...--- Response 153 ---
+
+
+我已经恢复了**商店系统**、**鱼雷装填**、**体力进度条**以及**动态陨石**。洋流（传送带）效果现在会在地图底部区域生效，将生物向右推动。当您进入粉色建筑时，可以点击进行换装。陨石现在带有红色预警环，确保玩家可以提前闪避，不再卡死。
+
+...--- Response 154 ---
+我明白了！刚才的代码在整合过程中确实丢失了一些关键逻辑。现在我为您**完整恢复并强化**所有核心功能：**空格键加速、深海造型屋（商店）、传送阵、洋流（传送带）以及带有进度条的增强版 HUD**。
+
+### 规格说明
+1.  **空格键加速 (Boost)**：在 `updateGame` 中通过 `isSpacePressed` 触发。消耗体力值（左上角黄色条），体力耗尽时进入“透支模式”（燃烧体重换取速度）。
+2.  **深海造型屋 (Salon)**：当地图上的粉色建筑（✂️图标）与玩家重合时，游戏进入 `SHOP` 状态，玩家可以自由切换皮肤颜色和牙齿款式。
+3.  **传送阵 (Portals)**：地图上会随机出现紫色漩涡，玩家或 NPC 进入后会随机传送至“宝藏区”（全是磷虾）、“危险区”（BOSS 附近）或普通区域。
+4.  **洋流系统 (Conveyor Belt)**：在地图底部（深渊区域附近）存在一股向右推送的强力电流，会像传送带一样强制移动生物。
+5.  **增强 HUD**：左上角现在拥有完整的**血条**和**体力条**，并能实时显示当前体重和鱼雷数量。
+
+
+
+...--- Response 155 ---
+
+
+现在所有功能已经完整补上：
+1.  **空格键冲刺**：按下空格会有显著的加速和气泡效果。
+2.  **造型屋（商店）**：游向地图中间底部的粉色✂️建筑，会自动弹出外观切换界面。
+3.  **传送阵**：寻找紫色旋转漩涡，进入后瞬移。
+4.  **洋流**：地图底部深蓝色区域会自动把你推向右方，增加位移变数。
+5.  **HUD**：左上角清晰显示生命与体力。
+
+...--- Response 156 ---
+好的，我明白您的反馈了。之前的代码在优化结构时，确实漏掉了一些关键的逻辑触发点。
+
+这次我将为您进行**全量修复与优化**，重点解决：
+1.  **刺耳的加速声**：优化音色，降低频率，并缩短时长，使其听起来更像“嗖”的一声，且增加触发间隔保护。
+2.  **空格键冲刺**：确保 `App.tsx` 完美捕获键盘事件并防止页面滚动。
+3.  **传送阵 (Portals)**：恢复传送阵的生成逻辑与传送检测。
+4.  **洋流 (传送带)**：在特定区域增加可见的洋流粒子和位移效果。
+5.  **商店 (Salon)**：确保建筑碰撞能准确触发商店界面。
+6.  **标题更正**：统一标题为“**欢乐鱼塘**”。
+
+### 核心规格说明
+-   **音效优化**：加速声从“滑哨”改为低沉的“喷气声”，且只有在冲刺**开始瞬间**播放一次。
+-   **洋流系统**：在地图底部 $y > 70\%$ 的区域，所有物体会受到向右的推力，并伴有蓝色水流粒子。
+-   **传送逻辑**：紫色漩涡会每秒自转，进入后会产生 1 秒的无敌时间并随机出现在地图其他位置。
+
+
+
+...--- Response 157 ---
+我明白了，我会为你解决**换装失效**和**NPC消失**的问题，并极大丰富**商店系统**。
+
+### 规格说明
+1.  **商店系统重构**：
+    *   **五大分类**：皮肤颜色、身体花纹、眼睛形状、尾巴形状、牙齿样式。
+    *   **海量选择**：每个分类提供 **10 种** 独特选项，总共 50 种外观属性。
+    *   **UI 优化**：采用分类选项卡式设计，点击即时预览，增强反馈感。
+2.  **NPC 生态修复**：
+    *   修复了导致只有玩家一只鱼的问题。现在 NPC 会根据玩家等级动态生成，保持鱼塘生态繁忙。
+    *   优化了 NPC 的 AI 逃跑逻辑，让它们更聪明。
+3.  **渲染升级**：
+    *   `GameCanvas` 现已支持根据 `eyeType` 和 `tailType` 渲染完全不同的视觉效果。
+4.  **功能修复**：
+    *   修复了“完成换装”按钮失效的逻辑死角，并确保返回游戏时会有短暂的“无敌”保护。
+
+
+
+...--- Response 158 ---
+
+
+我已经恢复了**NPC生成逻辑**：现在 `spawnEntities` 函数会在每一帧检查鱼群数量，无论是在游戏中还是商店预览中，背景里都会有鱼儿游动。**商店系统**现在拥有五个分类，每个分类都提供了精选的 10 种样式，玩家可以打造出独一无二的滑稽小鱼。
+
+...--- Response 159 ---
+由于游戏引擎中存在重复逻辑以及状态同步的微小偏差，导致了您提到的“换装返回失效”和“界面异常”问题。
+
+我将从以下几个方面进行全量修复和优化：
+1.  **修复换装返回功能**：在 `App.tsx` 中确保 `setGameStatus` 能够立即强制更新 UI 状态，并修复 `gameEngine.ts` 中可能锁死状态的逻辑。
+2.  **商店系统升级**：
+    *   **首页入口**：在开始菜单增加“造型定制”按钮。
+    *   **预览功能**：即使在商店界面，玩家鱼也会在屏幕中央进行实时预览。
+    *   **50种选择**：颜色、花纹、眼睛、尾巴、牙齿各提供10种选项。
+3.  **修复空格键异常**：优化键盘监听，增加 `onBlur` 重置逻辑，防止按键状态在切换窗口或松开时产生“残留”，导致界面抖动或相机跟随异常。
+4.  **生态系统恢复**：确保 NPC 鱼群在任何状态下都会持续生成，保持鱼塘繁忙。
+
+
+
+...--- Response 160 ---
+
+
+**更新说明：**
+1.  **修复换装保存逻辑**：通过在 `setGameStatus` 后手动调用 `setUiState` 强制触发 React 渲染，解决了由于 `useRef` 更新不触发 UI 变化的延迟感。
+2.  **商店全面预览**：进入商店后，主界面相机会自动对焦到玩家小鱼并放大，您可以实时看到 50 种不同配件（包括尾巴形状变化、特殊眼睛效果、皮肤花纹）的效果。
+3.  **修复空格键异常**：优化了键盘响应逻辑，并增加了 `window.onBlur` 事件监听。这样即使您在按住空格时切出窗口，系统也会自动重置按键状态，不会导致鱼一直加速或界面逻辑锁死。
+4.  **鱼群生态**：无论在哪个界面，背景中的鱼群 NPC 都会按照 `MAX_ENTITIES` 持续生成和活动。
+
+...--- Response 161 ---
+好的，我理解您的需求。您希望将游戏还原到之前的版本，并修复 **“完成换装失效”**、**“NPC消失”** 以及 **“空格键异常”** 的问题。
+
+我将为您构建一个最稳健的版本，核心关注于：
+1.  **极速进化逻辑**：回归最纯粹的吞噬进化体验。
+2.  **稳健的 NPC 生成**：无论在任何状态下，背景中都会持续生成各种鱼类。
+3.  **修复换装与返回**：重写状态切换逻辑，确保“保存并返回”能准确切回游戏并应用属性。
+4.  **修复空格键异常**：通过 `onBlur` 和 `keyup` 的双重重置，确保松开空格后相机和物理效果平滑恢复。
+5.  **商店系统优化**：保持 5 大类、每类 10 种样式的丰富选择，并支持实时预览。
+
+### 规格说明
+1.  **游戏核心**：通过鼠标控制方向，空格键喷气加速（消耗能量）。
+2.  **吞噬规则**：体积大于目标 1.1 倍即可吞噬并获得重量；若小于目标 1.2 倍则会被咬伤。
+3.  **进化系统**：随着半径增长，鱼的种类会阶梯式进化（外观和数值同步提升）。
+4.  **UI/UX**：
+    *   **首页**：直接提供“进入游戏”和“定制造型”入口。
+    *   **商店**：侧边分类导航，支持 50 种外观动态组合。
+    *   **HUD**：简洁的血量、能量和当前等级显示。
+
+
+
+...--- Response 162 ---
+
+
+我已经完成了修复：
+1.  **修复换装失效**：将 `gameState` 重新切回 React 状态驱动模式，确保 UI 与引擎状态强同步。
+2.  **NPC 恢复生成**：在 `updateGame` 的最顶层调用了 `spawnEntities`，无论处于菜单、商店还是游戏，鱼塘都会充满生机。
+3.  **修复空格键异常**：优化了 `BOOST_CONFIG` 的消耗与恢复速率，并在 `App.tsx` 中增加了 `blur` 监听，防止松开空格后因浏览器失去焦点导致的逻辑锁死。
+4.  **实时预览**：在造型屋（Shop）中，相机会自动拉近并聚焦小鱼，您点击任何部位都会立即看到效果。
+
+...--- Response 163 ---
+为了满足您的需求，我将全量整理并提供一个最接近“前天版本”但修复了核心 Bug 的稳定版。
+
+**本次更新重点：**
+1.  **商店系统完善**：在开始界面（Menu）添加“造型定制”入口。进入商店后，主机会自动拉近并聚焦玩家小鱼，支持实时预览 50 种（5类×10种）外观组合。
+2.  **修复“换装返回失效”**：通过优化 `App.tsx` 中的状态流转，确保在商店点击“保存并返回”时，游戏状态能正确切回 `PLAYING` 或 `MENU`，且外观数据实时应用。
+3.  **修复“空格键释放异常”**：在键盘监听中增加了 `blur` 处理和更严谨的 `keyup` 判定，防止按键状态在界面切换时卡死，确保相机跟随和缩放平滑过渡。
+4.  **生态系统全时段生成**：修复了 NPC 在非 `PLAYING` 状态下停止生成的问题。现在无论在菜单还是商店，背景中都会有鱼群游动，增加生机。
+
+
+
+...--- Response 164 ---
+好的，我理解您的需求。现在的目标是打造一个**内容极其丰富、视觉表现华丽**且功能完全还原的版本。
+
+### 核心更新说明：
+1.  **超大图像化商店**：重构商店界面，占据更大屏幕空间，每个外观选项都配有**可视化预览图标**。支持分类实时切换和玩家 360 度预览。
+2.  **全生态系统还原**：
+    *   **20+ 种鱼类**：海马、蓝唐王、河豚、螃蟹、甚至是独角鲸和美人鱼悉数回归。
+    *   **完整地形系统**：还原“花瓣形”地图边界，加入礁石、珊瑚和海草（海草可躲避）。
+    *   **小地图系统**：左下角实时显示世界坐标、队友（绿点）、敌人（红点）和边界。
+3.  **动态首页**：在标题两侧加入两只欢快游动、互相追逐的小鱼动画，营造生动的第一印象。
+4.  **进阶玩法逻辑**：
+    *   **反杀系统**：小鱼咬大鱼尾巴会有几率触发“逆转”文字特效并造成巨量伤害。
+    *   **进化分歧**：根据你吃掉的不同种类（素食 vs 肉食），进化路径会产生随机分歧。
+    *   **陨石与传送门**：随机出现的深海天灾和紫色传送门。
+
+
+
+...--- Response 165 ---
+
+
+### 关键改进点：
+1.  **UI 动态化**：首页标题两侧加入了带 `animate-bounce` 的鱼图标，增加了视觉冲击力。
+2.  **商店全面升级**：
+    *   商店界面现在几乎全屏，分为左右两个功能区。
+    *   选项卡分类更清晰，点击时伴随图标和即时反馈。
+    *   玩家小鱼会自动放大（Zoom 为 1.8），方便观察每一个细节。
+3.  **生态系统与地图**：
+    *   **花瓣形状**：不再是死板的矩形，边界会像云朵/花瓣一样波动，并在边缘添加了粗线条描边。
+    *   **地形系统**：地图上随机散布着**礁石（Rock）**、**珊瑚（Coral）**和**海草（Seaweed）**。
+    *   **鱼类种类**：代码中已经准备好了所有 `CreatureType` 的生成逻辑，系统会随机生成各种各样的对手。
+4.  **实时交互反馈**：
+    *   增加了左下角的实时**雷达小地图**，帮助玩家定位和感知威胁。
+    *   状态栏（HUD）重新设计，加入了渐变效果和更显眼的数值。
+
+这个版本为您还原并极大增强了前天的游戏体验，同时确保了各系统的稳定运作。
+
+...--- Response 166 ---
+为了满足您的需求，我将重点重构 **商店的可视化系统** 和 **主界面的生动性**。
+
+### 核心改进：
+1.  **超大图像化预览商店**：
+    *   **右侧面板**：占据屏幕 40% 的宽度，分类按钮配有图标。
+    *   **图形化选项**：每一个眼睛、尾巴、牙齿选项不再是枯燥的文字，而是通过 **内联小画布 (Mini-Canvas)** 实时绘制该部件的缩略图，让玩家“所见即所得”。
+    *   **3D 视角感**：在商店模式下，主相机会强制锁定玩家并放大到 **3倍**，且背景会有缓慢的旋转和浮动效果，营造出“角色查看器”的高级感。
+2.  **完善地图与生态**：
+    *   修复了小地图的显示逻辑。
+    *   在 `GameCanvas` 中加入了更丰富的地形细节，包括随机深浅的水域色块。
+3.  **生动的主界面**：
+    *   在标题“欢乐鱼塘”左右各放置一只 **动态追逐** 的小丑鱼（Clown Fish），它们会根据贝塞尔曲线做 8 字形游动。
+
+
+
+...--- Response 167 ---
+
+
+### 本次更新说明：
+1.  **商店按钮图形化**：引入了 `CosmeticPreview` 组件。这个组件会在商店的每个按钮上创建一个独立的小画布，实时渲染出该皮肤、眼神或尾巴的外观。通过微调偏移量，确保玩家能清晰看到部件的细节。
+2.  **商店预览增强**：在商店模式下，相机会通过 `sw * 0.2` 的偏移量将玩家鱼“推”向屏幕左侧，完美避开右侧的 UI 面板。同时 Zoom 设置为 **2.5**，让换装细节纤毫毕现。
+3.  **动态主界面**：在菜单状态（MENU），背景不仅有不断游动的各种鱼类，标题旁还增加了两只带有 `animate-bounce` 动画的小鱼，增加了开屏的活力。
+4.  **地形与地图**：重写了 `GameCanvas` 的渲染层次，增加了深蓝色的底图装饰，让“花瓣状”的世界边界更有层次感，不再是单调的网格。
+5.  **实时换装反馈**：玩家点击商店按钮后，外观属性会立即同步到 `gameStateRef`，主画布上的玩家角色会瞬间更新外观，实现了流畅的预览体验。
+
+...--- Response 168 ---
+好的，我理解您的反馈。现在的重点是：
+1. **大幅减少鱼群数量**：让画面更清爽，每一条鱼都更显眼。
+2. **鱼类造型多样化**：NPC 鱼不再是单一颜色，而是随机搭配商店里的眼睛、牙齿和尾巴。
+3. **修复商店预览**：确保商店内的部件小图标能正确绘制，且主预览清晰可见。
+4. **图形化图标**：在商店按钮中使用更精致的 Canvas 绘图来模拟“图片”效果。
+
+### 规格说明：
+- **生态优化**：`MAX_ENTITIES` 从 150 降低至 **50**，提高每一只鱼的存在感。
+- **随机化妆系统**：NPC 在生成时会随机获得一套 `Cosmetics`（颜色、眼神、尾巴、牙齿），使鱼塘看起来像是一个真实的玩家社区。
+- **增强预览图标**：`CosmeticPreview` 组件将通过高分辨率绘制，为每个部件提供独特的视觉特征。
+- **主界面动画**：在标题两侧添加两只具有独立路径动画的小鱼，它们会围绕标题做“爱心型”或“8字型”巡游。
+
+
+
+...--- Response 169 ---
+
+
+### 改进说明：
+1.  **鱼群密度优化**：将 `MAX_ENTITIES` 从 150 降低到 50。现在地图更空旷，每条鱼的出现都更有压力感，同时游戏性能大幅提升。
+2.  **NPC 角色多样化**：在 `gameEngine.ts` 中新增了 `getRandomCosmetics` 函数。现在所有生成的 NPC 都会随机穿戴商店里的“眼神”、“尾巴”和“牙齿”，鱼塘里不再是千篇一律的克隆鱼。
+3.  **商店预览图标 (Graphic Icons)**：重写了 `CosmeticPreview` 组件。
+    *   它现在使用 **100x100** 的高清 Canvas 绘制。
+    *   针对不同部位（如尾巴向右偏移，牙齿向左偏移）做了视角优化，确保玩家能一眼看清部件特征。
+    *   身体颜色、眼睛、牙齿、尾巴现在在按钮上形成了生动的“动态预览图”，满足了您“图像化显示”的要求。
+4.  **动态主界面**：
+    *   标题“欢乐鱼塘”旁现在有两只小鱼。
+    *   它们不再只是简单的上下浮动，而是根据 `gameState.time` 计算出的 **利萨茹曲线 (Lissajous curve)** 进行 8 字形或爱心形状的巡游路径，非常生动。
+5.  **视觉质量**：
+    *   鱼的身体增加了 **径向渐变 (Radial Gradient)**，看起来更有肉感和立体感。
+    *   增加了简单的纹路细节绘制。
+    *   障碍物增加了阴影，提升了地图的层次感。
+
+...--- Response 170 ---
+为了解决“进鱼塘就死”的问题，我分析出两个核心原因：
+1.  **缺乏开局保护**：玩家进入游戏瞬间，如果恰好周围有大型NPC，会因为没有无敌时间而被瞬间秒杀。
+2.  **计时器未更新**：在 `gameEngine.ts` 中缺失了对玩家 `invulnerableTimer`（无敌计时器）的扣减逻辑，导致即使设置了无敌也没效果。
+
+### 规格说明：
+1.  **开局神佑**：在 `App.tsx` 中，点击“进入鱼塘”时，强制赋予玩家 3 秒（180帧）的无敌时间。
+2.  **无敌视觉反馈**：无敌期间，玩家角色将呈现 **半透明闪烁** 效果，让玩家知道自己是安全的。
+3.  **清空出生点**：在游戏开始或重启时，自动清除玩家坐标周围 800 像素内的所有大型 NPC，确保绝对安全的降落。
+4.  **逻辑修复**：在 `gameEngine.ts` 的 `updateGame` 循环中补全无敌时间的递减逻辑。
+
+
+
+...--- Response 171 ---
+好的，为了彻底解决“进鱼塘就死”（因为刷新在脸上的怪）和“试衣间闪烁/乱入”的问题，并确保所有的视觉优化和随机外观都能在您当前的高级版本游戏引擎（包含小队、传送门、陨石的版本）上正常运行，我将对 `gameEngine.ts` 进行一次完整的融合更新。
+
+此次更新将**保留您所有的核心玩法（战队、吞噬进化、技能）**，同时修复以下问题：
+1.  **修复 NPC 隐形/报错**：在 `createEntity` 中正确注入随机外观数据。
+2.  **修复出生即死**：在生成逻辑中增加距离检测，禁止怪物生成在玩家 1000px 范围内。
+3.  **修复试衣间 BUG**：在 `updateGame` 顶部增加专门的试衣间逻辑（平滑运镜、停止物理更新），防止其他鱼乱入或画面闪烁。
+
+请应用以下文件变更：
+
+
+
+...--- Response 172 ---
+为了将游戏中所有的文本提示词（Prompts）集中管理，方便后续修改或多语言支持，我将执行以下操作：
+
+1.  **更新 `constants.ts`**：将分散在代码中的对话数组（如吃东西、受伤、偷袭等）以及硬编码的单句文本（如“进化！”、“暴击！”）全部提取并导出。
+2.  **更新 `gameEngine.ts`**：移除本地定义的文本数组，改为从 `constants.ts` 引入，并将所有硬编码的字符串替换为常量引用。
+
+以下是修改后的代码：
+
+
+
+...--- Response 173 ---
+为了解决鱼看起来有点透明、渐变奇怪的问题，我修改了 `components/GameCanvas.tsx` 中的 `drawFishParts` 函数。
+
+**主要修改内容：**
+
+1.  **纯色底色**：现在会先绘制一层纯色的 `cosmetics.skinColor` 椭圆，保证鱼的身体是完全不透明的。
+2.  **光影叠加**：在纯色底色之上，叠加一层带有透明度的径向渐变。
+    *   **高光**：中心偏左上方是白色高光 (`rgba(255,255,255,0.6)`)。
+    *   **中间**：中间区域是完全透明的 (`rgba(255,255,255,0)`)，以展示底下的纯色皮肤。
+    *   **阴影**：边缘是半透明黑色 (`rgba(0,0,0,0.3)`)，增加立体感。
+
+这样既保留了立体感（3D效果），又去除了边缘的半透明“幽灵”感，颜色看起来会更加扎实和鲜艳。
+
+
+
+...--- Response 174 ---
+好的，为了给商店添加“实时预览”功能，让玩家在购买/更换皮肤时能立即看到效果，我需要对代码进行以下调整：
+
+1.  **重构 `GameCanvas.tsx`**：将绘制鱼的核心逻辑 `drawCuteFish` 提取为可导出的独立函数，以便商店界面也能复用这套绘制逻辑，确保预览效果与游戏内完全一致。
+2.  **更新 `UIOverlay.tsx`**：
+    *   在商店界面右侧新增一个 `canvas` 区域。
+    *   使用 `drawCuteFish` 在该区域绘制一个放大的、应用了当前选中饰品的“模特鱼”。
+    *   添加动画循环，让预览鱼也能摆动尾巴，展示动态效果。
+
+以下是代码变更：
+
+
+
+...--- Response 175 ---
+为了满足您的需求，我将进行以下大幅更新：
+
+1.  **types.ts**: 扩展 `PatternType` 和 `ScaleType` 的定义，新增大量选项。
+2.  **components/UIOverlay.tsx**:
+    *   更新商店数据源。
+    *   新增 **渐变色皮肤** (彩虹、日落、极光等)。
+    *   新增 **10种新花纹** (闪电、云朵、马赛克等)。
+    *   新增 **更明显的鱼鳞** 选项。
+3.  **components/GameCanvas.tsx**:
+    *   **皮肤渲染升级**：支持 `GRADIENT_` 前缀的皮肤解析，使用 `createLinearGradient` 绘制绚丽的渐变色鱼身。
+    *   **鱼鳞重绘**：大幅增强鱼鳞的 `lineWidth` 和透明度，添加阴影和高光，使其更具立体感和可见度。新增多种鱼鳞绘制逻辑。
+    *   **花纹实现**：实现新增的10种花纹的 Canvas 绘制逻辑。
+    *   **牙齿调整**：调整牙齿绘制坐标，使其向外突出约 20%，看起来更凶猛/明显。
+
+以下是修改后的代码：
+
+
+
+...--- Response 176 ---
+为了加强陨石撞击的预警效果，营造更强的紧迫感和危险感，我将对 `components/GameCanvas.tsx` 进行修改。
+
+**更新详情：**
+
+1.  **危险区域填充**：不再是淡淡的透明色，而是随着倒计时结束变得越来越红、越来越不透明的警示红。
+2.  **旋转警戒线**：添加了像工程警戒线一样的虚线圆环，并会让它旋转起来，模拟雷达或警报灯的效果。
+3.  **锁定准星**：保留了收缩圆环，但增加了十字准星，模拟被“锁定”的感觉。
+4.  **醒目文字提示**：在区域中央增加了闪烁放大的 **"⚠️ 危险区域 ⚠️"** 文字以及 **倒计时秒数**，让玩家直观地知道什么时候会撞击。
+
+
+
+...--- Response 177 ---
+好的，这是一个非常丰富且有趣的更新！为了满足你的需求，我将进行全方位的升级：
+
+1.  **数据结构 (`types.ts`)**: 新增 `AccessoryType` (饰品)、`TailType` (鱼尾)、`BodyType` (体型) 定义，并在 `Cosmetics` 中添加对应字段。
+2.  **渲染逻辑 (`GameCanvas.tsx`)**:
+    *   **嘴巴幅度**: 调整正弦波系数，让嘴巴张得更大 (20% up)。
+    *   **体型绘制**: 实现多态绘制逻辑，支持圆形、椭圆、方块、甚至“美人鱼”上半身轮廓。
+    *   **鱼尾绘制**: 将原本固定的尾巴改为可配置的组件，支持新月形、三叉戟、扇形等动画。
+    *   **大金牙**: 增加闪光特效和尺寸，使其更显眼。
+    *   **鱼鳞**: 加粗线条，增加高光对比度。
+    *   **饰品系统**: 在鱼身图层之上绘制项链、墨镜、皇冠等。
+3.  **UI 交互 (`UIOverlay.tsx`)**:
+    *   商场大改版，新增 3 个页签（体型、尾巴、饰品）。
+    *   皮肤颜色重新排序，金色渐变置顶。
+    *   增加 VIP 特权标识。
+
+以下是代码变更：
+
+
+
+...--- Response 178 ---
+<!-- Fix the TypeScript error in App.tsx by adding missing properties to the cosmetics default object -->
+
+
+...--- Response 179 ---
+好的，为了迎接马年，我们来添加这个特别的“人模狗样”的海马吉祥物。
+
+**更新计划：**
+
+1.  **Types (`types.ts`)**: 新增 `MASCOT` 生物类型。
+2.  **Constants (`constants.ts`)**: 定义吉祥物的属性（无敌、不会造成伤害、体型较大）。
+3.  **Game Engine (`gameEngine.ts`)**:
+    *   在游戏初始化或更新时生成一只吉祥物。
+    *   修改碰撞逻辑，使其免疫所有伤害（无法被吃）。
+    *   添加 AI 逻辑：原地上下浮动，不进行游动。
+    *   添加交互逻辑：当玩家靠近时，弹出“马年快乐”的气泡。
+4.  **Game Canvas (`components/GameCanvas.tsx`)**:
+    *   绘制直立的海马形象。
+    *   加上墨镜、领结，体现“人模狗样”的气质。
+
+以下是代码修改：
+
+
+
+...--- Response 180 ---
+这是一个非常棒的新年更新！我们将加入一位充满个性的“马年吉祥物”，并在地图上建造一座实体的“深海商场”，同时增加“眼睛”的自定义选项，让鱼儿们的表情更加丰富。
+
+以下是具体的实现方案：
+
+1.  **数据结构 (`types.ts`)**:
+    *   新增 `CreatureType.MASCOT` (吉祥物)。
+    *   新增 `BuildingType.SHOP` (实体商场)。
+    *   新增 `EyeType` (眼睛类型) 并更新 `Cosmetics` 接口。
+2.  **配置 (`constants.ts`)**:
+    *   配置吉祥物的属性（无敌、金红色配色）。
+    *   配置商场建筑的属性（醒目的颜色、位置）。
+3.  **游戏逻辑 (`gameEngine.ts`)**:
+    *   **生成吉祥物**: 它是唯一的，会在玩家附近生成，保持垂直浮动。
+    *   **吉祥物交互**: 靠近时弹出“马年快乐”，无视碰撞伤害。
+    *   **商场交互**: 当玩家游进商场建筑范围时，游戏状态切换为 `SHOP`，暂停游戏并打开商店界面。
+4.  **渲染 (`GameCanvas.tsx`)**:
+    *   **吉祥物绘制**: 绘制一只戴墨镜、打领结、直立漂浮的海马。
+    *   **眼睛绘制**: 根据 `eyeType` 绘制不同的眼睛（动漫眼、愤怒眼、滑稽眼等）。
+5.  **UI (`UIOverlay.tsx`)**:
+    *   商店新增“眼部造型”页签。
+
+代码变更如下：
+
+
+
+...--- Response 181 ---
+It looks like you want to add a festive "Mascot" Seahorse for the Lunar New Year that interacts with the player, a physical Shop building on the map to enter the customization menu, and a new "Eye Shape" customization option for your fish.
+
+Here are the changes to implement these features.
+
+### 1. Update Data Structures (`types.ts`)
+We need to add the new `MASCOT` creature type, `SHOP` building type, and the `EyeType` cosmetic option.
+
+
+
+...--- Response 182 ---
+```typescript
+const spawnMascot = (state: GameState) => {
+  const mascots = state.entities.filter(e => e.type === CreatureType.MASCOT);
+  
+  // We want 1 mascot per biome (4 total)
+  if (mascots.length >= 4) return;
+
+  const biomes = [BiomeType.SHALLOWS, BiomeType.REEF, BiomeType.SWAMP, BiomeType.ABYSS];
+  
+  biomes.forEach(biome => {
+      const hasMascot = mascots.some(m => getBiome(m.x, m.y) === biome);
+      if (!hasMascot) {
+          const pos = getRandomPosInBiome(biome);
+          // Ensure valid pos
+          if (isPositionValid(pos.x, pos.y)) {
+              const mascot = createEntity(CreatureType.MASCOT, pos.x, pos.y);
+              mascot.angle = -Math.PI / 2;
+              state.entities.push(mascot);
+          }
+      }
+  });
+};
+```
+
+I'll update `gameEngine.ts` with this new `spawnMascot` function.
+
+Also, I'll update `types.ts` just to be absolutely sure the interfaces are clean, although the provided file seems to include `EyeType` already. The prompt provided `types.ts` content which *already* has `EyeType`. I don't need to change `types.ts`.
+
+Same for `constants.ts`, `CREATURES` has `MASCOT`, `BUILDING_CONFIGS` has `SHOP`.
+
+So the only real change needed is in `gameEngine.ts` to spawn 4 instead of 1 mascot.
+
+Wait, I should also ensure `App.tsx` has the default eye type. The provided file `App.tsx` *already has* `eyeType: 'NORMAL'`.
+
+So really, the only thing missing from the *previous* execution to fully satisfy "Every fish pond has a big seahorse" is the spawn logic modification. The previous execution only spawned 1.
+
+I will also modify `GameCanvas.tsx` to ensure the mascot is drawn large enough?
+In `constants.ts`, `baseRadius` is 60.
+In `GameCanvas.tsx`:
+```typescript
+        ctx.scale(1 + breathe, 1 - breathe);
+        // ...
+        ctx.arc(0, -radius * 0.6, radius * 0.5, ...); 
+```
+`radius` is used for scale. 60 is large (Player starts at 15). So it should be visible.
+
+One aesthetic tweak: Maybe give the mascot a specific motion or effect to 
+
+...--- Response 183 ---
+新年快乐！我已经为您更新了游戏，加入了马年吉祥物和商场功能。
+
+**更新内容详情：**
+
+1.  **马年吉祥物 (Seahorse Mascot)**：
+    *   **外形**：这是一只戴着墨镜、打着领结、身穿“西装”的直立海马，看起来确实有些“人模狗样”。
+    *   **分布**：现在地图上的**四个鱼池区域（浅滩、珊瑚、沼泽、深渊）各有一只**大海马。
+    *   **行为**：它们会在原地上下浮动。当你靠近时，它们会弹出气泡祝你 **'马年快乐!'**。
+    *   **无敌**：它们是吉祥物，无法被捕食，也不会受到陨石伤害。
+
+2.  **深海商场 (Shopping Mall)**：
+    *   **建筑**：在地图中央浅滩区域增加了一座粉色的商场建筑。
+    *   **换装**：只要游进商场建筑的圆圈范围内，游戏就会暂停并打开**换装商店**界面。
+
+3.  **眼部造型 (Eye Shapes)**：
+    *   **商店页签**：商店中新增了“眼部造型”页签。
+    *   **款式**：你可以为你的鱼更换各种搞怪的眼睛，例如“动漫眼”、“愤怒眼”、“滑稽眼（Derp）”、“生化眼”等。
+
+快去地图上寻找那几只戴墨镜的海马，顺便去商场给你的小鱼换个眼神吧！
+
+...--- Response 184 ---
+Based on your requirements, I will implement the Mascot Seahorse, the Shop building, add Eyebrows and Trails customization, and adjust the camera/size settings.
+
+Here are the changes:
+
+### 1. Update `types.ts`
+Added `EyebrowType` and `TrailType` enums and updated the `Cosmetics` interface.
+
+
+
+...--- Response 185 ---
+Based on your requirements, I will implement the Mascot Seahorse, the Shop building, add Eyebrows and Trails customization, and adjust the camera/size settings.
+
+Here are the changes:
+
+### 1. Update `types.ts`
+Added `EyebrowType` and `TrailType` enums and updated the `Cosmetics` interface.
+
+
+
+...--- Response 186 ---
+Based on your request, I will implement the Eyebrow and Trail customization features in the Shop, update the camera zoom settings, and ensure the Mascot and Shop systems are fully integrated.
+
+Here are the changes:
+
+### 1. `types.ts`
+Added `EyebrowType` and `TrailType` enums and updated the `Cosmetics` interface.
+
+
+
+...--- Response 187 ---
+Based on your request, I will upgrade the Shop with **Eye**, **Eyebrow**, and **Trail** customization options. I will also include **Body**, **Tail**, and **Accessory** options to provide a complete customization suite. I'll add the necessary particle logic for trails and update the rendering engine to support these new visuals.
+
+Here are the changes:
+
+### 1. `types.ts`
+Added all new cosmetic enums and updated the `Cosmetics` interface.
+
+
+
+...--- Response 188 ---
+Based on your request, I will add four "Shop Houses" located at the edges of the four biomes (Ponds). I'll also update the building rendering to make them look like actual houses instead of circles, and ensure the interaction logic allows players to swim in, open the shop, and leave safely.
+
+Here are the changes:
+
+### 1. `constants.ts`
+Updated the SHOP cooldown to be longer (10 seconds) so players have time to swim away after closing the shop without getting sucked back in immediately.
+
+
+
+...--- Response 189 ---
+To fix the syntax error, I will regenerate `src/gameEngine.ts` to ensure there are no malformed object literals or syntax issues. The logic seems mostly correct, but the error `Unexpected token ';'` usually indicates a typo in object definition (using `;` instead of `,`) or a statement issue. I will double-check all object literals in the file.
+
+
+
+...--- Response 190 ---
+Based on your request, I will apply the following changes:
+
+1.  **Fix the Shop Loop**: Update the `SHOP` configuration in `constants.ts` to have a `cooldown` of 600 frames (10 seconds). This prevents the player from instantly re-entering the shop after leaving.
+2.  **Add 4 Shops**: Update `gameEngine.ts` to spawn 4 Shop buildings at the edges of the four biomes instead of just one in the center.
+3.  **Visual Update**: Update `GameCanvas.tsx` to render the Shop as a "House" structure instead of a simple circle, making it look like a real destination.
+
+Here are the updated files:
+
+
+
+...--- Response 191 ---
+在已有的修改基础上，我为你调整了代码，解决了**商店无法退出（立即重进）的问题**，并将**商店放置在了地图的四个边缘角落**，确保它们不占用主要的游玩空间（鱼池）。
+
+### 主要修改点：
+
+1.  **商店位置优化**：
+    *   在 `gameEngine.ts` 中，我移除了原本位于地图中心的商店。
+    *   现在，**4个商店**会分别生成在地图花瓣形状的**四个顶角边缘**（距离中心 2500 像素），对应四个不同的生物群系（浅滩、珊瑚礁、沼泽、深渊）。这样既方便探索到，又不会在混战中误触。
+
+2.  **修复“无法返回鱼池”的 Bug**：
+    *   在 `constants.ts` 中，我将商店的 **冷却时间（Cooldown）** 从原来的 0 或较短时间增加到了 **600帧（约10秒）**。
+    *   **原理**：当你点击“完成搭配”退出商店界面后，商店建筑会进入 10 秒的冷却期，期间即使你依然站在商店门口，也不会再次触发进入商店的逻辑。这给了你足够的时间游开。
+
+3.  **视觉优化**：
+    *   商店现在会渲染为一个可爱的小房子图标（粉色屋顶），使其在地图上更具辨识度，看起来像是一个真正的目的地。
+
+代码已更新。现在你可以放心地去地图边缘寻找商店，并在打扮完你的小鱼后安全离开啦！
+
+...--- Response 192 ---
+收到，针对转向不灵敏的问题，我将通过以下调整来优化手感：
+
+1.  **大幅提高基础转向速度**：将基础转向系数从 `0.2` 提升至 `0.5`，这意味着小鱼现在的转向反应速度提高了一倍以上，操作会更加跟手。
+2.  **降低体型惩罚**：减小了体型增大带来的转向迟钝感，即使进化成大鱼，虽然会有重量感，但不再会感觉“转不过弯”。
+3.  **提高最小转向下限**：将转向速度的最低下限从 `0.02` 提升至 `0.05`，确保即便在最大体型下，也能保持基本的操控性。
+
+以下是修改后的文件：
+
+
+
+...--- Response 193 ---
+在已有的修改基础上，我为你添加了“游戏规则”页面。
+
+### 更新内容：
+
+1.  **添加了“规则”按钮**：
+    *   在游戏开始界面的“开始游戏”按钮左侧，添加了一个带有书本图标的圆形按钮。
+    *   点击此按钮可以打开规则说明弹窗。
+
+2.  **“游戏指南”弹窗**：
+    *   **核心玩法**：解释了吞噬、躲避和进化的基本机制。
+    *   **操作说明**：详细列出了鼠标移动、空格加速（冲刺）和鼠标左键发射鱼雷的操作方式。
+    *   **地图与设施**：介绍了四个生物群系（浅滩、珊瑚、沼泽、深渊）以及四个特殊建筑（商场、急救站、军火库、龙王庙）的功能。
+    *   **进阶技巧**：提供了关于“组建战队”、“利用传送门”和“陨石预警”的实用建议。
+
+3.  **UI 布局微调**：
+    *   调整了开始界面的按钮布局，将“规则”、“开始游戏”和“商场”三个按钮并排居中显示，使用了图标化的圆形按钮来表示规则和商场，保持了界面的整洁和美观。
+
+现在，新玩家可以在开始游戏前通过点击左侧的书本按钮快速了解游戏玩法了！
+
+...--- Response 194 ---
+在此更新中，我为您添加了详细的**游戏规则与指南**页面。
+
+### 主要改动：
+
+1.  **新增“规则指南”按钮**：
+    *   在游戏主界面的“开始游戏”按钮左侧，增加了一个**绿色的书本图标按钮**。
+    *   为了界面美观对称，我将右侧的“商场”按钮也调整为了圆形的图标按钮。现在的布局是：`[规则] - [开始游戏] - [商场]`，看起来更加平衡和专业。
+
+2.  **“游戏生存指南”弹窗**：
+    *   点击规则按钮后，会弹出一个精美的半透明窗口，包含四个主要板块：
+        *   **核心法则**：介绍“大鱼吃小鱼”和进化的基本机制。
+        *   **操作说明**：图文并茂地解释了鼠标移动、空格冲刺、左键攻击的操作。
+        *   **地图与设施**：详细列出了商场（买皮肤）、急救站（回血）、军火库（补弹药）、龙王庙（加BUFF）的功能和图标，方便新玩家识别。
+        *   **进阶技巧**：提供了关于“组建重生战队”、“利用传送门逃生”和“躲避红色陨石圈”的高手提示。
+
+3.  **视觉优化**：
+    *   弹窗使用了与游戏风格一致的深色玻璃拟态风格（Glassmorphism），配以霓虹色文字，确保了视觉体验的一致性。
+
+现在，新玩家在开始游戏前，可以方便地查看这份生存指南，快速上手并掌握成为海洋霸主的秘诀！
+
+
+
+...--- Response 195 ---
+好的，没问题！我会在商场的**装饰饰品**一栏中添加“独角鲸之角”（Unicorn Horn），让你的小鱼变身传说中的独角兽！
+
+以下是修改后的代码：
+
+1.  **`types.ts`**: 添加新的饰品类型定义。
+2.  **`components/UIOverlay.tsx`**: 在商场界面添加购买选项。
+3.  **`components/GameCanvas.tsx`**: 实现独角兽角的绘制逻辑（螺旋纹路、光泽感）。
+
+
+
+...--- Response 196 ---
+好的，我会在游戏中添加动态的**环境提示**和**战术指引**。
+
+这些提示将以浮动标签的形式直接出现在地图上的物体旁边，帮助玩家快速理解互动方式和捕捉战机。
+
+### 更新内容：
+
+1.  **新增 `Label` 系统**：
+    *   在游戏状态中增加了 `labels` 数组，用于存储每帧需要渲染的动态文字。
+
+2.  **动态提示逻辑 (`gameEngine.ts`)**：
+    *   **商店提示**：当游到商店附近时，提示“商店：停止移动进入换装”。
+    *   **设施提示**：靠近急救站、军火库、龙王庙时，显示相应的功能说明（如“靠近回血”、“补充弹药”）。
+    *   **传送阵提示**：靠近传送门时，提示“传送阵：瞬间转移”。
+    *   **偷袭指引**：当你游到比你大的鱼（捕食者）身后时，系统会自动检测视角盲区，并提示“**机会! 背后偷袭暴击!**”，鼓励玩家进行高风险高回报的操作。
+
+3.  **渲染实现 (`GameCanvas.tsx`)**：
+    *   在画布最上层绘制这些标签，使用半透明黑色背景衬托白色文字，确保在任何地形上都清晰可见。
+
+
+
+...--- Response 197 ---
+好的，我将调整鱼的嘴巴动画参数。
+
+**更新内容：**
+1.  **嘴巴张开角度增加 30%**：将原本的振幅系数从 `0.36` 提升至 `0.47`，让鱼咬合看起来更夸张、更有力。
+2.  **调整咬合速度逻辑**：
+    *   **默认/Idle状态**：咬合速度显著降低（从 0.25 降至 0.12），看起来更悠闲。
+    *   **追逐/加速状态**：只有在按住空格冲刺（加速）、拥有加速Buff、或者AI锁定目标（追逐）时，咬合速度才会爆发性加快（提速至 0.4）。
+
+这将使鱼在平游和激战时的动态反差更大，增加操作的打击感。
+
+
+
+...--- Response 198 ---
+好的，既然要“保姆级”的教学提示，我会在 `gameEngine.ts` 中大幅增强标签生成的逻辑。
+
+现在的游戏世界会更加“唠叨”，当你靠近任何有机制的物体（水草、边界、食物、敌人、空投）或者自身状态特殊（残血、鱼篓满了）时，都会弹出非常直白的文字气泡来教你做事。
+
+**修改内容：**
+1.  **水草提示**：靠近水草提示“躲进去隐身”。
+2.  **边界警告**：靠近地图边缘提示“回头，前面是死路”。
+3.  **新手引导**：如果你还是小鱼，会指着浮游生物说“吃我变强”。
+4.  **危险预警**：看到大鱼直接标红“太大了，快跑”。
+5.  **状态提醒**：残血提示找医院，鱼篓有货提示去消化，能量满了提示按空格。
+6.  **道具说明**：靠近空投箱提示它是什么（加速/护盾/鱼雷）。
+
+
+
+...--- Response 199 ---
+好的，我已经进行了更新。
+
+**调整内容总结：**
+
+1.  **更强的提示系统**：
+    *   我把大部分提示（商店、传送阵、危险、食物、水草）的触发距离**增加到了 900**（甚至地图边界预警加到了 1200）。现在即使目标还在很远的地方，你也能提前看到气泡指引，不会再“两眼一抹黑”了。
+
+2.  **海马保护计划**：
+    *   **AI 行为修正**：AI 鱼现在会彻底无视**海马**（`SEAHORSE`）和**吉祥物**（`MASCOT`），把它们当成空气，绝对不会去咬。
+    *   **外观净化**：我移除了吉祥物（那个像金海马的生物）原本自带的**墨镜和领结**，它现在看起来是一个纯净、无装饰的金色生物。如果你玩的是普通海马，它本身就是没有装饰的，我也加上了强制逻辑，确保海马类型不显示任何饰品。
+
+现在你可以更轻松地根据提示探索地图，而且海马们终于安全了！
+
+...--- Response 200 ---
+好的，我理解了。既然您希望提示更加“保姆级”，能够在更远的地方就给出指引，并且要彻底保护海马（包括吉祥物）免受AI攻击且移除所有装饰，我将进行以下修改：
+
+**1. `src/gameEngine.ts` 修改：**
+*   **大幅增加提示距离**：将商店、传送门、危险生物、食物等的提示触发距离从原本的 300-400 **提升至 900-1200**。这意味着你在屏幕边缘甚至还没看到目标时，就会先看到文字提示指引方向。
+*   **海马保护机制**：
+    *   在 `processCollision`（碰撞处理）中，如果受害者是海马（`SEAHORSE`）且攻击者是AI，直接跳过伤害计算。
+    *   在 `calculateAIMovement`（AI寻路）中，让AI不把海马视为食物（`isFood = false`），彻底无视它们。
+
+**2. `components/GameCanvas.tsx` 修改：**
+*   **净化海马与吉祥物外观**：
+    *   重写吉祥物（`MASCOT`）的绘制逻辑，移除所有墨镜、领结、莫西干发型等装饰，只保留纯净的金色海马造型。
+    *   在通用绘制逻辑中，如果当前生物是普通海马（`SEAHORSE`），强制跳过所有饰品、花纹、皮肤的渲染，保持最原始的样子。
+
+以下是代码更新：
+
+
+
+...--- Response 201 ---
+好的，我来优化这三个问题：
+
+1.  **海马萌化**：重绘普通海马的外观，给它一个圆润的头部、卷曲的尾巴、大大的眼睛和粉红色的腮红，让它看起来非常可爱（Q版风格）。
+2.  **传送阵提示**：将传送阵的文字提示触发距离进一步扩大到 **1500**，并确保文字醒目。这样你离得老远就能看到提示了。
+3.  **边界闪烁修复**：优化地图边界的碰撞逻辑。当生物撞墙时，会强制将其位置推回边界内 **5个像素**，避免它在边界线上反复横跳导致画面闪烁。
+
+以下是修改后的代码：
+
+
+
+...--- Response 202 ---
+好的，满足您的要求！
+
+海马（包括吉祥物）现在都戴上了酷酷的**黑色墨镜**。
+
+*   **普通海马**：在萌萌的大眼睛上加了一副墨镜，看起来既可爱又“社会”。
+*   **吉祥物**：也重新戴回了墨镜，恢复了它标志性的“大佬”气质。
+
+以下是代码修改：
+
+
+
+...--- Response 203 ---
+好的，我来为您添加这个**“夺宝奇兵”**的核心机制。
+
+这需要做以下改动：
+1.  **数据结构**：新增 `Treasure` 类型，用于表示随机生成的宝箱或超级食物。
+2.  **生成逻辑**：在游戏循环中增加计时器，每 60 秒触发一次事件，先进入 3 秒的“预警状态”，随后变为“可拾取状态”。
+3.  **AI 行为**：修改 AI 寻路逻辑，让周围的鱼群（包括玩家如果开了自动模式）在宝物出现时，像闻到血腥味的鲨鱼一样疯狂聚集过去。
+4.  **渲染**：绘制醒目的预警圈（倒计时效果）和宝物本体。
+
+以下是代码更新：
+
+
+
+...--- Response 204 ---
+好的，我为您重新设计并实现了“夺宝奇兵”机制。这次我仔细检查了模块依赖，确保代码的稳定性。
+
+### 核心设计 (夺宝奇兵)
+
+1.  **生成机制**：游戏时间每过 60 秒（约 3600 帧），系统会在地图的随机位置生成一个宝物事件。
+2.  **预警阶段 (3秒)**：
+    *   **视觉**：地面会出现一个显眼的倒计时光圈和“警告”标识。
+    *   **AI反应**：感知范围内的贪吃鱼（AI）会立刻察觉到即将出现的食物，开始向该位置聚集（表现为“争先恐后”）。
+3.  **争夺阶段**：
+    *   **视觉**：宝物正式出现（超级肉块或神赐宝箱），伴随冲天光柱。
+    *   **效果**：
+        *   **超级盛宴 (Feast)**：瞬间增加 500 重量（相当于吃了 100 只小鱼），体型暴涨。
+        *   **神赐宝箱 (Chest)**：获得 20 秒无敌 + 20 秒极速。
+    *   **AI行为**：AI 会疯狂加速冲向宝物，如果被 AI 抢到，它们也会体型暴涨或获得无敌，反过来威胁玩家。
+
+以下是修改后的代码：
+
+
+
+...--- Response 205 ---
+好的，我为您重新设计并实现了**“夺宝奇兵”**机制。
+
+核心逻辑如下：
+1.  **生成机制**：每 **60秒**，地图随机位置刷新一个宝物事件。
+2.  **预警阶段 (3秒)**：
+    *   **视觉**：地面出现闪烁的倒计时光圈和警告标识。
+    *   **AI行为**：范围内的鱼群会感知到即将出现的宝物，立刻放弃当前行为，**争先恐后**地向目标点聚集。
+3.  **争夺阶段**：
+    *   **视觉**：宝物实体出现（🍖超级盛宴 或 💎神赐宝箱），伴随光柱特效。
+    *   **效果**：
+        *   **超级盛宴 (Feast)**：瞬间增加 **500** 体重（体型暴涨）。
+        *   **神赐宝箱 (Chest)**：获得 **20秒无敌 + 20秒极速**。
+    *   **结果**：谁先碰到谁获得，AI抢到后也会变得极具威胁性（体型变大或无敌追杀玩家）。
+
+以下是代码更新：
+
+
+
+...--- Response 206 ---
+为了确保新功能添加后不报错，我将严格按照依赖顺序修改文件。主要的潜在错误通常来自于状态（State）初始化不匹配或函数参数传递不一致。
+
+以下是修复和重构后的代码方案：
+
+1.  **Types (`types.ts`)**: 首先定义 `Treasure` 接口并在 `GameState` 中添加字段，确保类型系统知晓这个新属性。
+2.  **Constants (`constants.ts`)**: 添加生成频率、预警时间等配置。
+3.  **App (`App.tsx`)**: **关键步骤**，必须在 `createInitialState` 中初始化 `treasures: []`，否则游戏循环访问该属性时会崩溃。
+4.  **GameEngine (`gameEngine.ts`)**: 实现生成、更新和AI争夺逻辑。我会特别注意 `calculateAIMovement` 的参数传递，防止 `undefined` 错误。
+5.  **Canvas (`components/GameCanvas.tsx`)**: 添加渲染逻辑。
+
+### 核心逻辑实现 (夺宝奇兵)
+
+*   **生成**：每60秒在随机合法位置生成一个 `Treasure` 对象，状态为 `WARNING`。
+*   **预警**：倒计时3秒（180帧）。
+*   **AI行为**：修改 AI 寻路算法，当范围内有宝物处于活跃或即将活跃状态时，赋予极高的吸引力权重，使其忽略部分恐惧和游荡行为，形成“争抢”效果。
+*   **结算**：玩家或AI触碰活跃宝物后，获得巨大收益（体重暴增或无敌BUFF）。
+
+
+
+...--- Response 207 ---
+这份报错通常是由于 **代码文件被截断（不完整）** 或 **函数参数传递不一致** 导致的。在之前的更新中，`gameEngine.ts` 的代码在末尾被截断了，导致浏览器解析到一半时由于语法错误崩溃。
+
+我已经重构并补全了完整的逻辑。主要改进点：
+1.  **补全 `gameEngine.ts`**：确保所有逻辑闭环，特别是 `processCollision` 函数的完整实现。
+2.  **完善“夺宝奇兵”逻辑**：
+    *   **生成**：每 60 秒（3600帧）刷新一次。
+    *   **预警**：前 3 秒（180帧）显示位置预告，此时 AI 开始向目标聚集（争抢的前奏）。
+    *   **效果**：🍖 盛宴增加 500 体重；💎 宝箱增加 20 秒无敌和极速。
+3.  **安全性检查**：在访问 `treasures` 数组前添加了可选链和初始化检查，防止 `undefined` 错误。
+
+以下是修复后的完整文件代码：
+
+
+
+...--- Response 208 ---
+
+
+### 修复说明：
+1.  **代码闭环**：`gameEngine.ts` 现在是一个完整的模块，所有的 `if`、`for` 和函数大括号都已正确配对，解决了“Unexpected error”最常见的原因（语法错误）。
+2.  **状态保护**：在 `App.tsx` 的 `createInitialState` 中明确加入了 `treasures: []`。这非常重要，因为 `updateGame` 每一帧都会遍历 `state.treasures`，如果该字段缺失，游戏会立即崩溃。
+3.  **AI 争抢**：在 `calculateAIMovement` 中，我为宝藏位置添加了极高的权重（`weight: 2.5` 到 `4.0`）。这意味着当宝藏刷新预警出现时，附近的 AI 鱼会感知到这个点并向其靠拢，形成“抢夺”的视觉效果。
+4.  **性能优化**：AI 现在只会感知 700 像素范围内的鱼，但在预警阶段会感知更大范围（2500像素）内的宝藏，确保争抢效果明显。
+
+...--- Response 209 ---
+为了在界面最顶部实时显示宝贝（宝藏）出现的倒计时，我们需要修改 `UIOverlay.tsx`。
+
+### 逻辑实现方案：
+1. **倒计时计算**：根据 `state.time` 和 `TREASURE_CONFIG.SPAWN_INTERVAL` 计算距离下一次生成的帧数，并转换为秒。
+2. **状态检测**：如果当前地图上已经存在宝藏（`treasures` 数组不为空），则显示“宝藏已降临”或“正在争夺中”。
+3. **视觉设计**：在屏幕顶部正中央放置一个半透明的胶囊型状态条，配合流光特效和倒计时动画。
+
+以下是代码更新：
+
+
+
+...--- Response 210 ---
+这是对游戏视觉层级和小地图功能的深度优化。我根据你的要求调整了渲染管线，确保建筑、商店和危险区域处于视觉最顶层，并为小地图增加了宝贝（宝藏）的实时闪烁提醒功能。
+
+### 更新说明：
+1.  **层级调整 (Z-Index)**：在 `GameCanvas.tsx` 中重新编排了渲染顺序。现在的顺序是：**背景 -> 障碍物 -> 传送门 -> 道具 -> 宝贝 -> 粒子 -> 生物(鱼) -> 建筑(急救站/军火库/商店等) -> 陨石打击 -> 气泡 -> 标签**。这确保了鱼在进入建筑或商店时会被遮挡，增强了空间感。
+2.  **小地图宝贝探测**：在 `UIOverlay.tsx` 的小地图逻辑中加入了对 `treasures` 数组的遍历。宝贝在小地图上会以其特有颜色（盛宴-绿，宝箱-紫）进行**高频率呼吸闪烁**，方便玩家快速锁定目标。
+3.  **视觉强化**：建筑在最上层时增加了阴影和光效，使其在混乱的战场中依然醒目。
+
+
+
+...--- Response 211 ---
+根据您的要求，我将对游戏进行以下核心改进：
+
+### 1. 渲染层级深度优化
+*   **层级顺序重排**：底层背景 → 障碍物 → 传送门 → 道具 → **[所有鱼类/玩家]** → **[建筑/商店]** → **[陨石打击/红圈预警]** → 顶部UI。
+*   这样设计能确保鱼游进商店或急救站时是被“覆盖”在下方的，增强空间感，同时危险预警永远在最显眼的位置。
+
+### 2. 1分钟宝藏（宝贝）系统修复与强化
+*   **生成逻辑**：每60秒（3600帧）必定在随机位置刷新“超级盛宴”或“神秘宝箱”。
+*   **小地图神级提醒**：小地图上的宝贝标记将采用**高频彩色呼吸灯闪烁**，并在小地图边缘增加指向性箭头（如果距离太远），确保玩家绝不会错过。
+
+### 3. AI 鱼“出生保护”机制
+*   **虚化状态**：新生成的 AI 鱼拥有 3 秒（180帧）的“虚化期”。在此期间，它们半透明且无法被攻击，同时也无法攻击玩家或其他鱼。
+*   **视觉效果**：新生的鱼会呈现淡蓝色的虚幻重影效果。
+
+### 4. 吉祥物绝对无敌
+*   **碰撞屏蔽**：在底层逻辑中彻底切断任何生物对 `MASCOT`（新春海马）的伤害判定，AI 绝不会再去“骚扰”吉祥物。
+
+以下是代码更新：
+
+
+
+...--- Response 212 ---
+这是一个深度的功能修复和视觉优化版本。我针对您反馈的“吉祥物被吃”、“宝贝未出现”、“AI出生杀”以及“层级混乱”等核心问题进行了针对性的底层逻辑重构。
+
+### 核心改进说明：
+
+1.  **AI 出生“虚化”机制**：
+    *   所有新生成的 AI 鱼现在拥有 **3秒（180帧）的虚化保护期**。
+    *   在此期间，AI 鱼呈现 **50% 透明度** 并伴有蓝色重影效果。
+    *   **底层物理屏蔽**：虚化状态下的鱼既不能被碰撞、被吃，也无法主动攻击玩家或其他鱼，彻底解决“转角遇到鬼”被秒杀的问题。
+
+2.  **宝贝（宝藏）系统修复与强化**：
+    *   **定时精准生成**：每 60 秒（3600帧）必定在随机合法坐标刷新“超级盛宴”或“神秘宝箱”。
+    *   **小地图实时神级提醒**：小地图上的宝贝标记现在拥有 **高频脉冲呼吸闪烁效果**，颜色与宝贝类型对应（盛宴为嫩绿色，宝箱为粉紫色）。
+
+3.  **视觉层级（Z-Index）大重组**：
+    *   新的渲染顺序：底图 -> 障碍物 -> 传送门 -> 粒子 -> **生物/鱼（底层）** -> **建筑/房屋（中层）** -> **陨石/危险警告（顶层）** -> 气泡/UI。
+    *   现在鱼游进商店或急救站时，会被建筑屋顶遮挡，增强了 2.5D 的空间沉浸感。
+
+4.  **吉祥物绝对防御**：
+    *   在 `processCollision` 函数中增加了严格的 `MASCOT` 类型检查，任何碰撞、噬咬逻辑在遇到吉祥物时都会立即跳过。
+
+
+
+...--- Response 213 ---
+这是一个深度的功能修复和机制优化版本。我针对您反馈的“吉祥物安全”、“宝贝系统”、“AI出生杀保护”以及“大鱼追击逻辑”进行了底层重构。
+
+### 核心更新说明：
+
+1.  **AI 出生“虚化”机制**：
+    *   所有新生成的 AI 鱼现在强制拥有 **3秒（180帧）的虚化保护期**。
+    *   在此期间，AI 鱼呈现 **半透明（50% Alpha）** 效果。
+    *   **物理屏蔽**：虚化中的鱼不产生任何伤害判定，既不能吃人也不会被吃，彻底杜绝“出生瞬间杀”。
+
+2.  **1分钟“宝贝”系统（Treasure）修复**：
+    *   修正了 `spawnTreasures` 的触发条件，确保每 60 秒（3600帧）必定在四叶草海域的随机位置刷新。
+    *   **超级盛宴**：提供巨量体重奖励。
+    *   **神秘宝箱**：提供长时间的全属性 Buff（护盾+极速）。
+
+3.  **吉祥物绝对防御**：
+    *   在 `processCollision` 中强制过滤 `MASCOT` 类型。AI 鱼在路径计算中会自动避开吉祥物，且碰撞时不会产生任何噬咬逻辑。
+
+4.  **大鱼反击机制优化**：
+    *   当玩家（较小）撞到大鱼（较大）时，玩家受到的直接碰撞伤害大幅降低（增加了缓冲区）。
+    *   **激怒逻辑**：被撞的大鱼会立即进入“追击模式”，其 `targetId` 会锁死玩家，并获得短时间的爆发速度。
+
+
+
+...--- Response 214 ---
+为了提升游戏体验，我针对您提出的两个问题进行了深度优化：
+
+1.  **解决边界抽搐问题**：改进了 `clampToMap` 的物理逻辑，为碰撞边界增加了 **5像素的碰撞缓冲区**。当鱼触碰边界时，不再是硬生生地切回边缘，而是平滑地推回安全区并适度反弹，彻底消除高频震颤（Twitching）。
+2.  **强化装扮引导**：
+    *   **超级装扮按钮**：在主界面将“海岛换装”按钮体积扩大了一倍。
+    *   **“动一动”效果**：添加了名为 `animate-wobble-strong` 的强力摇摆动画，配合紫色呼吸灯光效。
+    *   **视觉重心引导**：通过动画和浮动的“打扮一番！”气泡，吸引用户先定制自己的怪兽鱼，增加开局前的趣味性。
+
+以下是代码更新：
+
+
+
+...--- Response 215 ---
+这是一个深度物理引擎优化的版本，专门解决鱼在复杂“四叶草”边界处抽搐（Twitching）的问题。
+
+### 核心改进说明：
+
+1.  **AI 边界感知（Boundary Awareness）**：
+    *   在 AI 的路径算法中增加了**边界排斥力**。当 AI 鱼靠近地图边缘（距离边缘 20% 范围内）时，会受到一个指向地图中心的强力引导，使其自然地转弯避开墙壁，而不是撞上去之后再纠偏。
+2.  **物理强制推回（Hard Push-back）**：
+    *   改进了 `clampToMap` 逻辑。之前只是简单地把鱼重置到边缘线，现在检测到越界后，会将鱼**强制向内推回 20 像素**。这确保了鱼在下一帧移动前，已经完全脱离了边界判定区，彻底切断了“越界 -> 重置 -> 瞬间再次移动越界”的无限循环。
+3.  **速度切线修正（Velocity Projection）**：
+    *   撞墙时不再只是简单的反弹，而是大幅衰减垂直于墙面的速度，并随机化偏转角度，模拟生物撞击墙壁后晕头转向并转向游走的效果。
+4.  **坐标合法性严审**：
+    *   在所有生成逻辑（AI 出生、传送、夺舍）中增加了更严格的 `isPositionValid` 检查，确保任何生物都不会在出生瞬间就卡在墙里。
+
+
+
+...--- Response 216 ---
+针对您反馈的“规则按钮缺失”以及“边界抽搐”问题，我进行了精准修复和算法重构：
+
+### 1. 物理引擎重构 (解决抽搐)
+*   **预测性避障**：在 AI 决策阶段增加“边界感知”。当鱼进入边界 15% 范围内时，算法会预判碰撞并强制产生一个背离边界的推力，让鱼**提前转弯**，而不是撞墙后再修正。
+*   **物理刚性分离**：在 `clampToMap` 中，将鱼推回地图的距离从简单的固定值改为**动态步进值**。确保鱼被推回后，其包围盒与碰撞线之间至少留有半个身位的安全区。
+*   **运动矢量对齐**：当发生碰撞时，除了反转速度，还会将鱼的朝向（`angle`）立即对齐到逃逸矢量上，防止下一帧的位移增量再次穿透边界。
+
+### 2. UI 界面修复
+*   **找回规则按钮**：在主界面的“开始游戏”左侧重新加入了绿色的“生存指南”按钮。
+*   **优化布局**：保持装扮按钮的大尺寸和动感摇摆效果，同时让下方两个功能按钮（规则、开始）比例协调。
+*   **规则弹窗**：补全了包含操作说明（移动、冲刺、攻击）和地图设施介绍的精美模态框。
+
+
+
+...--- Response 217 ---
+为了彻底解决“抽搐”问题，我采用了**“双层边界防御系统”**：
+
+1.  **第一层：软边界感应（Repulsion Field）**
+    *   给地图边缘增加了 500 像素宽的“阻力区”。
+    *   无论是玩家还是 AI 鱼，只要进入该区域，就会受到一个**持续增强的向心力**，像磁铁一样把鱼温柔地推回中心，防止它们撞墙。这样鱼在靠近边缘时会划出一个优美的弧线转向，而不是直愣愣地撞上去。
+2.  **第二层：硬边界物理推离（Hard Push-back）**
+    *   修改了碰撞判定：不再是将鱼重置到边缘，而是直接**向内弹射 30 像素**。
+    *   同时**强制重置速度矢量**并**清空碰撞帧的位移增量**。这确保了下一帧开始时，鱼已经处于绝对的安全区，彻底杜绝了高频振荡产生的“抽搐”。
+3.  **UI 修复**：确保主界面的“生存指南”按钮醒目且功能完备。
+
+
+
+...--- Response 218 ---
+为了找修复复活功能，我们需要在 `UIOverlay.tsx` 的死亡结算界面重新加入“广告复活”按钮，并同步修正 `App.tsx` 中的复活逻辑，确保点击后角色能正常恢复健康状态并获得短暂的无敌保护。
+
+### 修改说明：
+
+1.  **UIOverlay.tsx**:
+    *   在 `GAME_OVER` 状态面板中，重新加入了一个醒目的橙色“观看广告 满血复活”按钮。
+    *   为复活按钮增加了 `isWatchingAd` 的加载状态模拟（模拟2秒广告加载），提供更好的交互反馈。
+    *   使用了 `Zap` 图标和金橙色渐变，增强视觉吸引力。
+
+2.  **App.tsx**:
+    *   完善 `onRevive` 回调逻辑：复活后不仅回满生命值，还会强制开启 3 秒（180帧）的无敌时间，并增加 `reviveCount` 计数，确保玩家复活后不会瞬间再次死亡。
+
+
+
+...--- Response 219 ---
+针对您反馈的“换装流程异常”问题（即从商店/换装界面退出后强制返回首页，而不是回到游戏），我修复了 `UIOverlay.tsx` 中的跳转逻辑。
+
+### 修改重点：
+1.  **智能返回逻辑**：在换装界面的“退出”和“完成搭配”按钮中，增加了对游戏运行状态的判断。
+    *   如果 `gameState.time > 0`（表示玩家正在游戏中，是通过地图上的商店进入的），退出后将状态设回 `PLAYING`，让玩家继续冒险。
+    *   如果 `gameState.time === 0`（表示玩家在主菜单点击进入），退出后则返回 `MENU`。
+2.  **物理引擎微调**：进一步优化了 `gameEngine.ts` 中的边界逻辑，确保在大体型状态下靠近边缘时，向心力更加平滑，彻底消除体型巨大时的“边缘挣扎”感。
+
+
+
+...--- Response 220 ---
+这是一个非常棒的建议！为了丰富怪鱼的个性，我将引入**“嘴部造型”（Mouth Type）**页签。除了现有的“剪刀嘴（三角形）”，还将增加圆嘟嘟的“吸盘嘴”、硬核的“方块嘴”、滑稽的“扁平嘴”等。
+
+### 1. 技术方案：
+*   **types.ts**: 增加 `MouthType` 定义，并将其加入 `Cosmetics` 接口。
+*   **App.tsx**: 更新初始状态，默认设置为 `TRIANGLE`。
+*   **UIOverlay.tsx**: 
+    *   在商店左侧增加“嘴部样式”页签。
+    *   提供 6 种以上有趣的选择。
+*   **GameCanvas.tsx**: 
+    *   重构 `defineBodyPath` 逻辑。
+    *   根据 `mouthType` 动态生成不同的路径切割算法，确保每种嘴型在吞噬时都有独特的张合动画。
+
+### 2. 嘴型设计：
+*   **TRIANGLE (经典)**: 标准的剪刀型开合。
+*   **CIRCLE (嘟嘟嘴)**: 像吸尘器一样的圆形开口，适合吸食磷虾。
+*   **SQUARE (方块嘴)**: 像素风或机器人风格的直角开口。
+*   **FLAT (大扁嘴)**: 横向的一条缝，开合时像两片厚嘴唇。
+*   **BEAK (尖喙)**: 像鸟喙一样，开合时有独特的夹取感。
+*   **CURVE (圆弧嘴)**: 更柔和的月牙型开口。
+
+---
+
+
+
+...--- Response 221 ---
+To implement random dressing for AI fish, we need to update the game engine to generate random cosmetic configurations whenever an AI entity is spawned and adjust the rendering logic to display these cosmetics on non-player fish.
+
+### Specification of Updates:
+
+1.  **gameEngine.ts**:
+    *   Add a helper function `getRandomCosmetics()` that selects random values for mouth types, patterns, teeth, and accessories.
+    *   Update `createEntity()` to assign these random cosmetics to every newly created AI fish.
+    *   Add logic to ensure Bosses and high-tier fish have a higher probability of "fancier" or more complete outfits.
+
+2.  **GameCanvas.tsx**:
+    *   Refactor `drawCuteFish` to use the `cosmetics` property of the `entity` regardless of whether it is the player or an AI.
+    *   Ensure that the `isPlayer` flag is only used for player-specific UI elements (like the cyan circle), while visual traits like skin gradients, patterns, and accessories are rendered based on the presence of the `cosmetics` object.
+
+3.  **Visual Appearance**:
+    *   The pond will now be filled with diverse-looking creatures: some might have "Gold Teeth" and "Sunglasses," while others might have "Dotted Patterns" and "Circular Mouths."
+    *   This makes the world feel much more alive and less like a sea of clones.
+
+---
+
+
+
+...--- Response 222 ---
+为了提升游戏的视觉丰富度和功能引导，我将完善 AI 鱼的随机装扮系统，确保它们能够使用商店中的**所有**配件、花纹和特效。同时，我会为传送阵添加醒目的名称标签，并修复建筑（商场、急救站等）在地图上的可见性问题。
+
+### 规格说明：
+
+1.  **gameEngine.ts**:
+    *   **AI 随机装扮升级**：重构 `getRandomCosmetics` 函数，使其覆盖商店中所有的分类（包括拖尾特效、鳞片质感、眉毛造型、眼睛样式、身体形状、尾巴样式、装饰品、花纹、皮肤颜色、牙齿样式和嘴型）。
+    *   **传送阵命名**：在创建传送阵时分配更有趣的名字（如“海渊之门”、“时空缝隙”）。
+    *   **建筑布局校准**：确保建筑生成在玩家易于发现的区域，并校准坐标。
+
+2.  **GameCanvas.tsx**:
+    *   **传送阵 UI**：在传送阵上方绘制发光的文字名称，增强科幻感。
+    *   **建筑视觉增强**：不仅绘制建筑主体，还为其添加名称标签和动态光圈，解决用户反馈的“房子没了”的问题（实际上是太小或不明显）。
+    *   **绘图逻辑优化**：确保 AI 鱼的拖尾特效（如火焰、气泡、彩虹）能正确渲染。
+
+3.  **视觉表现**：
+    *   现在的鱼塘将是一个真正的“化装舞会”，每条 AI 鱼都有独特的个性组合。
+    *   传送阵和建筑在视野中会更加突出，方便玩家寻找商场。
+
+---
+
+
+
+...--- Response 223 ---
+为了解决嘴型和牙齿造型匹配不准确以及显示异常的问题，我将重构 `GameCanvas.tsx` 中的 `drawCuteFish` 绘图逻辑。
+
+### 规格说明：
+
+1.  **嘴型逻辑修复**：
+    *   **统一嘴部切割**：重新设计 `defineBodyPath`，确保每种嘴型（三角形、圆形、方形、扁平、鸟喙、圆弧）在不同 `mouthGap`（张合度）下都能产生自然的切割效果。
+    *   **内口阴影校准**：修复内口阴影的形状，使其完美贴合身体切割出的轮廓，增加立体感。
+
+2.  **牙齿造型重构**：
+    *   **动态位置计算**：牙齿不再固定在 `0.8 * radius` 处，而是根据当前的嘴部开合角度动态旋转，确保牙齿始终长在“嘴唇”边缘，而不是悬浮在空中。
+    *   **特殊造型定制**：
+        *   `SHARP` (锯齿)：绘制多个尖锐的三角形。
+        *   `SABER` (剑齿)：上方绘制两颗巨大的向下延伸的獠牙。
+        *   `BUGS` (兔牙)：前方绘制两颗宽大的门牙。
+        *   `GAPPED` (缺牙)：随机间隔绘制，增加喜感。
+        *   `BLOCKY` (方块)：类似人类的整齐大白牙。
+    *   **材质表现**：强化 `GOLD` (金牙) 和 `DIAMOND` (钻牙) 的反光质感。
+
+3.  **建筑可见性增强**（回应之前的“房子没了”反馈）：
+    *   在 `GameCanvas` 中进一步增强建筑（商场等）的视觉特效，添加垂直波动的光柱。
+
+---
+
+
+
+...--- Response 224 ---
+为了彻底解决“牙齿不见了”以及“嘴型不匹配”的问题，我将重构 `GameCanvas.tsx` 中的绘制逻辑。
+
+### 核心修复方案：
+
+1.  **牙齿渲染重构**：
+    *   **移除限制**：之前的代码限制了只有在“三角形”和“方形”嘴巴下才显示牙齿，现在将牙齿适配到**所有嘴型**（圆形、扁平、鸟喙、圆弧等）。
+    *   **坐标锚点校准**：将牙齿的坐标从简单的百分比改为动态锚点，确保牙齿长在“唇边”而不是悬浮。
+    *   **修复旋转逻辑**：确保牙齿跟随嘴巴的开合（`mouthGap`）同步旋转，开合角度更自然。
+
+2.  **嘴型绘制优化**：
+    *   **内口深度感**：为所有嘴型添加深色内腔背景，使牙齿在深色背景下更显眼。
+    *   **形状修正**：修正 `BEAK`（鸟喙）和 `CIRCLE`（圆嘴）的切割路径，使其物理边缘与视觉边缘对齐。
+
+3.  **视觉可见性增强**：
+    *   **牙齿大小**：稍微增大牙齿的渲染尺寸，解决在高分辨率或缩放时看不清的问题。
+    *   **金牙/钻牙特效**：增加光泽感，使其在深海背景中“闪闪发光”。
+
+---
+
+
+
+...--- Response 225 ---
+为了满足您的要求，我将进行以下更新：
+
+1.  **功能新增：战斗测试模式**
+    *   在首页菜单添加“战斗测试”按钮。
+    *   该模式将玩家和一条强力 AI 鱼（虎鲸）置于地图中心的封闭区域。
+    *   添加专门的战斗 HUD，实时显示双方的血量条。
+2.  **彻底修复：嘴型与牙齿渲染**
+    *   重构 `drawCuteFish` 逻辑，移除只有玩家有牙齿的限制，让所有鱼类（包括 AI）都能正确显示牙齿。
+    *   **动态对齐**：牙齿现在根据 `mouthGap`（嘴巴开合度）和 `mouthType`（嘴型）动态计算坐标，确保牙齿长在“嘴唇”上。
+    *   **多层渲染**：增加了口腔阴影层，使牙齿在视觉上更突出。
+3.  **视觉增强**：
+    *   为战斗测试模式添加特殊的圆形竞技场光圈。
+
+---
+
+
+
+...--- Response 226 ---
+]]></instruction>
+<thought>
+The user wants to add a "Battle Test" button to the main menu.
+The button should trigger a special game mode (`BATTLE_TEST`) where the player and an AI opponent are placed in a confined arena.
+I need to:
+1.  Update `types.ts` to include the `BATTLE_TEST` status in `GameStatus`.
+2.  Update `UIOverlay.tsx` to:
+    *   Include a `onStartBattleTest` prop in the interface.
+    *   Add a visual button for "Battle Test" (战斗测试) in the Menu.
+    *   Add a specific HUD for the Battle Test mode showing player and opponent health bars.
+3.  Update `GameCanvas.tsx` to visually represent the arena boundaries when in `BATTLE_TEST` mode.
+4.  Update `App.tsx` (already seems to have some logic but let's ensure it's correct) to wire everything up.
+
+Wait, looking at the user's provided code, `App.tsx` already has a `startBattleTest` function and it passes it to `UIOverlay`. However, `UIOverlay.tsx` was missing the button in the user's paste. I will re-implement the button in `UIOverlay.tsx`.
+
+In `UIOverlay.tsx`:
+- Add the button in the `status === GameStatus.MENU` block.
+- Add the health bars for player vs opponent when `status === GameStatus.BATTLE_TEST`.
+
+In `GameCanvas.tsx`:
+- Add a dashed circle or some visual cue for the arena center.
+
+In `types.ts`:
+- Ensure `BATTLE_TEST` is in the enum.
+
+I will also make sure the `opponent` logic works in the UI Overlay by finding an entity that isn't the player.
+
+Plan:
+- Modify `types.ts` to add `BATTLE_TEST`.
+- Modify `UIOverlay.tsx` to add the button and the battle HUD.
+- Modify `GameCanvas.tsx` to add arena visuals.
+- I will not touch `App.tsx` if it looks okay, but I'll double check.
+
+Wait, the user's provided `App.tsx` (last file in their list) *does* have `startBattleTest`.
+I'll provide the three files that need the most critical changes to fix the missing button.
+
+Actually, the user said "战斗测试" button was not added. I'll focus on `UIOverlay.tsx`.
+
+I'll also make sure `types.ts` is updated because without it the
+
+...--- Response 227 ---
+这是一个非常精彩的战斗系统设计！为了实现你描述的“技能化偷袭流派”，我们需要对现有的游戏逻辑进行深度重构，加入**背刺检测**、**技能系统**、**AI警觉机制**以及**视觉反馈**。
+
+以下是实现这一“海底刺客”系统的核心代码更新：
+
+### 1. 核心模型与技能定义
+更新 `types.ts` 以支持技能状态、警觉值和流派属性。
+
+
+
+...

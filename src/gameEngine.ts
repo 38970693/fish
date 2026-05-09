@@ -1,5 +1,5 @@
 
-import { CREATURES, WORLD_SIZE, MAX_ENTITIES, BOOST_CONFIG, MAX_OBSTACLES, GAME_MECHANICS, MAX_POWERUPS, METEOR_CONFIG, EVOLUTION_THRESHOLDS, SKINNY_PHRASES, REVERSAL_PHRASE, PORTAL_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG } from './constants';
+import { CREATURES, WORLD_SIZE, MAX_ENTITIES, BOOST_CONFIG, MAX_OBSTACLES, GAME_MECHANICS, MAX_POWERUPS, METEOR_CONFIG, EVOLUTION_THRESHOLDS, SKINNY_PHRASES, REVERSAL_PHRASE, PORTAL_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG } from './constants';
 import { CreatureType, Entity, GameState, GameStatus, Obstacle, Particle, PlayerState, PowerUp, Hazard, Projectile, Portal, BiomeType, Building, BuildingType, Treasure, Cosmetics } from './types';
 
 const uuid = () => Math.random().toString(36).substr(2, 9);
@@ -48,7 +48,7 @@ const isPositionValid = (x: number, y: number, buffer: number = 0): boolean => {
 const clampToMap = (entity: {x: number, y: number, radius: number, angle: number, vx?: number, vy?: number}, isBattleTest?: boolean) => {
     const cx = MAP_SHAPE_CONFIG.CENTER_X;
     const cy = MAP_SHAPE_CONFIG.CENTER_Y;
-    
+
     if (!Number.isFinite(entity.x) || !Number.isFinite(entity.y)) {
         entity.x = cx;
         entity.y = cy;
@@ -59,23 +59,63 @@ const clampToMap = (entity: {x: number, y: number, radius: number, angle: number
     const dy = entity.y - cy;
     const currentDist = Math.hypot(dx, dy);
     const angle = Math.atan2(dy, dx);
-    
+
     // 如果是战斗测试，限制在中心的小区域内
     const maxR = isBattleTest ? 800 : getMapBoundaryRadius(angle);
+
+    // 边界缓冲区域：增大缓冲，让鱼不会在边界处反复横跳
+    const boundaryBuffer = Math.max(entity.radius * 2, 80); // 至少80px缓冲
     const limit = maxR - entity.radius;
-    
-    const safetyPush = 30; 
-    
+    const softLimit = maxR - entity.radius - boundaryBuffer; // 软限制，开始减速区域
+
+    // 硬限制：超过此距离才强制推送
+    const hardLimit = maxR - entity.radius - 5;
+
     if (currentDist > limit) {
-        const correctedDist = limit - safetyPush;
+        // 在边界外，直接推回
+        const correctedDist = Math.max(limit - boundaryBuffer, limit * 0.95);
         entity.x = cx + Math.cos(angle) * correctedDist;
         entity.y = cy + Math.sin(angle) * correctedDist;
-        
+
         if (entity.vx !== undefined && entity.vy !== undefined) {
-             entity.vx *= -0.2; 
-             entity.vy *= -0.2;
-             const angleToCenter = Math.atan2(cy - entity.y, cx - entity.x);
-             entity.angle = angleToCenter + (Math.random() - 0.5) * 0.4;
+            // 计算朝向中心的角度
+            const angleToCenter = Math.atan2(cy - entity.y, cx - entity.x);
+
+            // 使用平滑的速度反转，而不是随机
+            const dotProduct = entity.vx * Math.cos(angleToCenter) + entity.vy * Math.sin(angleToCenter);
+
+            // 只有当速度朝向边界外时才反转
+            if (dotProduct > 0) {
+                // 计算垂直分量用于平滑转向
+                const perpX = -Math.sin(angleToCenter);
+                const perpY = Math.cos(angleToCenter);
+                const perpDot = entity.vx * perpX + entity.vy * perpY;
+
+                // 朝向中心反弹，加上原有的切向速度（平滑过渡）
+                entity.vx = -Math.abs(entity.vx) * 0.3 * Math.cos(angleToCenter) + perpX * perpDot * 0.7;
+                entity.vy = -Math.abs(entity.vy) * 0.3 * Math.sin(angleToCenter) + perpY * perpDot * 0.7;
+            }
+
+            // 平滑的角度调整，朝向中心
+            entity.angle = angleToCenter + (entity.angle - angleToCenter) * 0.3;
+        }
+    } else if (currentDist > softLimit) {
+        // 在软限制区域（边界附近），平滑减速而不是突然反弹
+        if (entity.vx !== undefined && entity.vy !== undefined) {
+            const penetrationRatio = (currentDist - softLimit) / (limit - softLimit);
+            const slowFactor = Math.max(0.2, 1 - penetrationRatio * 0.8);
+
+            // 平滑降低速度分量，朝向中心方向
+            const angleToCenter = Math.atan2(cy - entity.y, cx - entity.x);
+            const dotProduct = entity.vx * Math.cos(angleToCenter) + entity.vy * Math.sin(angleToCenter);
+
+            if (dotProduct > 0) {
+                entity.vx -= Math.cos(angleToCenter) * dotProduct * (1 - slowFactor) * 0.5;
+                entity.vy -= Math.sin(angleToCenter) * dotProduct * (1 - slowFactor) * 0.5;
+            }
+
+            // 平滑调整角度
+            entity.angle = angleToCenter + (entity.angle - angleToCenter) * slowFactor;
         }
     }
 };
@@ -126,20 +166,22 @@ export const createEntity = (type: CreatureType, x: number, y: number): Entity =
     lureActive: false,
     camoActive: false,
     ambushTimer: 0,
-    animOffset: Math.random() * 100, 
+    animOffset: Math.random() * 100,
     renderScale: 1.0,
     isInvulnerable: false,
     aggroTimer: 0,
     speedBoostTimer: 0,
     happyTimer: 0,
-    fearTimer: 0, 
+    fearTimer: 0,
     speechBubble: null,
     evolutionVisualTimer: 0,
     level: config.tier + 1, // Basic level assignment
     cosmetics: {
         teeth: 'NORMAL', skinColor: 'DEFAULT', pattern: 'NONE', scaleType: 'NONE', accessory: 'NONE',
         tailType: 'DEFAULT', bodyType: 'DEFAULT', mouthType: 'TRIANGLE', eyeType: 'NORMAL', eyebrowType: 'NONE', trailType: 'NONE'
-    }
+    },
+    // 新生成的鱼有3秒半虚状态保护
+    semiGhostTimer: TREASURE_CONFIG.SEMI_GHOST_DURATION
   };
 };
 
@@ -187,14 +229,12 @@ export const createBuildings = (): Building[] => {
 
 export const createPortals = (): Portal[] => {
     const portals: Portal[] = [];
-    const makePortal = (biome: BiomeType) => {
+    const names = ['浅滩之门', '珊瑚之门', '沼泽之门', '深渊之门'];
+    const biomes = [BiomeType.SHALLOWS, BiomeType.REEF, BiomeType.SWAMP, BiomeType.ABYSS];
+    biomes.forEach((biome, i) => {
         const pos = getRandomPosInBiome(biome);
-        portals.push({ id: uuid(), x: pos.x, y: pos.y, radius: PORTAL_CONFIG.RADIUS, angle: 0 });
-    };
-    makePortal(BiomeType.SHALLOWS);
-    makePortal(BiomeType.REEF);
-    makePortal(BiomeType.SWAMP);
-    makePortal(BiomeType.ABYSS);
+        portals.push({ id: uuid(), x: pos.x, y: pos.y, radius: PORTAL_CONFIG.RADIUS, angle: 0, name: names[i] });
+    });
     return portals;
 };
 
@@ -218,48 +258,67 @@ export const digestBasket = (state: GameState) => {
 };
 
 const updateAI = (entity: Entity, state: GameState) => {
-  const { player, entities, hazards, obstacles, treasures } = state; 
+  const { player, entities, hazards, obstacles, treasures } = state;
   if (entity.aggroTimer && entity.aggroTimer > 0) entity.aggroTimer--;
   if (entity.speedBoostTimer && entity.speedBoostTimer > 0) entity.speedBoostTimer--;
-  
+
+  // 更新半虚状态
+  if (entity.semiGhostTimer && entity.semiGhostTimer > 0) entity.semiGhostTimer--;
+
   if (entity.type === CreatureType.MASCOT) {
       entity.y += Math.sin(state.time * 0.05) * 1.5;
-      return; 
+      return;
   }
-  
+
   let agility = Math.max(0.02, GAME_MECHANICS.BASE_TURN_SPEED - (entity.radius * GAME_MECHANICS.SIZE_AGILITY_PENALTY));
-  
+
   let targetAngle = entity.angle;
   let finalSpeed = entity.speed;
 
-  // AI 逻辑：如果玩家使用了“诱惑”技能（变成肉块），且AI鱼由于比玩家小本该逃跑，现在被骗过来吃
+  // AI 逻辑：如果玩家使用了”诱惑”技能（变成肉块），且AI鱼由于比玩家小本该逃跑，现在被骗过来吃
   if (player.lureActive && player.level > entity.level) {
       let dx = player.x - entity.x;
       let dy = player.y - entity.y;
       targetAngle = Math.atan2(dy, dx);
       finalSpeed *= 1.5; // 被肉块诱惑，加速冲向玩家
   } else {
-      // 简化版AI，始终追逐玩家（战斗测试核心）
-      let dx = player.x - entity.x;
-      let dy = player.y - entity.y;
-      targetAngle = Math.atan2(dy, dx);
-      
-      // 如果玩家比自己大，逃跑
-      if (player.level > entity.level) {
-          targetAngle += Math.PI; // 反向逃跑
-          finalSpeed *= 1.1;
+      // 检查附近是否有宝物，有则奔向宝物
+      let hasTreasureTarget = false;
+      for (const treasure of treasures) {
+          if (treasure.status === 'ACTIVE' && dist(entity, treasure) < TREASURE_CONFIG.SWARM_DETECTION_RANGE) {
+              // 奔向宝物
+              const dx = treasure.x - entity.x;
+              const dy = treasure.y - entity.y;
+              targetAngle = Math.atan2(dy, dx);
+              finalSpeed *= TREASURE_CONFIG.SWARM_SPEED_BOOST; // 加速
+              hasTreasureTarget = true;
+              break;
+          }
+      }
+
+      if (!hasTreasureTarget) {
+          // 简化版AI，始终追逐玩家（战斗测试核心）
+          let dx = player.x - entity.x;
+          let dy = player.y - entity.y;
+          targetAngle = Math.atan2(dy, dx);
+
+          // 如果玩家比自己大，逃跑
+          if (player.level > entity.level) {
+              targetAngle += Math.PI; // 反向逃跑
+              finalSpeed *= 1.1;
+          }
       }
   }
-  
+
   let angleDiff = targetAngle - entity.angle;
   while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
   while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
   entity.angle += angleDiff * agility;
-  
-  entity.vx = Math.cos(entity.angle) * finalSpeed; 
+
+  entity.vx = Math.cos(entity.angle) * finalSpeed;
   entity.vy = Math.sin(entity.angle) * finalSpeed;
   entity.x += entity.vx; entity.y += entity.vy;
-  
+
   clampToMap(entity, state.status === GameStatus.BATTLE_TEST);
 };
 
@@ -267,49 +326,152 @@ const processCollision = (attacker: Entity | PlayerState, victim: Entity | Playe
   if (attacker.type === CreatureType.MASCOT || victim.type === CreatureType.MASCOT) return;
   const isFriendly = (e: Entity | PlayerState) => e.id === 'player' || ('ownerId' in e && e.ownerId === 'player');
   if (isFriendly(attacker) && isFriendly(victim)) return;
-  
+
   // 同类不能互吃
   if (attacker.type === victim.type) return;
+
+  // 半虚状态保护：新生成的鱼不能被吃也不能吃别人
+  const attackerIsSemiGhost = 'semiGhostTimer' in attacker && attacker.semiGhostTimer && attacker.semiGhostTimer > 0;
+  const victimIsSemiGhost = 'semiGhostTimer' in victim && victim.semiGhostTimer && victim.semiGhostTimer > 0;
+  if (attackerIsSemiGhost || victimIsSemiGhost) return;
+
+  // 计算距离
+  const distance = dist(attacker, victim);
+
+  // 限制偷袭检测范围
+  if (distance > AMBUSH_CONFIG.DETECTION_RANGE_MAX || distance < AMBUSH_CONFIG.DETECTION_RANGE_MIN * 0.5) {
+    // 超出范围时只有直接碰撞才能吃
+    if (distance > attacker.radius + victim.radius) return;
+  }
 
   const angleToVictim = Math.atan2(victim.y - attacker.y, victim.x - attacker.x);
   let angleDiff = angleToVictim - attacker.angle;
   while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
   while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-  if (Math.abs(angleDiff) > Math.PI / 3) return;
+  
+  // 检查是否为背面攻击（偷袭）
+  const isBackAttack = Math.abs(angleDiff) > AMBUSH_CONFIG.BACK_ANGLE_THRESHOLD;
+  const canEatForward = Math.abs(angleDiff) <= Math.PI / 3;
+  
+  // 如果不是正面也不是背面，不处理
+  if (!canEatForward && !isBackAttack) return;
 
-  // 吃鱼规则：等级高的吃等级低的，或者同等级下大鱼吃小鱼（小丑鱼除外，小丑鱼可以被同等级任何鱼吃）
-  const canEat = attacker.level > victim.level || 
-                 (attacker.level === victim.level && attacker.radius > victim.radius) ||
-                 (attacker.level === victim.level && victim.type === CreatureType.CLOWN_FISH && attacker.type !== CreatureType.CLOWN_FISH);
-
-  if (canEat) {
-      victim.health = 0;
-      if (attacker.id === 'player') {
-          const pState = attacker as PlayerState;
-          pState.weight += victim.config.weightValue;
-          pState.evolutionPoints += victim.config.weightValue;
-          pState.eatenHistory[victim.type] = (pState.eatenHistory[victim.type] || 0) + 1;
-          
-          attacker.health = Math.min(attacker.maxHealth, attacker.health + victim.config.weightValue * 2);
-          attacker.speechBubble = { text: getRandomPhrase(EAT_PHRASES), timer: 45, color: '#bef264' };
-          
-          // 更新玩家等级
-          const prevLevel = (attacker as PlayerState).level;
-          const newLevel = Math.floor((attacker as PlayerState).weight / 10) + 1;
-          if (newLevel > prevLevel) {
-              (attacker as PlayerState).level = newLevel;
-              (attacker as PlayerState).radius += 2; // 体型随等级变大
-              attacker.speechBubble = { text: `升级至 Lv.${newLevel}!`, timer: 60, color: '#fcd34d' };
-          }
-      }
+  // 计算体型比例
+  const sizeRatio = attacker.radius / victim.radius;
+  
+  // 判断是否可以从背后偷袭成功
+  let canEat = false;
+  let eatProbability = 0;
+  let damageMultiplier = 1.0;
+  
+  if (sizeRatio >= 2) {
+    // 大2倍以上：80% 直接吞噬（背面再加成）
+    eatProbability = AMBUSH_CONFIG.EAT_PROBABILITY.DOUBLE_OR_MORE;
+    if (isBackAttack) eatProbability = Math.min(1, eatProbability + 0.15);
+  } else if (sizeRatio >= 1.5) {
+    // 大1.5倍：30% 概率吞噬
+    eatProbability = AMBUSH_CONFIG.EAT_PROBABILITY.ONE_HALF_OR_MORE;
+    if (isBackAttack) eatProbability += 0.2;
+  } else if (sizeRatio >= 1.2) {
+    // 大1.2倍：10% 概率吞噬
+    eatProbability = AMBUSH_CONFIG.EAT_PROBABILITY.ONE_FIFTH_OR_MORE;
+    if (isBackAttack) eatProbability += 0.15;
   } else {
-      // 如果不能直接吃，则不造成伤害（或者可以保留微弱碰撞伤害，这里选择不造成伤害）
-      return;
+    // 大小相近：5% 概率（背面加成更少）
+    eatProbability = AMBUSH_CONFIG.EAT_PROBABILITY.SIMILAR;
+    if (isBackAttack) eatProbability += 0.1;
+  }
+  
+  // 同等级下大鱼吃小鱼（小丑鱼除外）
+  if (attacker.level === victim.level && attacker.radius > victim.radius) {
+    eatProbability = Math.max(eatProbability, 0.5);
+  }
+  if (attacker.level === victim.level && victim.type === CreatureType.CLOWN_FISH && attacker.type !== CreatureType.CLOWN_FISH) {
+    eatProbability = 0.7;
+  }
+  
+  // 等级压制：等级高的吃等级低的
+  if (attacker.level > victim.level) {
+    const levelDiff = attacker.level - victim.level;
+    eatProbability = Math.min(1, eatProbability + levelDiff * 0.15);
+  }
+  
+  // 随机判定
+  canEat = Math.random() < eatProbability;
+  
+  // 背刺额外伤害
+  if (isBackAttack && !canEat) {
+    // 即使没吃掉，背刺也能造成伤害
+    damageMultiplier = AMBUSH_CONFIG.BACK_DAMAGE_MULT;
+  }
+  
+  if (canEat) {
+    victim.health = 0;
+    const attackerIsPlayer = attacker.id === 'player';
+    const victimIsPlayer = victim.id === 'player';
+    
+    // 检查是否为逆转（小鱼反杀大鱼）
+    if (sizeRatio < AMBUSH_CONFIG.REVERSAL_SIZE_THRESHOLD && !attackerIsPlayer && victimIsPlayer) {
+      // 小鱼反杀大鱼！触发逆转特效
+      state.labels.push({
+        x: victim.x,
+        y: victim.y - 50,
+        text: REVERSAL_PHRASE,
+        color: '#ef4444'
+      });
+      // 逆转粒子特效
+      for (let i = 0; i < 30; i++) {
+        particles.push(createParticle(victim.x, victim.y, '#fcd34d'));
+        particles.push(createParticle(victim.x, victim.y, '#ef4444'));
+      }
+      state.score += Math.floor(victim.radius * 10);
+    }
+    
+    // 背刺成功提示
+    if (isBackAttack && attackerIsPlayer) {
+      attacker.speechBubble = { text: getRandomPhrase(AMBUSH_PHRASES), timer: 45, color: '#ef4444' };
+      for (let i = 0; i < 10; i++) particles.push(createParticle(attacker.x, attacker.y, '#ef4444'));
+    }
+    
+    if (attackerIsPlayer) {
+      const pState = attacker as PlayerState;
+      pState.weight += victim.config.weightValue;
+      pState.evolutionPoints += victim.config.weightValue;
+      pState.eatenHistory[victim.type] = (pState.eatenHistory[victim.type] || 0) + 1;
+      
+      attacker.health = Math.min(attacker.maxHealth, attacker.health + victim.config.weightValue * 2);
+      attacker.speechBubble = { text: getRandomPhrase(EAT_PHRASES), timer: 45, color: '#bef264' };
+      
+      // 更新玩家等级
+      const prevLevel = (attacker as PlayerState).level;
+      const newLevel = Math.floor((attacker as PlayerState).weight / 10) + 1;
+      if (newLevel > prevLevel) {
+        (attacker as PlayerState).level = newLevel;
+        (attacker as PlayerState).radius += 2;
+        attacker.speechBubble = { text: `升级至 Lv.${newLevel}!`, timer: 60, color: '#fcd34d' };
+      }
+    } else if (victimIsPlayer) {
+      // 玩家被吃
+      state.labels.push({
+        x: attacker.x,
+        y: attacker.y - 50,
+        text: getRandomPhrase(EAT_PHRASES),
+        color: '#ef4444'
+      });
+    }
+  } else if (damageMultiplier > 1.0) {
+    // 背刺造成伤害但没吃掉
+    const damage = victim.maxHealth * 0.3 * damageMultiplier;
+    victim.health -= damage;
+    victim.fearTimer = 60;
+    if (attacker.id === 'player') {
+      attacker.speechBubble = { text: getRandomPhrase(AMBUSH_PHRASES), timer: 30, color: '#fcd34d' };
+    }
   }
   
   if (attacker.radius > victim.radius * 1.1) {
-      attacker.renderScale = 1.1;
-      attacker.happyTimer = 30;
+    attacker.renderScale = 1.1;
+    attacker.happyTimer = 30;
   }
 };
 
@@ -319,7 +481,7 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
 
   if (state.status === GameStatus.PLAYING && state.entities.length < MAX_ENTITIES) {
       // Determine what to spawn based on player's level
-      const playerLevel = player.level;
+      const playerLevel = state.player.level;
       let typeToSpawn = CreatureType.PLANKTON;
       
       const r = Math.random();
@@ -581,6 +743,97 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
           radius: isShell ? 30 : 20
       });
   }
+
+  // ==================== 宝藏事件系统 ====================
+  // 每60秒生成一个宝藏，提前3秒显示预告
+
+  // 生成宝藏逻辑（每帧检查是否需要生成预告）
+  // 使用 state.time 来控制生成时机
+  const treasureSpawnTime = Math.floor(state.time / TREASURE_CONFIG.SPAWN_INTERVAL);
+  const timeSinceLastSpawn = state.time % TREASURE_CONFIG.SPAWN_INTERVAL;
+
+  // 在生成宝藏前3秒，创建预告
+  if (timeSinceLastSpawn === TREASURE_CONFIG.SPAWN_INTERVAL - TREASURE_CONFIG.WARNING_DURATION) {
+      // 生成一个随机位置（在地图边界内）
+      let spawnX: number, spawnY: number;
+      do {
+          spawnX = Math.random() * WORLD_SIZE;
+          spawnY = Math.random() * WORLD_SIZE;
+      } while (!isPositionValid(spawnX, spawnY, 100));
+
+      // 随机选择宝藏类型
+      const treasureTypes: Array<Treasure['type']> = ['FEAST', 'CHEST', 'GEM', 'FOOD'];
+      const randomType = treasureTypes[Math.floor(Math.random() * treasureTypes.length)];
+
+      // 创建预告状态的宝藏
+      const newTreasure: Treasure = {
+          id: uuid(),
+          x: spawnX,
+          y: spawnY,
+          type: randomType,
+          status: 'WARNING',
+          timer: TREASURE_CONFIG.WARNING_DURATION + 60 * 10, // 预告3秒 + 存在10秒
+          radius: TREASURE_CONFIG.RADIUS,
+          effect: randomType === 'FEAST' ? 'EXP' :
+                  randomType === 'CHEST' ? 'GOLD' :
+                  randomType === 'GEM' ? 'SKILL' : 'SHIELD',
+          rewardValue: randomType === 'FEAST' ? TREASURE_CONFIG.FEAST_REWARD :
+                      randomType === 'CHEST' ? TREASURE_CONFIG.CHEST_GOLD :
+                      randomType === 'GEM' ? 2 : TREASURE_CONFIG.FOOD_HEAL
+      };
+
+      state.treasures.push(newTreasure);
+
+      // 显示预告标签
+      state.labels.push({
+          x: spawnX,
+          y: spawnY - 80,
+          text: '宝贝出现！',
+          color: '#fcd34d'
+      });
+  }
+
+  // 更新宝藏状态
+  state.treasures.forEach(treasure => {
+      treasure.timer--;
+
+      // 预告结束，变为激活状态
+      if (treasure.status === 'WARNING' && treasure.timer <= 60 * 10 - TREASURE_CONFIG.WARNING_DURATION) {
+          treasure.status = 'ACTIVE';
+      }
+
+      // 宝藏激活状态下检测玩家拾取
+      if (treasure.status === 'ACTIVE') {
+          if (dist(player, treasure) < player.radius + treasure.radius) {
+              // 拾取宝藏
+              if (treasure.effect === 'EXP') {
+                  player.weight += treasure.rewardValue || 0;
+                  player.evolutionPoints += treasure.rewardValue || 0;
+                  player.speechBubble = { text: `+${treasure.rewardValue} 经验！`, timer: 60, color: '#fcd34d' };
+              } else if (treasure.effect === 'GOLD') {
+                  player.speechBubble = { text: `+${treasure.rewardValue} 金币！`, timer: 60, color: '#fbbf24' };
+              } else if (treasure.effect === 'SKILL') {
+                  player.skillLevel++;
+                  player.speechBubble = { text: '技能+1！', timer: 60, color: '#a855f7' };
+              } else if (treasure.effect === 'SHIELD') {
+                  player.shieldTimer = 300; // 5秒护盾
+                  player.speechBubble = { text: '获得护盾！', timer: 60, color: '#38bdf8' };
+              }
+
+              // 拾取特效
+              for (let i = 0; i < 20; i++) {
+                  particles.push(createParticle(treasure.x, treasure.y, '#fcd34d'));
+              }
+
+              // 标记删除
+              treasure.timer = 0;
+          }
+      }
+  });
+
+  // 移除过期或已拾取的宝藏
+  state.treasures = state.treasures.filter(t => t.timer > 0);
+  // ==================== 宝藏事件系统结束 ====================
 
   // 随机生成秘境喷泉
   if (Math.random() < 0.001 && state.fountains.length < 2) {

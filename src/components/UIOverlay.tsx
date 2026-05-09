@@ -1,10 +1,128 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType } from '../types';
-import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG } from '../constants';
+import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
+import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 import { drawCuteFish } from './GameCanvas';
 import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword } from 'lucide-react';
+import MiniMap from './MiniMap';
+
+// 宝物倒计时组件
+interface TreasureCountdownProps {
+  gameState: GameState;
+}
+
+const TreasureCountdown: React.FC<TreasureCountdownProps> = ({ gameState }) => {
+  const [countdown, setCountdown] = useState<number>(60);
+  const [hasUpcomingTreasure, setHasUpcomingTreasure] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 计算距离下一个宝藏的倒计时
+    const timeSinceLastSpawn = gameState.time % TREASURE_CONFIG.SPAWN_INTERVAL;
+    const secondsUntilTreasure = Math.ceil((TREASURE_CONFIG.SPAWN_INTERVAL - timeSinceLastSpawn) / 60);
+
+    setCountdown(secondsUntilTreasure > 0 ? secondsUntilTreasure : 60);
+
+    // 检查是否有即将出现的宝藏（3秒预告）
+    const hasWarning = gameState.treasures.some(t => t.status === 'WARNING');
+    setHasUpcomingTreasure(hasWarning);
+  }, [gameState.time, gameState.treasures]);
+
+  // 计算进度条百分比
+  const progressPercent = ((TREASURE_CONFIG.SPAWN_INTERVAL - countdown * 60) / TREASURE_CONFIG.SPAWN_INTERVAL) * 100;
+
+  return (
+    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40">
+      <div className={`
+        bg-slate-900/90 px-6 py-3 rounded-2xl border-2 shadow-xl backdrop-blur-sm
+        ${hasUpcomingTreasure ? 'border-yellow-400 animate-pulse' : 'border-cyan-500'}
+      `}>
+        <div className="flex items-center gap-4">
+          {/* 宝贝图标 */}
+          <div className={`
+            w-10 h-10 rounded-full flex items-center justify-center
+            ${hasUpcomingTreasure ? 'bg-yellow-400 animate-bounce' : 'bg-cyan-600'}
+          `}>
+            <Gift size={24} className={hasUpcomingTreasure ? 'text-slate-900' : 'text-white'} />
+          </div>
+
+          {/* 倒计时文字 */}
+          <div className="flex flex-col">
+            <span className={`
+              font-bold text-lg
+              ${hasUpcomingTreasure ? 'text-yellow-400 animate-pulse' : 'text-cyan-400'}
+            `}>
+              {hasUpcomingTreasure ? '宝贝出现!' : '宝贝倒计时'}
+            </span>
+            <span className="text-2xl font-black text-white">
+              {countdown}s
+            </span>
+          </div>
+
+          {/* 进度条 */}
+          <div className="w-32 h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+            <div
+              className={`
+                h-full transition-all duration-1000 rounded-full
+                ${hasUpcomingTreasure ? 'bg-yellow-400' : 'bg-gradient-to-r from-cyan-600 to-blue-400'}
+              `}
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 宝藏类型对应的图标和颜色
+const getTreasureIcon = (type: Treasure['type'], status: Treasure['status']) => {
+  const isWarning = status === 'WARNING';
+  switch (type) {
+    case 'FEAST':
+      return { icon: <Utensils size={20} />, color: '#fcd34d', label: '盛宴' };
+    case 'CHEST':
+      return { icon: <Box size={20} />, color: '#f59e0b', label: '宝箱' };
+    case 'GEM':
+      return { icon: <Gem size={20} />, color: '#a855f7', label: '宝石' };
+    case 'FOOD':
+      return { icon: <Star size={20} />, color: '#10b981', label: '食物' };
+    default:
+      return { icon: <Gift size={20} />, color: '#6366f1', label: '宝贝' };
+  }
+};
+
+// 宝藏提示组件（用于小地图上方显示即将出现的宝藏位置提示）
+const TreasureAlert: React.FC<{ treasures: Treasure[] }> = ({ treasures }) => {
+  const warnings = treasures.filter(t => t.status === 'WARNING');
+
+  if (warnings.length === 0) return null;
+
+  return (
+    <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 z-40">
+      {warnings.map((treasure, index) => {
+        const { icon, color, label } = getTreasureIcon(treasure.type, treasure.status);
+        return (
+          <div
+            key={treasure.id}
+            className="bg-slate-900/90 px-4 py-2 rounded-xl border-2 border-yellow-400 shadow-xl animate-bounce"
+            style={{
+              animationDelay: `${index * 0.2}s`,
+              borderColor: color
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span style={{ color }}>{icon}</span>
+              <span className="text-yellow-400 font-bold">
+                {label}即将出现！
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 interface UIOverlayProps {
   gameState: GameState;
@@ -21,7 +139,7 @@ interface UIOverlayProps {
   setGameStatus?: (status: GameStatus) => void;
 }
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onRestart, setGameStatus }) => {
+const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, setGameStatus }) => {
   const { player, status, entities } = gameState;
   const opponent = entities.find(e => e.id !== 'player' && e.type === CreatureType.ORCA);
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
@@ -68,6 +186,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   if (status === GameStatus.BATTLE_TEST || status === GameStatus.PLAYING) {
     return (
       <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
+        {/* 宝物倒计时显示 */}
+        <TreasureCountdown gameState={gameState} />
+
+        {/* 宝藏预警提示 */}
+        <TreasureAlert treasures={gameState.treasures} />
+
         <div className="flex justify-between items-start">
             {/* 玩家血条 */}
             <div className="w-80 bg-slate-900/80 p-4 rounded-2xl border-2 border-cyan-500 shadow-2xl pointer-events-auto">
@@ -89,6 +213,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         </span>
                     )}
                 </div>
+                <div className="flex justify-between items-center text-xs mt-1">
+                    <span className="text-orange-400">背后偷袭伤害: +{Math.round((AMBUSH_CONFIG.BACK_DAMAGE_MULT - 1) * 100)}%</span>
+                    <span className="text-slate-500">检测范围: {AMBUSH_CONFIG.DETECTION_RANGE_MAX}px</span>
+                </div>
             </div>
 
             {status === GameStatus.BATTLE_TEST && opponent && (
@@ -109,6 +237,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 <RefreshCw size={20}/> 返回主界面
             </button>
         </div>
+
+        {/* 小地图 */}
+        <MiniMap gameState={gameState} />
       </div>
     );
   }
@@ -121,7 +252,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
           const biomeCounts: Record<string, number> = {};
           Object.entries(player.eatenHistory || {}).forEach(([type, count]) => {
               const biome = CREATURES[type as CreatureType]?.nativeBiome;
-              if (biome) biomeCounts[biome] = (biomeCounts[biome] || 0) + count;
+              if (biome) biomeCounts[biome] = (biomeCounts[biome] || 0) + (count as number);
           });
           
           const sortedBiomes = Object.keys(biomeCounts).sort((a, b) => biomeCounts[b] - biomeCounts[a]);

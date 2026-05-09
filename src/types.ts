@@ -146,32 +146,35 @@ export interface Entity {
   maxHealth: number;
   speed: number;
   config: CreatureConfig;
-  targetId?: string | null; 
-  ownerId?: string; 
-  aggroTimer?: number; 
-  mouthOpenValue: number; 
-  isHidden?: boolean; 
-  
+  targetId?: string | null;
+  ownerId?: string;
+  aggroTimer?: number;
+  mouthOpenValue: number;
+  isHidden?: boolean;
+
   isIdle: boolean;
   lureActive: boolean;
   camoActive: boolean;
   ambushTimer: number;
 
-  animOffset: number; 
-  renderScale: number; 
-  isInvulnerable?: boolean; 
-  speedBoostTimer?: number; 
-  
+  animOffset: number;
+  renderScale: number;
+  isInvulnerable?: boolean;
+  speedBoostTimer?: number;
+
   happyTimer?: number;
   fearTimer?: number;
   speechBubble?: { text: string; timer: number; color: string } | null;
   evolutionVisualTimer?: number;
   cosmetics?: Cosmetics;
   level: number;
+
+  // 半虚状态保护（新生成的鱼不能被吃也不能吃别人）
+  semiGhostTimer?: number; // 半虚状态倒计时（帧数，3秒 = 180帧）
 }
 
 export interface PlayerState extends Entity {
-  weight: number; 
+  weight: number;
   evolutionPoints: number;
   traits: string[];
   stats: {
@@ -181,26 +184,26 @@ export interface PlayerState extends Entity {
     visionRadius: number;
   };
   eatenHistory: Record<CreatureType, number>;
-  basket: BasketItem[]; 
+  basket: BasketItem[];
   boost: {
     current: number;
     max: number;
     active: boolean;
   };
   isGodMode?: boolean;
-  isAutoMode?: boolean; 
-  reviveCount: number; 
-  isVip?: boolean; 
-  
+  isAutoMode?: boolean;
+  reviveCount: number;
+  isVip?: boolean;
+
   shieldTimer: number;
-  invulnerableTimer: number; 
+  invulnerableTimer: number;
   torpedoCount: number;
   torpedoCooldown: number;
-  
+
   isOverdrive: boolean;
   currentBiome: BiomeType;
-  biomeDebuffTimer: number; 
-  
+  biomeDebuffTimer: number;
+
   skillCooldown: number;
   skillMaxCooldown: number;
   skillLevel: number;
@@ -209,6 +212,9 @@ export interface PlayerState extends Entity {
   mechaTimer: number;
 
   cosmetics: Cosmetics;
+
+  // 半虚状态保护（玩家也可能有）
+  semiGhostTimer?: number;
 }
 
 export interface Particle {
@@ -301,10 +307,12 @@ export interface Treasure {
   id: string;
   x: number;
   y: number;
-  type: 'FEAST' | 'CHEST'; 
+  type: 'FEAST' | 'CHEST' | 'GEM' | 'FOOD';
   status: 'WARNING' | 'ACTIVE';
-  timer: number; 
+  timer: number;
   radius: number;
+  effect?: 'EXP' | 'GOLD' | 'SKILL' | 'SHIELD'; // 宝藏效果类型
+  rewardValue?: number; // 奖励数值
 }
 
 export interface Label {
