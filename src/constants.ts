@@ -89,7 +89,6 @@ export const BIOME_CONFIGS = {
 
 export const BUILDING_CONFIGS = {
   HOSPITAL: { radius: 150, cooldown: 300, color: '#ef4444', name: "深海急救站" },
-  ARMORY: { radius: 150, cooldown: 600, color: '#f59e0b', name: "军火库" },
   SHRINE: { radius: 150, cooldown: 900, color: '#8b5cf6', name: "龙王庙" },
   SHOP: { radius: 200, cooldown: 600, color: '#ec4899', name: "深海商场" } // Cooldown increased to 600 (10s)
 };
@@ -141,11 +140,11 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     type: CreatureType.PLANKTON,
     name: "磷虾",
     baseRadius: 6,
-    color: "#86efac", 
+    color: "#fbbf24", // Golden cookie color
     speed: 0.5, 
     health: 1,
     damage: 0,
-    weightValue: 0.1, 
+    weightValue: 1, // Increased to 1 for easier leveling
     behavior: 'PASSIVE',
     tier: 0,
     nativeBiome: BiomeType.SHALLOWS
@@ -164,7 +163,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'FLEE',
     tier: 1,
     description: "浅滩特产。在阳光区域非常灵活。",
-    nativeBiome: BiomeType.SHALLOWS
+    nativeBiome: BiomeType.SHALLOWS,
+    skillName: "逃跑",
+    skillDescription: "极速逃跑，短时间内大幅提升移动速度"
   },
   [CreatureType.BLUE_TANG]: {
     type: CreatureType.BLUE_TANG,
@@ -178,7 +179,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'FLEE',
     tier: 1,
     description: "速度型。游得非常快，容易躲避危险。",
-    nativeBiome: BiomeType.SHALLOWS
+    nativeBiome: BiomeType.SHALLOWS,
+    skillName: "闪避",
+    skillDescription: "瞬间无敌0.5秒"
   },
   [CreatureType.TURTLE]: {
     type: CreatureType.TURTLE,
@@ -193,7 +196,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     special: 'SHELL',
     tier: 1,
     description: "防御型。适应沼泽环境，抗毒回血。",
-    nativeBiome: BiomeType.SWAMP
+    nativeBiome: BiomeType.SWAMP,
+    skillName: "缩壳",
+    skillDescription: "获得一个吸收伤害的护盾"
   },
   [CreatureType.JELLYFISH]: {
     type: CreatureType.JELLYFISH,
@@ -207,7 +212,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'PASSIVE',
     special: 'SHOCK',
     tier: 1,
-    nativeBiome: BiomeType.ABYSS
+    nativeBiome: BiomeType.ABYSS,
+    skillName: "电击",
+    skillDescription: "麻痹周围的敌人"
   },
 
   // --- TIER 2 ---
@@ -222,7 +229,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 15, 
     behavior: 'FLEE',
     tier: 2,
-    nativeBiome: BiomeType.REEF
+    nativeBiome: BiomeType.REEF,
+    skillName: "伪装",
+    skillDescription: "短时间内隐身，敌人无法发现"
   },
   [CreatureType.CRAB]: {
     type: CreatureType.CRAB,
@@ -236,7 +245,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'AGGRESSIVE',
     special: 'SPIKE',
     tier: 2,
-    nativeBiome: BiomeType.REEF
+    nativeBiome: BiomeType.REEF,
+    skillName: "重击",
+    skillDescription: "对前方造成大量近战伤害"
   },
   [CreatureType.PUFFER_FISH]: {
     type: CreatureType.PUFFER_FISH,
@@ -250,7 +261,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'PASSIVE',
     special: 'POISON',
     tier: 2,
-    nativeBiome: BiomeType.SWAMP
+    nativeBiome: BiomeType.SWAMP,
+    skillName: "膨胀",
+    skillDescription: "体型变大并反弹伤害"
   },
   [CreatureType.SQUID]: {
     type: CreatureType.SQUID,
@@ -264,7 +277,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'AMBUSH',
     special: 'CAMO',
     tier: 2,
-    nativeBiome: BiomeType.REEF
+    nativeBiome: BiomeType.REEF,
+    skillName: "喷墨",
+    skillDescription: "向后喷射墨汁并快速后退"
   },
   [CreatureType.ELECTRIC_EEL]: {
     type: CreatureType.ELECTRIC_EEL,
@@ -278,7 +293,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'AGGRESSIVE',
     special: 'SHOCK',
     tier: 2,
-    nativeBiome: BiomeType.SWAMP
+    nativeBiome: BiomeType.SWAMP,
+    skillName: "雷霆",
+    skillDescription: "释放强大的电流攻击周围敌人"
   },
 
   // --- TIER 3 ---
@@ -293,7 +310,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 50, 
     behavior: 'PASSIVE',
     tier: 3,
-    nativeBiome: BiomeType.SWAMP
+    nativeBiome: BiomeType.SWAMP,
+    skillName: "毒刺",
+    skillDescription: "发射带毒的尖刺"
   },
   [CreatureType.SWORD_FISH]: {
     type: CreatureType.SWORD_FISH,
@@ -306,7 +325,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 55, 
     behavior: 'AGGRESSIVE',
     tier: 3,
-    nativeBiome: BiomeType.SHALLOWS
+    nativeBiome: BiomeType.SHALLOWS,
+    skillName: "穿刺",
+    skillDescription: "极速向前突进，对路径上的敌人造成巨额伤害"
   },
   [CreatureType.ANGLER_FISH]: {
     type: CreatureType.ANGLER_FISH,
@@ -320,7 +341,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'AMBUSH',
     special: 'LURE',
     tier: 3,
-    nativeBiome: BiomeType.ABYSS
+    nativeBiome: BiomeType.ABYSS,
+    skillName: "诱惑",
+    skillDescription: "变成大肉块吸引小鱼，遇到大鱼自动逃跑"
   },
   [CreatureType.HAMMERHEAD]: {
     type: CreatureType.HAMMERHEAD,
@@ -333,7 +356,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 70, 
     behavior: 'AGGRESSIVE',
     tier: 3,
-    nativeBiome: BiomeType.ABYSS
+    nativeBiome: BiomeType.ABYSS,
+    skillName: "声波探测",
+    skillDescription: "暴露周围所有隐藏的敌人并减速他们"
   },
   [CreatureType.AROWANA]: {
     type: CreatureType.AROWANA,
@@ -346,7 +371,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 65, 
     behavior: 'AGGRESSIVE',
     tier: 3,
-    nativeBiome: BiomeType.SHALLOWS
+    nativeBiome: BiomeType.SHALLOWS,
+    skillName: "龙威",
+    skillDescription: "震慑周围敌人，使其无法移动"
   },
   [CreatureType.FUR_SEAL]: {
     type: CreatureType.FUR_SEAL,
@@ -359,7 +386,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 60, 
     behavior: 'FLEE', 
     tier: 3,
-    nativeBiome: BiomeType.REEF
+    nativeBiome: BiomeType.REEF,
+    skillName: "翻滚",
+    skillDescription: "快速翻滚躲避攻击并回复少量生命"
   },
 
   // --- TIER 4 ---
@@ -374,7 +403,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 200, 
     behavior: 'AGGRESSIVE',
     tier: 4,
-    nativeBiome: BiomeType.SHALLOWS
+    nativeBiome: BiomeType.SHALLOWS,
+    skillName: "鲨吞",
+    skillDescription: "把周围等级比自己低的小鱼吸到肚子里"
   },
   [CreatureType.ORCA]: {
     type: CreatureType.ORCA,
@@ -387,7 +418,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 300, 
     behavior: 'BOSS',
     tier: 4,
-    nativeBiome: BiomeType.ABYSS
+    nativeBiome: BiomeType.ABYSS,
+    skillName: "声波冲击",
+    skillDescription: "发射毁灭性的声波，造成大范围伤害"
   },
   [CreatureType.NARWHAL]: {
     type: CreatureType.NARWHAL,
@@ -401,7 +434,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     behavior: 'AGGRESSIVE',
     special: 'SPIKE',
     tier: 4,
-    nativeBiome: BiomeType.REEF
+    nativeBiome: BiomeType.REEF,
+    skillName: "独角贯穿",
+    skillDescription: "无视防御的致命一击"
   },
   [CreatureType.MERMAID]: {
     type: CreatureType.MERMAID,
@@ -414,7 +449,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 500, 
     behavior: 'BOSS',
     tier: 4,
-    nativeBiome: BiomeType.REEF
+    nativeBiome: BiomeType.REEF,
+    skillName: "海妖之歌",
+    skillDescription: "魅惑周围敌人，使其互相攻击"
   },
   [CreatureType.KRAKEN]: {
     type: CreatureType.KRAKEN,
@@ -427,7 +464,9 @@ export const CREATURES: Record<CreatureType, CreatureConfig> = {
     weightValue: 1000, 
     behavior: 'BOSS',
     tier: 4,
-    nativeBiome: BiomeType.ABYSS
+    nativeBiome: BiomeType.ABYSS,
+    skillName: "触手绞杀",
+    skillDescription: "伸出触手将全屏敌人拉向自己"
   },
   [CreatureType.MASCOT]: {
     type: CreatureType.MASCOT,
@@ -453,7 +492,7 @@ export const INITIAL_PLAYER_STATS = {
 };
 
 export const EVOLUTION_THRESHOLDS = [
-  { radius: 30, tier: 2 },
-  { radius: 60, tier: 3 },
-  { radius: 100, tier: 4 }
+  { weight: 30, tier: 2 },
+  { weight: 100, tier: 3 },
+  { weight: 300, tier: 4 }
 ];

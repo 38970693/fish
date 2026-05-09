@@ -456,12 +456,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             // 8. 建筑 (最上层)
             if (buildings) buildings.forEach(b => {
                 ctx.save(); ctx.translate(b.x, b.y); 
-                
-                ctx.shadowColor = BUILDING_CONFIGS[b.type].color; ctx.shadowBlur = 20;
-                ctx.fillStyle = BUILDING_CONFIGS[b.type].color; ctx.beginPath(); ctx.arc(0, 0, b.radius/2, 0, Math.PI*2); ctx.fill(); 
-                ctx.fillStyle = 'white'; ctx.font = "bold 40px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                let icon = b.type === BuildingType.HOSPITAL ? "+" : (b.type === BuildingType.ARMORY ? "⚔️" : "⛩️"); ctx.fillText(icon, 0, 0);
-                
+                if (b.type === BuildingType.SHOP) {
+                     const size = b.radius * 0.7; const pulse = Math.sin(visualTime * 0.05) * 5;
+                     ctx.shadowColor = 'rgba(236, 72, 153, 0.8)'; ctx.shadowBlur = 30;
+                     ctx.fillStyle = '#fce7f3'; ctx.fillRect(-size, -size/2, size*2, size*1.5);
+                     ctx.fillStyle = '#db2777'; ctx.beginPath(); ctx.moveTo(-size*1.2, -size/2); ctx.lineTo(0, -size*1.5 - pulse); ctx.lineTo(size*1.2, -size/2); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#be185d'; ctx.lineWidth = 4; ctx.stroke();
+                     ctx.fillStyle = '#831843'; ctx.beginPath(); ctx.roundRect(-size*0.3, size*0.2, size*0.6, size*0.8, [10, 10, 0, 0]); ctx.fill();
+                     ctx.fillStyle = '#db2777'; ctx.font = "bold 24px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("SHOP", 0, -size*0.05);
+                     ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(236, 72, 153, 0.5)'; ctx.lineWidth = 4; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.arc(0, 0, b.radius, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+                } else {
+                     ctx.shadowColor = BUILDING_CONFIGS[b.type].color; ctx.shadowBlur = 20;
+                     ctx.fillStyle = BUILDING_CONFIGS[b.type].color; ctx.beginPath(); ctx.arc(0, 0, b.radius/2, 0, Math.PI*2); ctx.fill(); 
+                     ctx.fillStyle = 'white'; ctx.font = "bold 40px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                     let icon = b.type === BuildingType.HOSPITAL ? "+" : (b.type === BuildingType.ARMORY ? "⚔️" : "⛩️"); ctx.fillText(icon, 0, 0);
+                }
                 ctx.restore();
             });
 

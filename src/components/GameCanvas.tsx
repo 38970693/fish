@@ -48,7 +48,9 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
 
     const defineBodyPath = () => {
         ctx.beginPath();
-        if (type === CreatureType.PLANKTON) { ctx.arc(0, 0, radius, 0, Math.PI * 2); }
+        if (type === CreatureType.PLANKTON) { 
+            ctx.arc(0, 0, radius, 0, Math.PI * 2); 
+        }
         else {
             if (mType === 'CIRCLE') {
                 ctx.arc(0, 0, radius, 0, Math.PI * 2);
@@ -73,7 +75,15 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     }
 
     // 绘制身体
-    ctx.save(); defineBodyPath(); ctx.fillStyle = bodyFill; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.save(); defineBodyPath(); ctx.fillStyle = bodyFill; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke(); 
+    if (type === CreatureType.PLANKTON) {
+        ctx.fillStyle = '#b45309'; // Chocolate chips
+        ctx.beginPath(); ctx.arc(-radius*0.3, -radius*0.2, radius*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(radius*0.4, -radius*0.1, radius*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-radius*0.1, radius*0.4, radius*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(radius*0.2, radius*0.3, radius*0.15, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
 
     // 绘制牙齿 (修复 AI 和 嘴型匹配)
     if (type !== CreatureType.PLANKTON && cosmetics?.teeth && cosmetics.teeth !== 'NORMAL') {
@@ -114,65 +124,6 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     ctx.beginPath(); ctx.arc(eyeX+radius*0.05, eyeY, radius*0.1, 0, Math.PI*2); ctx.fill();
 
     ctx.restore();
-
-    // 绘制血条 (非微型生物)
-    if (type !== CreatureType.PLANKTON && type !== CreatureType.MASCOT) {
-        ctx.save();
-        ctx.translate(entity.x, entity.y);
-        const barW = radius * 1.8; // 稍微加宽
-        const barH = 6; // 稍微加厚
-        const barY = -radius - 20;
-        
-        // 背景阴影
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        
-        // 背景
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-        ctx.beginPath();
-        ctx.roundRect(-barW / 2, barY, barW, barH, 3);
-        ctx.fill();
-        
-        ctx.shadowBlur = 0;
-        
-        // 血量
-        const healthPct = Math.max(0, entity.health / entity.maxHealth);
-        const gradient = ctx.createLinearGradient(-barW / 2, 0, barW / 2, 0);
-        
-        if (isPlayer) {
-            gradient.addColorStop(0, '#06b6d4');
-            gradient.addColorStop(1, '#22d3ee');
-        } else {
-            // 根据血量改变颜色
-            if (healthPct < 0.3) {
-                gradient.addColorStop(0, '#ef4444');
-                gradient.addColorStop(1, '#f87171');
-                // 低血量闪烁
-                if (Math.sin(visualTime * 0.2) > 0) {
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = '#ef4444';
-                }
-            } else {
-                gradient.addColorStop(0, '#f97316');
-                gradient.addColorStop(1, '#fb923c');
-            }
-        }
-        
-        ctx.fillStyle = gradient;
-        if (healthPct > 0) {
-            ctx.beginPath();
-            ctx.roundRect(-barW / 2, barY, barW * healthPct, barH, 3);
-            ctx.fill();
-        }
-        
-        // 边框
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(-barW / 2, barY, barW, barH, 3);
-        ctx.stroke();
-        ctx.restore();
-    }
 };
 
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouseDown, onMouseUp }) => {
@@ -187,7 +138,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
     const render = () => {
         const { player, entities, particles, camera, status } = gameState;
         const visualTime = performance.now() / 16; 
-        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(1, 0, 0, 1, 0, 0); 
+        // 深蓝色海洋背景
+        ctx.fillStyle = '#0f172a'; // If previously 0f172a, let's make it a deeper, richer blue
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#020617'); // Very dark deep blue
+        gradient.addColorStop(1, '#1e3a8a'); // Lighter deep blue at bottom (or vice versa)
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         ctx.translate(canvas.width / 2, canvas.height / 2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.x, -camera.y);
 
         // 竞技场光圈 (仅战斗模式)
@@ -197,10 +156,152 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             ctx.arc(MAP_SHAPE_CONFIG.CENTER_X, MAP_SHAPE_CONFIG.CENTER_Y, 800, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
         }
 
+        // 绘制喷泉
+        gameState.fountains.forEach(f => {
+            ctx.save();
+            ctx.translate(f.x, f.y);
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; // Light blue water
+            ctx.beginPath();
+            ctx.arc(0, 0, f.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Fountain core
+            ctx.fillStyle = '#0ea5e9';
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Water spout effect
+            const spoutHeight = 40 + Math.sin(gameState.time * 0.2) * 10;
+            ctx.fillStyle = 'rgba(224, 242, 254, 0.6)';
+            ctx.beginPath();
+            ctx.moveTo(-10, 0);
+            ctx.lineTo(-5, -spoutHeight);
+            ctx.lineTo(5, -spoutHeight);
+            ctx.lineTo(10, 0);
+            ctx.fill();
+            ctx.restore();
+        });
+
+        // 绘制漂流瓶等道具
+        gameState.powerUps.forEach(p => {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            if (p.type === 'BOTTLE') {
+                ctx.rotate(Math.sin(gameState.time * 0.05) * 0.2); // Bobbing effect
+                // Bottle body
+                ctx.fillStyle = 'rgba(167, 243, 208, 0.6)'; // Glass color
+                ctx.beginPath();
+                ctx.roundRect(-10, -15, 20, 30, 5);
+                ctx.fill();
+                ctx.strokeStyle = '#059669';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Cork
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(-5, -20, 10, 5);
+                // Paper inside
+                ctx.fillStyle = '#fef3c7';
+                ctx.fillRect(-6, -10, 12, 20);
+            } else if (p.type === 'SHELL') {
+                // Draw Shell
+                ctx.fillStyle = '#fbcfe8'; // Pinkish shell
+                ctx.beginPath();
+                ctx.arc(0, 0, p.radius, 0, Math.PI, true);
+                ctx.lineTo(p.radius, p.radius * 0.5);
+                ctx.lineTo(-p.radius, p.radius * 0.5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#db2777';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Shell lines
+                ctx.beginPath();
+                ctx.moveTo(0, 0); ctx.lineTo(-p.radius*0.5, -p.radius*0.8);
+                ctx.moveTo(0, 0); ctx.lineTo(0, -p.radius);
+                ctx.moveTo(0, 0); ctx.lineTo(p.radius*0.5, -p.radius*0.8);
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = p.type === 'SPEED' ? '#3b82f6' : '#8b5cf6';
+                ctx.beginPath();
+                ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        });
+
         particles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); });
         ctx.globalAlpha = 1;
+
+        // 绘制子弹
+        gameState.projectiles.forEach(p => {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.fillStyle = '#22d3ee';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#22d3ee';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, p.radius * 1.5, p.radius * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+
         entities.forEach(e => drawCuteFish(ctx, e, visualTime, false));
-        drawCuteFish(ctx, player, visualTime, true);
+        
+        // 如果玩家使用了诱惑技能，绘制成肉块，如果是机甲，绘制成机甲
+        if (player.isMecha) {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+            
+            // 机甲身体
+            ctx.fillStyle = '#64748b'; // Slate gray armor
+            ctx.beginPath();
+            ctx.roundRect(-player.radius, -player.radius * 0.8, player.radius * 2, player.radius * 1.6, 10);
+            ctx.fill();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            // 能量核心
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#38bdf8';
+            ctx.beginPath(); 
+            ctx.arc(0, 0, player.radius * 0.4, 0, Math.PI * 2); 
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // 炮管
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(player.radius * 0.5, -player.radius * 0.9, player.radius * 1.2, player.radius * 0.4);
+            ctx.fillRect(player.radius * 0.5, player.radius * 0.5, player.radius * 1.2, player.radius * 0.4);
+            
+            // 驾驶舱
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.arc(player.radius * 0.6, 0, player.radius * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        } else if (player.lureActive) {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.fillStyle = '#ef4444'; // Red meat
+            ctx.beginPath();
+            ctx.ellipse(0, 0, player.radius * 1.5, player.radius, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fca5a5'; // Fat marbling
+            ctx.beginPath(); ctx.ellipse(-player.radius*0.5, 0, player.radius*0.8, player.radius*0.2, Math.PI/4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(player.radius*0.3, player.radius*0.2, player.radius*0.6, player.radius*0.15, -Math.PI/6, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        } else {
+            drawCuteFish(ctx, player, visualTime, true);
+        }
 
         animationFrameId = requestAnimationFrame(render);
     };

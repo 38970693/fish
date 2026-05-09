@@ -209,6 +209,15 @@ export const createBuildings = (): Building[] => {
     spawn(BuildingType.SHRINE, BiomeType.SWAMP, 1);
     spawn(BuildingType.SHRINE, BiomeType.REEF, 1);
     
+    buildings.push({
+        id: 'shop-1',
+        x: MAP_SHAPE_CONFIG.CENTER_X - 400,
+        y: MAP_SHAPE_CONFIG.CENTER_Y - 400,
+        type: BuildingType.SHOP,
+        radius: BUILDING_CONFIGS.SHOP.radius,
+        cooldown: 0
+    });
+    
     return buildings;
 };
 
@@ -536,7 +545,13 @@ const updateBuildings = (state: GameState, particles: Particle[]) => {
         }
         if (b.cooldown <= 0 && dist(state.player, b) < b.radius * 0.8) {
             let success = false;
-            if (b.type === BuildingType.HOSPITAL) {
+            if (b.type === BuildingType.SHOP) {
+                state.status = GameStatus.SHOP;
+                state.player.speechBubble = { text: "欢迎光临!", timer: 60, color: '#f472b6' };
+                state.player.vx = 0;
+                state.player.vy = 0;
+                success = true;
+            } else if (b.type === BuildingType.HOSPITAL) {
                 if (state.player.health < state.player.maxHealth) {
                     state.player.health = state.player.maxHealth;
                     state.player.speechBubble = { text: "满血复活!", timer: 60, color: '#ef4444' };

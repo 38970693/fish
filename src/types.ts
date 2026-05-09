@@ -66,6 +66,8 @@ export interface CreatureConfig {
   tier: 0 | 1 | 2 | 3 | 4;
   description?: string; // For selection menu
   nativeBiome?: BiomeType; // Preferred biome
+  skillName?: string;
+  skillDescription?: string;
 }
 
 export interface BasketItem {
@@ -165,6 +167,7 @@ export interface Entity {
   speechBubble?: { text: string; timer: number; color: string } | null;
   evolutionVisualTimer?: number;
   cosmetics?: Cosmetics;
+  level: number;
 }
 
 export interface PlayerState extends Entity {
@@ -198,6 +201,13 @@ export interface PlayerState extends Entity {
   currentBiome: BiomeType;
   biomeDebuffTimer: number; 
   
+  skillCooldown: number;
+  skillMaxCooldown: number;
+  skillLevel: number;
+
+  isMecha: boolean;
+  mechaTimer: number;
+
   cosmetics: Cosmetics;
 }
 
@@ -226,7 +236,15 @@ export interface PowerUp {
   id: string;
   x: number;
   y: number;
-  type: 'SPEED' | 'SHIELD' | 'TORPEDO'; 
+  type: 'SPEED' | 'SHIELD' | 'BOTTLE' | 'SHELL'; 
+  radius: number;
+}
+
+export interface Fountain {
+  id: string;
+  x: number;
+  y: number;
+  timer: number;
   radius: number;
 }
 
@@ -308,6 +326,7 @@ export interface GameState {
   portals: Portal[]; 
   buildings: Building[]; 
   treasures: Treasure[]; 
+  fountains: Fountain[];
   labels: Label[]; 
   worldWidth: number;
   worldHeight: number;
