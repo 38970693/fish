@@ -52,19 +52,25 @@ export const TREASURE_CONFIG = {
     DETECTION_RANGE: 2500, // Range at which fish swarm to it
     MASS_REWARD: 500, // Huge chunk of mass
     BUFF_DURATION: 1200, // 20 seconds of super buff
-
     // 新增：宝藏效果配置
     FEAST_REWARD: 800, // 盛宴奖励经验
     CHEST_GOLD: 100, // 宝箱奖励金币
     GEM_EXP_MULTIPLIER: 2, // 宝石经验倍率
     FOOD_HEAL: 50, // 食物治疗量
-
     // 新增：AI 鱼奔向宝贝配置
     SWARM_SPEED_BOOST: 2.0, // 奔向宝贝时的速度倍率
     SWARM_DETECTION_RANGE: 3000, // AI 检测宝贝的范围
-
     // 新增：半虚状态配置
     SEMI_GHOST_DURATION: 180, // 3秒半虚状态（帧数）
+};
+
+// Treasure type colors for UI/Minimap
+export const TREASURE_COLORS = {
+    FEAST: '#f97316',
+    CHEST: '#eab308',
+    GEM: '#a855f7',
+    FOOD: '#22c55e',
+    DEFAULT: '#fcd34d',
 };
 
 // Biome Definitions
@@ -102,8 +108,9 @@ export const BIOME_CONFIGS = {
 
 export const BUILDING_CONFIGS = {
   HOSPITAL: { radius: 150, cooldown: 300, color: '#ef4444', name: "深海急救站" },
+  ARMORY: { radius: 150, cooldown: 600, color: '#f59e0b', name: "军火库" },
   SHRINE: { radius: 150, cooldown: 900, color: '#8b5cf6', name: "龙王庙" },
-  SHOP: { radius: 200, cooldown: 600, color: '#ec4899', name: "深海商场" } // Cooldown increased to 600 (10s)
+  SHOP: { radius: 200, cooldown: 600, color: '#ec4899', name: "深海商场" }
 };
 
 // Protection Config
@@ -147,32 +154,35 @@ export const REVERSAL_PHRASE = "逆转!";
 // Ambush Mechanics Configuration
 export const AMBUSH_CONFIG = {
   // Detection range for ambush opportunities (in pixels)
-  DETECTION_RANGE_MIN: 300,
-  DETECTION_RANGE_MAX: 400,
-  
+  DETECTION_RANGE_MIN: 250,
+  DETECTION_RANGE_MAX: 450,
+
   // Back attack angle threshold (in radians, ~120 degrees for rear)
   BACK_ANGLE_THRESHOLD: Math.PI * 0.67,
-  
-  // Damage multiplier when attacking from behind
-  BACK_DAMAGE_MULT: 1.5,
-  
+
+  // Damage multiplier when attacking from behind (增强：从1.5提升到2.0)
+  BACK_DAMAGE_MULT: 2.0,
+
   // Back indicator display range
   INDICATOR_RANGE: 500,
-  
+
   // Probability-based eating rules (attacker size / victim size ratio)
   EAT_PROBABILITY: {
     // 2x or more size difference: 80% chance to eat
     DOUBLE_OR_MORE: 0.8,
-    // 1.5x or more size difference: 30% chance to eat  
+    // 1.5x or more size difference: 30% chance to eat
     ONE_HALF_OR_MORE: 0.3,
     // 1.2x or more size difference: 10% chance to eat
     ONE_FIFTH_OR_MORE: 0.1,
     // Similar size: 5% chance to eat
     SIMILAR: 0.05,
   },
-  
+
   // Size threshold for reversal (victim must be < attacker * threshold to reverse)
   REVERSAL_SIZE_THRESHOLD: 0.5,
+
+  // Ambush skill bonus probability
+  SKILL_BONUS: 0.15,
 }; 
 
 const BASE_SWIM_SPEED = 1.5; 
