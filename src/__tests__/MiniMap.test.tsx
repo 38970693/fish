@@ -36,7 +36,20 @@ vi.mock('../constants', () => ({
     SPAWN_INTERVAL: 3600,
     WARNING_DURATION: 180,
   },
+  TREASURE_COLORS: {
+    FEAST: '#f97316',
+    CHEST: '#eab308',
+    GEM: '#a855f7',
+    FOOD: '#22c55e',
+    DEFAULT: '#fcd34d',
+  },
   CREATURE_CONFIGS: {},
+  BUILDING_CONFIGS: {
+    HOSPITAL: { name: '深海急救站', color: '#ef4444', radius: 150, cooldown: 300 },
+    ARMORY: { name: '军火库', color: '#f59e0b', radius: 150, cooldown: 600 },
+    SHRINE: { name: '龙王庙', color: '#8b5cf6', radius: 150, cooldown: 900 },
+    SHOP: { name: '深海商场', color: '#ec4899', radius: 200, cooldown: 600 },
+  },
 }));
 
 const createMockPlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
