@@ -143,95 +143,159 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     ctx.restore();
 };
 
-// 传送门颜色配置
-const colors = ['#d8b4fe', '#22d3ee', '#f0abfc'];
+// 传送门颜色配置（根据传送门名称分配不同颜色）
+const getPortalColor = (portal: Portal): string => {
+    if (portal.name?.includes('浅滩')) return '#22d3ee'; // 青色 - 浅滩
+    if (portal.name?.includes('珊瑚')) return '#f0abfc'; // 粉色 - 珊瑚
+    if (portal.name?.includes('沼泽')) return '#86efac'; // 绿色 - 沼泽
+    if (portal.name?.includes('深渊')) return '#a855f7'; // 紫色 - 深渊
+    return '#d8b4fe'; // 默认紫色
+};
 
-// 传送门绘制函数
+const getPortalSecondaryColor = (portal: Portal): string => {
+    if (portal.name?.includes('浅滩')) return '#67e8f9';
+    if (portal.name?.includes('珊瑚')) return '#fda4af';
+    if (portal.name?.includes('沼泽')) return '#4ade80';
+    if (portal.name?.includes('深渊')) return '#c084fc';
+    return '#22d3ee';
+};
+
+// 传送门绘制函数（增强版）
 const drawPortal = (ctx: CanvasRenderingContext2D, portal: Portal, visualTime: number) => {
     ctx.save();
     ctx.translate(portal.x, portal.y);
 
-    const pulseScale = 1 + Math.sin(visualTime * 0.08) * 0.08;
-    const rotationSpeed = visualTime * 0.02;
+    const primaryColor = getPortalColor(portal);
+    const secondaryColor = getPortalSecondaryColor(portal);
 
-    // 外层淡淡的光晕（减弱闪烁）
-    const outerGlow = ctx.createRadialGradient(0, 0, portal.radius * 0.5, 0, 0, portal.radius * 2);
-    const glowAlpha = 0.15 + Math.sin(visualTime * 0.03) * 0.05;
-    outerGlow.addColorStop(0, `rgba(168, 85, 247, ${glowAlpha})`);
-    outerGlow.addColorStop(0.5, `rgba(34, 211, 238, ${glowAlpha * 0.5})`);
-    outerGlow.addColorStop(1, 'rgba(240, 171, 252, 0)');
+    // 更强的脉冲效果
+    const pulsePhase = Math.sin(visualTime * 0.06);
+    const pulseScale = 1 + pulsePhase * 0.12;
+    const rotationSpeed = visualTime * 0.015;
+
+    // 外层大光晕（增强动态效果）
+    const outerGlow = ctx.createRadialGradient(0, 0, portal.radius * 0.3, 0, 0, portal.radius * 2.5);
+    const glowAlpha = 0.2 + pulsePhase * 0.1;
+    outerGlow.addColorStop(0, `rgba(${hexToRgb(primaryColor)}, ${glowAlpha})`);
+    outerGlow.addColorStop(0.4, `rgba(${hexToRgb(secondaryColor)}, ${glowAlpha * 0.6})`);
+    outerGlow.addColorStop(0.7, `rgba(${hexToRgb(primaryColor)}, ${glowAlpha * 0.3})`);
+    outerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = outerGlow;
     ctx.beginPath();
-    ctx.arc(0, 0, portal.radius * 2 * pulseScale, 0, Math.PI * 2);
+    ctx.arc(0, 0, portal.radius * 2.5 * pulseScale, 0, Math.PI * 2);
     ctx.fill();
 
-    // 旋转的魔法光环
-    for (let i = 0; i < 3; i++) {
+    // 外层旋转光环（双向旋转）
+    for (let i = 0; i < 4; i++) {
         ctx.save();
-        ctx.rotate(rotationSpeed + (i * Math.PI * 2 / 3));
+        const direction = i % 2 === 0 ? 1 : -1;
+        ctx.rotate(rotationSpeed * direction + (i * Math.PI / 2));
 
-        const haloGradient = ctx.createLinearGradient(-portal.radius * 1.5, 0, portal.radius * 1.5, 0);
-        const haloColor = colors[i % colors.length];
+        const haloGradient = ctx.createLinearGradient(-portal.radius * 2, 0, portal.radius * 2, 0);
         haloGradient.addColorStop(0, 'transparent');
-        haloGradient.addColorStop(0.5, haloColor);
+        haloGradient.addColorStop(0.5, primaryColor);
         haloGradient.addColorStop(1, 'transparent');
 
         ctx.strokeStyle = haloGradient;
-        ctx.lineWidth = 8 + Math.sin(visualTime * 0.1 + i) * 3;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = haloColor;
+        ctx.lineWidth = 6 + Math.sin(visualTime * 0.08 + i * 1.5) * 2;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = primaryColor;
 
+        // 椭圆形光环
         ctx.beginPath();
-        ctx.ellipse(0, 0, portal.radius * 1.2 * pulseScale, portal.radius * 0.4, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, portal.radius * 1.5 * pulseScale, portal.radius * 0.35, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
     }
 
-    // 内层旋转能量环
+    // 中层能量环（旋转的小粒子）
     ctx.save();
-    ctx.rotate(-rotationSpeed * 1.5);
-    const innerRingCount = 4;
+    ctx.rotate(-rotationSpeed * 2);
+    const innerRingCount = 6;
     for (let i = 0; i < innerRingCount; i++) {
-        const angle = (i / innerRingCount) * Math.PI * 2;
-        const dist = portal.radius * 0.6;
+        const angle = (i / innerRingCount) * Math.PI * 2 + visualTime * 0.02;
+        const dist = portal.radius * 0.7;
         const particleX = Math.cos(angle) * dist;
         const particleY = Math.sin(angle) * dist;
 
-        const particleGradient = ctx.createRadialGradient(particleX, particleY, 0, particleX, particleY, 12);
+        // 动态大小的粒子
+        const particleSize = 8 + Math.sin(visualTime * 0.1 + i) * 3;
+        const particleGradient = ctx.createRadialGradient(particleX, particleY, 0, particleX, particleY, particleSize);
         particleGradient.addColorStop(0, '#fff');
-        particleGradient.addColorStop(0.3, colors[i % 3]);
+        particleGradient.addColorStop(0.4, primaryColor);
         particleGradient.addColorStop(1, 'transparent');
 
         ctx.fillStyle = particleGradient;
         ctx.beginPath();
-        ctx.arc(particleX, particleY, 12 * pulseScale, 0, Math.PI * 2);
+        ctx.arc(particleX, particleY, particleSize * pulseScale, 0, Math.PI * 2);
         ctx.fill();
     }
     ctx.restore();
 
-    // 核心光球
-    const coreGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, portal.radius * 0.8);
-    coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-    coreGradient.addColorStop(0.3, 'rgba(200, 180, 255, 0.6)');
-    coreGradient.addColorStop(0.7, 'rgba(100, 200, 255, 0.3)');
-    coreGradient.addColorStop(1, 'rgba(168, 85, 247, 0.1)');
+    // 泡泡粒子效果
+    const bubbleCount = 8;
+    for (let i = 0; i < bubbleCount; i++) {
+        const bubbleAngle = (i / bubbleCount) * Math.PI * 2 + visualTime * 0.03;
+        const bubbleDist = portal.radius * (1.2 + Math.sin(visualTime * 0.05 + i) * 0.3);
+        const bubbleX = Math.cos(bubbleAngle) * bubbleDist;
+        const bubbleY = Math.sin(bubbleAngle) * bubbleDist;
+        const bubbleSize = 3 + Math.sin(visualTime * 0.08 + i * 2) * 2;
+
+        ctx.beginPath();
+        ctx.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${hexToRgb(primaryColor)}, ${0.4 + Math.sin(visualTime * 0.1 + i) * 0.2})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    // 核心光球（带脉冲动画）
+    const coreGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, portal.radius * 0.9);
+    coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    coreGradient.addColorStop(0.2, `rgba(${hexToRgb(primaryColor)}, 0.7)`);
+    coreGradient.addColorStop(0.5, `rgba(${hexToRgb(secondaryColor)}, 0.4)`);
+    coreGradient.addColorStop(0.8, `rgba(${hexToRgb(primaryColor)}, 0.2)`);
+    coreGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
     ctx.fillStyle = coreGradient;
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur = 40;
+    ctx.shadowColor = primaryColor;
     ctx.beginPath();
-    ctx.arc(0, 0, portal.radius * 0.8 * pulseScale, 0, Math.PI * 2);
+    ctx.arc(0, 0, portal.radius * 0.9 * pulseScale, 0, Math.PI * 2);
     ctx.fill();
 
-    // 传送门名称
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#000';
+    // 中心星芒效果
+    const starSize = portal.radius * 0.15 * (1 + pulsePhase * 0.3);
+    ctx.fillStyle = '#fff';
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#fff';
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+        const starAngle = (i / 4) * Math.PI * 2 + visualTime * 0.01;
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(starAngle - 0.2) * starSize, Math.sin(starAngle - 0.2) * starSize);
+        ctx.lineTo(Math.cos(starAngle) * starSize * 2, Math.sin(starAngle) * starSize * 2);
+        ctx.lineTo(Math.cos(starAngle + 0.2) * starSize, Math.sin(starAngle + 0.2) * starSize);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 传送门名称（带发光背景）
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = primaryColor;
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 16px "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(portal.name || '传送门', 0, portal.radius + 25);
+    ctx.fillText(portal.name || '传送门', 0, portal.radius + 30);
 
     ctx.restore();
+};
+
+// 辅助函数：将HEX颜色转换为rgb字符串
+const hexToRgb = (hex: string): string => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+        ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`
+        : '255, 255, 255';
 };
 
 // 偷袭提示绘制函数
@@ -300,6 +364,20 @@ const drawAmbushIndicator = (ctx: CanvasRenderingContext2D, entity: Entity, play
 };
 
 // 传送门绘制函数
+
+// 视口裁剪辅助函数
+const isOnScreen = (entity: Entity, camera: { x: number; y: number; zoom: number }, canvasWidth: number, canvasHeight: number): boolean => {
+  const screenX = (entity.x - camera.x) * camera.zoom + canvasWidth / 2;
+  const screenY = (entity.y - camera.y) * camera.zoom + canvasHeight / 2;
+  const visibleRadius = Math.max(entity.radius, 50) * camera.zoom + 100; // 增加缓冲
+  return (
+    screenX + visibleRadius > 0 &&
+    screenX - visibleRadius < canvasWidth &&
+    screenY + visibleRadius > 0 &&
+    screenY - visibleRadius < canvasHeight
+  );
+};
+
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouseDown, onMouseUp }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -383,68 +461,125 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             ctx.restore();
         });
 
-        // ==================== 绘制宝藏 ====================
+        // ==================== 绘制宝藏（增强版） ====================
         gameState.treasures.forEach(treasure => {
             ctx.save();
             ctx.translate(treasure.x, treasure.y);
 
-            if (treasure.status === 'WARNING') {
-                // 预告状态：闪烁效果
-                const pulseScale = 1 + Math.sin(visualTime * 0.15) * 0.2;
+            // 计算玩家距离，用于缩放效果
+            const playerDist = Math.hypot(treasure.x - player.x, treasure.y - player.y);
+            const proximityScale = Math.max(0.8, 1 - playerDist / 5000);
 
-                // 外层光芒
+            if (treasure.status === 'WARNING') {
+                // 预告状态：闪烁效果（增强版）
+                const pulseScale = 1 + Math.sin(visualTime * 0.2) * 0.3;
+                const blinkAlpha = 0.3 + Math.sin(visualTime * 0.15) * 0.2;
+
+                // 外层光芒（动态扩散）
+                const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, treasure.radius * 3 * pulseScale);
+                outerGlow.addColorStop(0, `rgba(252, 211, 77, ${blinkAlpha})`);
+                outerGlow.addColorStop(0.5, `rgba(251, 191, 36, ${blinkAlpha * 0.5})`);
+                outerGlow.addColorStop(1, 'rgba(252, 211, 77, 0)');
                 ctx.beginPath();
-                ctx.arc(0, 0, treasure.radius * 2 * pulseScale, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(252, 211, 77, ${0.2 + Math.sin(visualTime * 0.1) * 0.1})`;
+                ctx.arc(0, 0, treasure.radius * 3 * pulseScale, 0, Math.PI * 2);
+                ctx.fillStyle = outerGlow;
                 ctx.fill();
 
-                // 核心
+                // 核心（带脉冲动画）
                 ctx.beginPath();
                 ctx.arc(0, 0, treasure.radius * pulseScale, 0, Math.PI * 2);
                 ctx.fillStyle = '#fcd34d';
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = 30;
                 ctx.shadowColor = '#fcd34d';
                 ctx.fill();
 
-                // 问号提示
+                // 问号提示（带旋转）
+                ctx.save();
+                ctx.rotate(Math.sin(visualTime * 0.05) * 0.1);
                 ctx.fillStyle = '#78350f';
-                ctx.font = 'bold 24px sans-serif';
+                ctx.font = 'bold 28px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('?', 0, 0);
-            } else {
-                // 激活状态：根据类型绘制不同宝藏
-                const color = treasure.type === 'FEAST' ? '#fcd34d' :
-                              treasure.type === 'CHEST' ? '#f59e0b' :
-                              treasure.type === 'GEM' ? '#a855f7' : '#10b981';
+                ctx.restore();
 
-                // 光晕
-                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, treasure.radius * 1.5);
-                gradient.addColorStop(0, color);
-                gradient.addColorStop(0.5, color + '80');
+                // 预告文字（带呼吸效果）
+                ctx.fillStyle = '#fef3c7';
+                ctx.font = 'bold 12px "Microsoft YaHei", sans-serif';
+                ctx.globalAlpha = 0.6 + Math.sin(visualTime * 0.1) * 0.4;
+                ctx.fillText('即将出现', 0, treasure.radius + 20);
+                ctx.globalAlpha = 1;
+            } else {
+                // 激活状态：根据类型绘制不同宝藏（增强版）
+                const baseRotation = visualTime * 0.03;
+
+                // 根据类型配置不同的颜色和图标
+                const treasureConfig = {
+                    FEAST: { color: '#f97316', glow: '#ea580c', icon: '🍖', name: '盛宴' },
+                    CHEST: { color: '#eab308', glow: '#ca8a04', icon: '💰', name: '宝箱' },
+                    GEM: { color: '#a855f7', glow: '#9333ea', icon: '💎', name: '宝石' },
+                    FOOD: { color: '#22c55e', glow: '#16a34a', icon: '⭐', name: '美食' }
+                };
+                const config = treasureConfig[treasure.type as keyof typeof treasureConfig] || treasureConfig.FEAST;
+
+                // 绘制外层旋转光环
+                ctx.save();
+                ctx.rotate(baseRotation);
+                for (let i = 0; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, treasure.radius * (1.2 + i * 0.15), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${hexToRgb(config.color)}, ${0.3 - i * 0.05})`;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([10, 15]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                ctx.restore();
+
+                // 光晕（带脉冲）
+                const pulseGlow = 1 + Math.sin(visualTime * 0.1) * 0.2;
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, treasure.radius * 2 * pulseGlow);
+                gradient.addColorStop(0, config.color);
+                gradient.addColorStop(0.4, config.color + 'aa');
+                gradient.addColorStop(0.7, config.color + '44');
                 gradient.addColorStop(1, 'transparent');
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
-                ctx.arc(0, 0, treasure.radius * 1.5, 0, Math.PI * 2);
+                ctx.arc(0, 0, treasure.radius * 2 * pulseGlow, 0, Math.PI * 2);
                 ctx.fill();
 
-                // 核心
+                // 核心（带旋转效果）
+                ctx.save();
+                ctx.rotate(baseRotation * 2);
                 ctx.beginPath();
-                ctx.arc(0, 0, treasure.radius, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = color;
+                ctx.arc(0, 0, treasure.radius * proximityScale, 0, Math.PI * 2);
+                ctx.fillStyle = config.color;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = config.glow;
                 ctx.fill();
 
-                // 宝藏图标
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 20px sans-serif';
+                // 内部装饰
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, treasure.radius * 0.6, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+
+                // 宝藏图标（浮动效果）
+                ctx.save();
+                ctx.translate(0, Math.sin(visualTime * 0.08) * 3);
+                ctx.font = 'bold 24px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                const icon = treasure.type === 'FEAST' ? '🍖' :
-                             treasure.type === 'CHEST' ? '💰' :
-                             treasure.type === 'GEM' ? '💎' : '⭐';
-                ctx.fillText(icon, 0, 2);
+                ctx.fillText(config.icon, 0, 2);
+                ctx.restore();
+
+                // 宝藏名称标签
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.font = 'bold 11px "Microsoft YaHei", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(config.name, 0, treasure.radius + 18);
             }
             ctx.restore();
         });
@@ -539,6 +674,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             ctx.restore();
         });
 
+        // 视口裁剪：只渲染可见的实体
+        const visibleEntities = entities.filter(e => isOnScreen(e, camera, canvas.width, canvas.height));
+
         // 绘制子弹
         gameState.projectiles.forEach(p => {
             ctx.save();
@@ -553,10 +691,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             ctx.restore();
         });
 
-        entities.forEach(e => drawCuteFish(ctx, e, visualTime, false));
-        
+        visibleEntities.forEach(e => drawCuteFish(ctx, e, visualTime, false));
+
         // 绘制偷袭提示（在大鱼背后显示偷袭机会）
-        entities.forEach(e => drawAmbushIndicator(ctx, e, player.x, player.y, player.level, visualTime));
+        visibleEntities.forEach(e => drawAmbushIndicator(ctx, e, player.x, player.y, player.level, visualTime));
         
         // 如果玩家使用了诱惑技能，绘制成肉块，如果是机甲，绘制成机甲
         if (player.isMecha) {

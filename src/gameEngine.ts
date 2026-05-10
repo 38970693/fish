@@ -1,6 +1,7 @@
 
 import { CREATURES, WORLD_SIZE, MAX_ENTITIES, BOOST_CONFIG, MAX_OBSTACLES, GAME_MECHANICS, MAX_POWERUPS, METEOR_CONFIG, EVOLUTION_THRESHOLDS, SKINNY_PHRASES, REVERSAL_PHRASE, PORTAL_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG } from './constants';
 import { CreatureType, Entity, GameState, GameStatus, Obstacle, Particle, PlayerState, PowerUp, Hazard, Projectile, Portal, BiomeType, Building, BuildingType, Treasure, Cosmetics } from './types';
+import { QuadTree } from './utils/SpatialHash';
 
 const uuid = () => Math.random().toString(36).substr(2, 9);
 
@@ -64,7 +65,7 @@ const clampToMap = (entity: {x: number, y: number, radius: number, angle: number
     const maxR = isBattleTest ? 800 : getMapBoundaryRadius(angle);
 
     // 边界缓冲区域：增大缓冲，让鱼不会在边界处反复横跳
-    const boundaryBuffer = Math.max(entity.radius * 2, 80); // 至少80px缓冲
+    const boundaryBuffer = Math.max(entity.radius * 3, 150); // 增大到150px基础缓冲
     const limit = maxR - entity.radius;
     const softLimit = maxR - entity.radius - boundaryBuffer; // 软限制，开始减速区域
 
@@ -92,30 +93,33 @@ const clampToMap = (entity: {x: number, y: number, radius: number, angle: number
                 const perpDot = entity.vx * perpX + entity.vy * perpY;
 
                 // 朝向中心反弹，加上原有的切向速度（平滑过渡）
-                entity.vx = -Math.abs(entity.vx) * 0.3 * Math.cos(angleToCenter) + perpX * perpDot * 0.7;
-                entity.vy = -Math.abs(entity.vy) * 0.3 * Math.sin(angleToCenter) + perpY * perpDot * 0.7;
+                // 使用更大的平滑系数，让转向更自然
+                const smoothFactor = 0.5;
+                entity.vx = -Math.abs(entity.vx) * smoothFactor * Math.cos(angleToCenter) + perpX * perpDot * (1 - smoothFactor);
+                entity.vy = -Math.abs(entity.vy) * smoothFactor * Math.sin(angleToCenter) + perpY * perpDot * (1 - smoothFactor);
             }
 
-            // 平滑的角度调整，朝向中心
-            entity.angle = angleToCenter + (entity.angle - angleToCenter) * 0.3;
+            // 平滑的角度调整，朝向中心（增大平滑系数）
+            entity.angle = angleToCenter + (entity.angle - angleToCenter) * 0.6;
         }
     } else if (currentDist > softLimit) {
         // 在软限制区域（边界附近），平滑减速而不是突然反弹
         if (entity.vx !== undefined && entity.vy !== undefined) {
             const penetrationRatio = (currentDist - softLimit) / (limit - softLimit);
-            const slowFactor = Math.max(0.2, 1 - penetrationRatio * 0.8);
+            // 更温和的减速因子，减少抖动
+            const slowFactor = Math.max(0.4, 1 - penetrationRatio * 0.6);
 
             // 平滑降低速度分量，朝向中心方向
             const angleToCenter = Math.atan2(cy - entity.y, cx - entity.x);
             const dotProduct = entity.vx * Math.cos(angleToCenter) + entity.vy * Math.sin(angleToCenter);
 
             if (dotProduct > 0) {
-                entity.vx -= Math.cos(angleToCenter) * dotProduct * (1 - slowFactor) * 0.5;
-                entity.vy -= Math.sin(angleToCenter) * dotProduct * (1 - slowFactor) * 0.5;
+                entity.vx -= Math.cos(angleToCenter) * dotProduct * (1 - slowFactor) * 0.3;
+                entity.vy -= Math.sin(angleToCenter) * dotProduct * (1 - slowFactor) * 0.3;
             }
 
-            // 平滑调整角度
-            entity.angle = angleToCenter + (entity.angle - angleToCenter) * slowFactor;
+            // 平滑调整角度（更大的平滑系数）
+            entity.angle = angleToCenter + (entity.angle - angleToCenter) * (0.5 + slowFactor * 0.5);
         }
     }
 };
@@ -944,16 +948,25 @@ export const updateGame = (state: GameState, mouse: {x: number, y: number}, isSp
   });
   state.projectiles = state.projectiles.filter(p => p.life > 0);
 
-  // 更新AI
-  entities.forEach(ent => updateAI(ent, state));
-  
-  // 碰撞检测
-  for (let i = 0; i < entities.length; i++) {
-      const e1 = entities[i];
-      if (dist(e1, player) < e1.radius + player.radius) {
-          processCollision(e1, player, particles, state);
-          processCollision(player, e1, particles, state);
-      }
+  // 更新AI（仅更新范围内的实体）
+  const AI_UPDATE_RANGE = 2000;
+  entities.forEach(ent => {
+    if (dist(ent, player) < AI_UPDATE_RANGE) {
+      updateAI(ent, state);
+    }
+  });
+
+  // 使用QuadTree进行碰撞检测
+  const quadTree = new QuadTree(WORLD_SIZE);
+  quadTree.insertAll(entities);
+
+  const nearbyEntities = quadTree.queryPlayer(player.x, player.y, Math.max(player.radius, 1000), player.radius);
+  for (const e1 of nearbyEntities) {
+    if (e1.type === CreatureType.MASCOT) continue;
+    if (dist(e1, player) < e1.radius + player.radius) {
+      processCollision(e1, player, particles, state);
+      processCollision(player, e1, particles, state);
+    }
   }
 
   state.entities = state.entities.filter(e => e.health > 0);

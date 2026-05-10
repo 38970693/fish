@@ -2,7 +2,7 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
@@ -18,6 +18,13 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      test: command === 'test' || command === 'vitest' ? {
+        globals: true,
+        environment: 'jsdom',
+        include: ['src/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+        setupFiles: ['./src/test/setup.ts'],
+        css: true,
+      } : undefined,
     };
 });
