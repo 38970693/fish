@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 // Added GameStatus to imports to fix line 134 reference error
-import { GameState, GameStatus, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Projectile, Building, BuildingType, Portal, Cosmetics } from '../types';
+import { GameState, GameStatus, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Projectile, Building, BuildingType, Portal, Cosmetics, BodyType, TailType, EyeType, EyebrowType, AccessoryType, PatternType, ScaleType } from '../types';
 import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 
@@ -92,7 +92,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     }
 
     // 绘制身体
-    ctx.save(); defineBodyPath(); ctx.fillStyle = bodyFill; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke(); 
+    ctx.save(); defineBodyPath(); ctx.fillStyle = bodyFill; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke();
     if (type === CreatureType.PLANKTON) {
         ctx.fillStyle = '#b45309'; // Chocolate chips
         ctx.beginPath(); ctx.arc(-radius*0.3, -radius*0.2, radius*0.15, 0, Math.PI*2); ctx.fill();
@@ -102,19 +102,40 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     }
     ctx.restore();
 
-    // 绘制牙齿 (修复 AI 和 嘴型匹配)
+    // 绘制花纹/图案
+    if (cosmetics?.pattern && cosmetics.pattern !== 'NONE') {
+        ctx.save(); defineBodyPath(); ctx.clip();
+        drawPattern(ctx, cosmetics.pattern, radius, visualTime);
+        ctx.restore();
+    }
+
+    // 绘制鳞片效果
+    if (cosmetics?.scaleType && cosmetics.scaleType !== 'NONE') {
+        ctx.save(); defineBodyPath(); ctx.clip();
+        drawScaleEffect(ctx, cosmetics.scaleType, radius, visualTime, bodyFill);
+        ctx.restore();
+    }
+
+    // 绘制牙齿
     if (type !== CreatureType.PLANKTON && cosmetics?.teeth && cosmetics.teeth !== 'NORMAL') {
         const tType = cosmetics.teeth;
         ctx.save();
-        ctx.fillStyle = tType === 'GOLD' ? '#fbbf24' : (tType === 'DIAMOND' ? '#e0f2fe' : 'white');
-        
+        ctx.fillStyle = tType === 'GOLD' ? '#fbbf24' : (tType === 'DIAMOND' ? '#e0f2fe' : (tType === 'RAINBOW' ? '#ff6b6b' : 'white'));
+
         const drawTooth = (ang: number, isUpper: boolean) => {
             ctx.save();
             ctx.rotate(ang);
             const tx = radius * 0.88;
             const size = radius * 0.15;
-            if (tType === 'SHARP') { ctx.beginPath(); ctx.moveTo(tx, -size/2); ctx.lineTo(tx + size, 0); ctx.lineTo(tx, size/2); ctx.fill(); }
-            else { ctx.fillRect(tx, -size/2, size, size); }
+            if (tType === 'SHARP') {
+                ctx.beginPath(); ctx.moveTo(tx, -size/2); ctx.lineTo(tx + size, 0); ctx.lineTo(tx, size/2); ctx.fill();
+            } else if (tType === 'VAMPIRE') {
+                ctx.beginPath(); ctx.moveTo(tx, 0); ctx.lineTo(tx + size * 1.5, -size/2); ctx.lineTo(tx + size, 0); ctx.lineTo(tx + size * 1.5, size/2); ctx.fill();
+            } else if (tType === 'SABER') {
+                ctx.beginPath(); ctx.moveTo(tx, -size/3); ctx.lineTo(tx + size * 1.2, 0); ctx.lineTo(tx, size/3); ctx.fill();
+            } else {
+                ctx.fillRect(tx, -size/2, size, size);
+            }
             ctx.restore();
         };
 
@@ -133,15 +154,353 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         ctx.restore();
     }
 
-    // 眼睛
+    // 绘制尾巴
+    if (cosmetics?.tailType && cosmetics.tailType !== 'DEFAULT') {
+        drawTail(ctx, cosmetics.tailType, radius, visualTime);
+    }
+
+    // 绘制眼睛
     const eyeX = radius * 0.35; const eyeY = radius * 0.45;
-    ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius*0.2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(eyeX, eyeY, radius*0.2, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(eyeX+radius*0.05, -eyeY, radius*0.1, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(eyeX+radius*0.05, eyeY, radius*0.1, 0, Math.PI*2); ctx.fill();
+    if (cosmetics?.eyeType && cosmetics.eyeType !== 'NORMAL') {
+        drawEyes(ctx, cosmetics.eyeType, eyeX, eyeY, radius, visualTime);
+    } else {
+        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius*0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(eyeX, eyeY, radius*0.2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(eyeX+radius*0.05, -eyeY, radius*0.1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(eyeX+radius*0.05, eyeY, radius*0.1, 0, Math.PI*2); ctx.fill();
+    }
+
+    // 绘制眉毛
+    if (cosmetics?.eyebrowType && cosmetics.eyebrowType !== 'NONE') {
+        drawEyebrows(ctx, cosmetics.eyebrowType, eyeX, eyeY, radius);
+    }
+
+    // 绘制配饰
+    if (cosmetics?.accessory && cosmetics.accessory !== 'NONE') {
+        drawAccessory(ctx, cosmetics.accessory, radius, visualTime);
+    }
 
     ctx.restore();
 };
+
+// ============== Cosmetic 渲染辅助函数 ==============
+
+/** 获取身体类型参数 */
+const getBodyTypeParams = (bodyType: BodyType, radius: number) => {
+  const params: Record<BodyType, { scaleX: number; scaleY: number; tailOffset: number }> = {
+    DEFAULT: { scaleX: 1, scaleY: 1, tailOffset: 0 },
+    ROUND: { scaleX: 1.1, scaleY: 1.1, tailOffset: 0 },
+    SLENDER: { scaleX: 0.85, scaleY: 1.2, tailOffset: -5 },
+    CHUNKY: { scaleX: 1.2, scaleY: 0.9, tailOffset: 5 },
+    BOX: { scaleX: 1, scaleY: 0.95, tailOffset: 0 },
+    STAR: { scaleX: 1.15, scaleY: 1.15, tailOffset: 0 },
+    MERMAID: { scaleX: 0.9, scaleY: 1.1, tailOffset: -3 },
+    RAY: { scaleX: 1.3, scaleY: 0.7, tailOffset: 10 },
+    EEL: { scaleX: 0.7, scaleY: 1.4, tailOffset: -8 },
+  };
+  return params[bodyType] || params.DEFAULT;
+};
+
+/** 绘制尾巴 */
+const drawTail = (ctx: CanvasRenderingContext2D, tailType: TailType, radius: number, visualTime: number) => {
+  const tailOffset = -radius * 0.9;
+  const tailWag = Math.sin(visualTime * 0.15) * 0.1;
+
+  ctx.save();
+  ctx.translate(tailOffset, 0);
+  ctx.rotate(tailWag);
+
+  ctx.fillStyle = ctx.fillStyle || '#888';
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+
+  switch (tailType) {
+    case 'CRESCENT':
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.5, -Math.PI * 0.6, Math.PI * 0.6);
+      ctx.lineTo(0, 0);
+      ctx.fill();
+      break;
+    case 'FORKED':
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-radius * 0.4, -radius * 0.3);
+      ctx.lineTo(-radius * 0.5, 0);
+      ctx.lineTo(-radius * 0.4, radius * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'FAN':
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius * 0.4, -Math.PI * 0.7, Math.PI * 0.7);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'TRIDENT':
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-radius * 0.6, -radius * 0.25);
+      ctx.lineTo(-radius * 0.4, 0);
+      ctx.lineTo(-radius * 0.6, radius * 0.25);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'RIBBON':
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        const wave = Math.sin(visualTime * 0.2 + i) * radius * 0.15;
+        ctx.quadraticCurveTo(-radius * 0.3, wave, -radius * 0.5, i * radius * 0.15);
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      break;
+    default:
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-radius * 0.4, -radius * 0.2);
+      ctx.lineTo(-radius * 0.5, 0);
+      ctx.lineTo(-radius * 0.4, radius * 0.2);
+      ctx.closePath();
+      ctx.fill();
+  }
+  ctx.restore();
+};
+
+/** 绘制眼睛（根据眼睛类型） */
+const drawEyes = (ctx: CanvasRenderingContext2D, eyeType: EyeType, eyeX: number, eyeY: number, radius: number, visualTime: number) => {
+  ctx.fillStyle = 'white';
+
+  switch (eyeType) {
+    case 'ANIME':
+      ctx.beginPath(); ctx.ellipse(eyeX, -eyeY, radius * 0.25, radius * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(eyeX, eyeY, radius * 0.25, radius * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0066cc';
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.02, -eyeY, radius * 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.02, eyeY, radius * 0.12, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'MAD':
+      ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX, eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#cc0000';
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, -eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'DERP':
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.08, -eyeY - radius * 0.05, radius * 0.18, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.08, eyeY - radius * 0.05, radius * 0.18, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'black';
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.1, -eyeY - radius * 0.03, radius * 0.08, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.1, eyeY - radius * 0.03, radius * 0.08, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'DEAD':
+      ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX, eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.15, -eyeY - radius * 0.1); ctx.lineTo(eyeX + radius * 0.15, -eyeY + radius * 0.1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.15, eyeY - radius * 0.1); ctx.lineTo(eyeX + radius * 0.15, eyeY + radius * 0.1); ctx.stroke();
+      break;
+    default:
+      ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX, eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'black';
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, -eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
+  }
+};
+
+/** 绘制眉毛 */
+const drawEyebrows = (ctx: CanvasRenderingContext2D, eyebrowType: EyebrowType, eyeX: number, eyeY: number, radius: number) => {
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+
+  const yOff = -eyeY - radius * 0.35;
+
+  switch (eyebrowType) {
+    case 'ANGRY':
+      ctx.beginPath();
+      ctx.moveTo(eyeX - radius * 0.2, yOff - radius * 0.1);
+      ctx.lineTo(eyeX + radius * 0.2, yOff + radius * 0.1);
+      ctx.stroke();
+      break;
+    case 'THICK':
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(eyeX - radius * 0.25, yOff);
+      ctx.lineTo(eyeX + radius * 0.25, yOff);
+      ctx.stroke();
+      break;
+    case 'UNI':
+      ctx.beginPath();
+      ctx.arc(eyeX + radius * 0.1, yOff, radius * 0.25, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    default:
+      ctx.beginPath();
+      ctx.moveTo(eyeX - radius * 0.2, yOff);
+      ctx.lineTo(eyeX + radius * 0.15, yOff - radius * 0.05);
+      ctx.stroke();
+  }
+};
+
+/** 绘制配饰 */
+const drawAccessory = (ctx: CanvasRenderingContext2D, accessory: AccessoryType, radius: number, visualTime: number) => {
+  ctx.save();
+
+  switch (accessory) {
+    case 'CROWN':
+      ctx.fillStyle = '#ffd700';
+      ctx.strokeStyle = '#b8860b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.3, -radius * 0.6);
+      ctx.lineTo(-radius * 0.2, -radius * 0.9);
+      ctx.lineTo(0, -radius * 0.7);
+      ctx.lineTo(radius * 0.2, -radius * 0.9);
+      ctx.lineTo(radius * 0.3, -radius * 0.6);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      break;
+    case 'BOW_TIE':
+      ctx.fillStyle = '#ff4444';
+      ctx.beginPath();
+      ctx.moveTo(0, radius * 0.1);
+      ctx.lineTo(-radius * 0.3, radius * 0.2);
+      ctx.lineTo(-radius * 0.15, radius * 0.1);
+      ctx.lineTo(0, radius * 0.05);
+      ctx.lineTo(radius * 0.15, radius * 0.1);
+      ctx.lineTo(radius * 0.3, radius * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'FLOWER':
+      const petalCount = 5;
+      for (let i = 0; i < petalCount; i++) {
+        ctx.save();
+        ctx.rotate((i / petalCount) * Math.PI * 2 + visualTime * 0.05);
+        ctx.fillStyle = ['#ff69b4', '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff'][i % 5];
+        ctx.beginPath();
+        ctx.ellipse(radius * 0.5, 0, radius * 0.15, radius * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      break;
+    case 'SUNGLASSES':
+      ctx.fillStyle = '#111';
+      const sx = radius * 0.35;
+      const sy = radius * 0.45;
+      ctx.beginPath();
+      ctx.ellipse(sx, -sy, radius * 0.2, radius * 0.15, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy, radius * 0.2, radius * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx + radius * 0.2, -sy);
+      ctx.lineTo(sx + radius * 0.2, sy);
+      ctx.stroke();
+      break;
+    case 'HALO':
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, -radius * 0.9, radius * 0.4, radius * 0.1, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    default:
+      break;
+  }
+
+  ctx.restore();
+};
+
+/** 绘制花纹图案 */
+const drawPattern = (ctx: CanvasRenderingContext2D, pattern: PatternType, radius: number, visualTime: number) => {
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+
+  switch (pattern) {
+    case 'STRIPES':
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 3;
+      for (let i = -3; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * radius * 0.3, -radius);
+        ctx.lineTo(i * radius * 0.3, radius);
+        ctx.stroke();
+      }
+      break;
+    case 'SPOTS':
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2 + visualTime * 0.02;
+        const x = Math.cos(angle) * radius * 0.4;
+        const y = Math.sin(angle) * radius * 0.3;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    case 'HEART':
+      ctx.fillStyle = 'rgba(255,100,100,0.5)';
+      ctx.beginPath();
+      const hx = Math.sin(visualTime * 0.1) * radius * 0.1;
+      ctx.moveTo(hx, radius * 0.2);
+      ctx.bezierCurveTo(hx - radius * 0.2, -radius * 0.1, hx - radius * 0.3, -radius * 0.3, hx, -radius * 0.15);
+      ctx.bezierCurveTo(hx + radius * 0.3, -radius * 0.3, hx + radius * 0.2, -radius * 0.1, hx, radius * 0.2);
+      ctx.fill();
+      break;
+    default:
+      break;
+  }
+
+  ctx.restore();
+};
+
+/** 绘制鳞片效果 */
+const drawScaleEffect = (ctx: CanvasRenderingContext2D, scaleType: ScaleType, radius: number, visualTime: number, baseColor: string) => {
+  ctx.save();
+
+  switch (scaleType) {
+    case 'SHINY':
+      const gradient = ctx.createLinearGradient(-radius, 0, radius, 0);
+      gradient.addColorStop(0, 'rgba(255,255,255,0)');
+      gradient.addColorStop(0.5, 'rgba(255,255,255,0.3)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius * 0.8, radius * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'GLOW':
+      ctx.shadowColor = '#00ffff';
+      ctx.shadowBlur = 10 + Math.sin(visualTime * 0.1) * 5;
+      ctx.strokeStyle = 'rgba(0,255,255,0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    case 'CRYSTAL':
+      ctx.strokeStyle = 'rgba(200,200,255,0.6)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle) * radius * 0.7, Math.sin(angle) * radius * 0.7);
+        ctx.stroke();
+      }
+      break;
+    default:
+      break;
+  }
+
+  ctx.restore();
+};
+
+// ============== 辅助函数结束 ==============
 
 // 传送门颜色配置（根据传送门名称分配不同颜色）
 const getPortalColor = (portal: Portal): string => {
