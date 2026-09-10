@@ -1,0 +1,10 @@
+/* 全局基础样式：从 index.html 的内联 <style> 抽出，绕开 vite html-inline-proxy 的构建问题 */
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: #0f172a;
+  touch-action: none;
+}
+canvas {
+  display: block;
+}

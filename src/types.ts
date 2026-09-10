@@ -1,0 +1,355 @@
+/**
+ * 类型总表 —— 现在是「结构定义 + 数据层门面」。
+ *
+ * 内容型类型（生物 / 生态区 / 技能 / 建筑）全部由 data/ 层的数据自动推导，
+ * 加数据即加类型，不用再来这里手改 enum。
+ * 这里只负责「结构」：实体长什么样、游戏状态有哪些字段、每帧上下文是什么。
+ */
+
+import type { EventBus } from './core/EventBus';
+import type { CreatureConfig } from './data/creatures';
+
+/* ══════════════ 内容型类型（从 data 层转发） ══════════════ */
+
+export { CreatureType } from './data/creatures';
+export type { CreatureConfig, CreatureSpec, BehaviorId, SpecialId } from './data/creatures';
+
+export { BiomeType } from './data/biomes';
+export type { BiomeType as BiomeTypeId, BiomeEffect } from './data/biomes';
+
+export { SkillId } from './data/skills';
+
+export { BuildingType } from './data/buildings';
+
+/* ══════════════ 游戏状态机 ══════════════ */
+
+export enum GameStatus {
+  MENU = 'MENU',
+  PLAYING = 'PLAYING',
+  EVOLVING = 'EVOLVING',
+  GAME_OVER = 'GAME_OVER',
+  VICTORY = 'VICTORY',
+  SHOP = 'SHOP',
+  BATTLE_TEST = 'BATTLE_TEST',
+}
+
+/* ══════════════ 装扮 ══════════════ */
+
+export type TeethType =
+  | 'NORMAL' | 'SHARP' | 'VAMPIRE' | 'BRACES' | 'GOLD'
+  | 'CURVED' | 'DOUBLE_ROW' | 'SABER' | 'GAPPED' | 'DIAMOND'
+  | 'RAINBOW' | 'BUGS' | 'BLOCKY';
+
+export type PatternType =
+  | 'NONE' | 'STRIPES' | 'SPOTS' | 'TIGER'
+  | 'DOTS' | 'CAMO' | 'ZEBRA' | 'LEOPARD'
+  | 'HEART' | 'STAR' | 'CIRCUIT' | 'LAVA' | 'KOI' | 'SKELETON'
+  | 'LIGHTNING' | 'CLOUD' | 'CHECKER' | 'VINES' | 'TARGET'
+  | 'GALAXY' | 'SMILEY' | 'FIREY' | 'RUNE' | 'CANDY';
+
+export type ScaleType =
+  | 'NONE' | 'SHINY' | 'DRAGON' | 'STONE'
+  | 'FEATHER' | 'MECHANICAL' | 'GLOW' | 'MOSAIC'
+  | 'CRYSTAL' | 'VOID' | 'PIXEL'
+  | 'ARMOR' | 'DIAMOND_PLATE' | 'SLIME' | 'BIO_HAZARD';
+
+export type AccessoryType =
+  | 'NONE' | 'GOLD_CHAIN' | 'PEARL_NECKLACE' | 'JADE_PENDANT'
+  | 'SUNGLASSES' | 'CROWN' | 'BOW_TIE' | 'DIAMOND_RING'
+  | 'MEDAL' | 'SCARF' | 'HEADPHONES' | 'FLOWER' | 'EYEPATCH' | 'HALO' | 'UNICORN_HORN';
+
+export type TailType =
+  | 'DEFAULT' | 'CRESCENT' | 'FORKED' | 'FAN' | 'TRIDENT'
+  | 'LOBSTER' | 'MECHANICAL' | 'GHOST' | 'RIBBON';
+
+export type BodyType =
+  | 'DEFAULT' | 'ROUND' | 'SLENDER' | 'CHUNKY' | 'BOX'
+  | 'STAR' | 'MERMAID' | 'RAY' | 'EEL';
+
+export type MouthType = 'TRIANGLE' | 'CIRCLE' | 'SQUARE' | 'FLAT' | 'BEAK' | 'CURVE';
+
+export type EyeType =
+  | 'NORMAL' | 'ANIME' | 'MAD' | 'DERP' | 'CYBORG' | 'DEAD'
+  | 'LOVE' | 'HYPNO' | 'CAT' | 'FIRE' | 'BUTTON' | 'GOGGLES';
+
+export type EyebrowType = 'NONE' | 'ANGRY' | 'SAD' | 'CONFUSED' | 'THICK' | 'UNI' | 'TIERED';
+
+export type TrailType = 'NONE' | 'BUBBLES' | 'RAINBOW' | 'FIRE' | 'GLITTER' | 'HEARTS' | 'ELECTRIC' | 'SLIME';
+
+export interface Cosmetics {
+  teeth: TeethType;
+  skinColor: string;
+  pattern: PatternType;
+  scaleType: ScaleType;
+  accessory: AccessoryType;
+  tailType: TailType;
+  bodyType: BodyType;
+  mouthType: MouthType;
+  eyeType: EyeType;
+  eyebrowType: EyebrowType;
+  trailType: TrailType;
+}
+
+export const DEFAULT_COSMETICS: Cosmetics = {
+  teeth: 'NORMAL',
+  skinColor: 'DEFAULT',
+  pattern: 'NONE',
+  scaleType: 'NONE',
+  accessory: 'NONE',
+  tailType: 'DEFAULT',
+  bodyType: 'DEFAULT',
+  mouthType: 'TRIANGLE',
+  eyeType: 'NORMAL',
+  eyebrowType: 'NONE',
+  trailType: 'NONE',
+};
+
+/* ══════════════ 实体 ══════════════ */
+
+export interface Entity {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  angle: number;
+  health: number;
+  maxHealth: number;
+  speed: number;
+  config: CreatureConfig;
+
+  targetId?: string | null;
+  ownerId?: string;
+  aggroTimer?: number;
+  mouthOpenValue: number;
+  isHidden?: boolean;
+
+  isIdle: boolean;
+  lureActive: boolean;
+  camoActive: boolean;
+  ambushTimer: number;
+
+  animOffset: number;
+  renderScale: number;
+  isInvulnerable?: boolean;
+  speedBoostTimer?: number;
+
+  happyTimer?: number;
+  fearTimer?: number;
+  speechBubble?: { text: string; timer: number; color: string } | null;
+  evolutionVisualTimer?: number;
+  cosmetics?: Cosmetics;
+  level: number;
+
+  /** 半虚状态：新生成的鱼不能吃也不能被吃（帧） */
+  semiGhostTimer?: number;
+  /** 中毒持续伤害（帧），由 VENOM 等技能施加 */
+  poisonTimer?: number;
+  /** 当前所在生态区，每帧由 systems/world.ts 更新 */
+  currentBiome?: string;
+  /** 大鱼反制：被偷袭后的愤怒值 */
+  angerTimer?: number;
+  /** 撕咬冷却（帧）：防止同一帧反复判定把对手瞬秒 */
+  biteCooldown?: number;
+  /** 易伤标记（帧）：被「弱点标记」等技能点名，受到的伤害翻倍 */
+  vulnerableTimer?: number;
+  /** 流派技能冷却（帧），仅玩家使用第二技能槽 */
+  schoolSkillCooldown?: number;
+  /** 无敌帧（DODGE / ROLL 等技能） */
+  invulnerableTimer?: number;
+  /** 护盾剩余帧（SHELL / INFLATE 等技能） */
+  shieldTimer?: number;
+}
+
+export interface PlayerState extends Entity {
+  weight: number;
+  evolutionPoints: number;
+  stats: {
+    speedMult: number;
+    sizeMult: number;
+    defenseMult: number;
+    visionRadius: number;
+  };
+  eatenHistory: Record<string, number>;
+  boost: {
+    current: number;
+    max: number;
+    active: boolean;
+  };
+  isGodMode?: boolean;
+  reviveCount: number;
+
+  shieldTimer: number;
+  invulnerableTimer: number;
+
+  currentBiome: string;
+  biomeDebuffTimer: number;
+
+  skillCooldown: number;
+  skillMaxCooldown: number;
+  skillLevel: number;
+
+  /** 流派技能（第二技能槽，Q 键释放），来自生物所属流派 */
+  schoolSkillId?: string;
+  schoolSkillCooldown: number;
+
+  cosmetics: Cosmetics;
+  semiGhostTimer?: number;
+}
+
+/* ══════════════ 世界物件 ══════════════ */
+
+export interface Particle {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+  interactionType?: 'SHRINK';
+  /** 粒子形状：默认圆点，'COOKIE' 画成迷你金色小饼干 */
+  shape?: 'COOKIE';
+  /** 饼干的旋转角（每颗朝向随机，更像撒出来的饼干渣） */
+  spin?: number;
+}
+
+export interface Obstacle {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  type: 'ROCK' | 'CORAL' | 'SEAWEED';
+}
+
+export interface PowerUp {
+  id: string;
+  x: number;
+  y: number;
+  type: 'SPEED' | 'SHIELD' | 'BOTTLE' | 'SHELL';
+  radius: number;
+}
+
+export interface Fountain {
+  id: string;
+  x: number;
+  y: number;
+  timer: number;
+  radius: number;
+}
+
+export interface Hazard {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  type: 'METEOR_STRIKE';
+  timer: number;
+  duration: number;
+  stage: 'WARNING' | 'STRIKE' | 'COOLDOWN';
+  /** 预警倒计时（秒），小地图与 UI 显示用，由 systems/events.ts 每帧同步 */
+  countdown?: number;
+}
+
+export interface Portal {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  angle: number;
+  name?: string;
+}
+
+export interface Building {
+  id: string;
+  x: number;
+  y: number;
+  type: string;
+  radius: number;
+  cooldown: number;
+}
+
+export interface Treasure {
+  id: string;
+  x: number;
+  y: number;
+  type: 'FEAST' | 'CHEST' | 'GEM' | 'FOOD';
+  status: 'WARNING' | 'ACTIVE';
+  timer: number;
+  radius: number;
+  effect?: 'EXP' | 'GOLD' | 'SKILL' | 'SHIELD';
+  rewardValue?: number;
+}
+
+export interface Label {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  /** 存活帧数。重构前 labels 只增不减，属于内存泄漏，现在统一由 progression 系统回收 */
+  timer?: number;
+}
+
+/* ══════════════ 事件（逻辑层 → 表现层） ══════════════ */
+
+export interface GameEvents {
+  eat: { attacker: Entity; victim: Entity; isBackAttack: boolean; x: number; y: number };
+  hurt: { target: Entity; amount: number; source?: Entity };
+  death: { victim: Entity; killer?: Entity };
+  reversal: { x: number; y: number; score: number };
+  levelup: { entity: Entity; level: number };
+  evolve: { entity: Entity };
+  skill: { entity: Entity; skillId: string; skillName: string };
+  treasure: { x: number; y: number; label: string; color: string };
+  pickup: { x: number; y: number; label: string; color: string };
+  biome: { from: string; to: string };
+  building: { x: number; y: number; label: string; color: string };
+  particle: { x: number; y: number; color: string; count: number };
+}
+
+/* ══════════════ 每帧上下文 ══════════════ */
+
+export interface FrameInput {
+  space: boolean;
+  mouseDown: boolean;
+  rightMouseDown: boolean;
+  /** Q 键：释放流派技能 */
+  q: boolean;
+  /** E 键：交互确认（进商场等需要主动按下，防止路过大建筑被误触发） */
+  interact: boolean;
+}
+
+export interface FrameContext {
+  mouse: { x: number; y: number };
+  input: FrameInput;
+  screen: { width: number; height: number };
+  events: EventBus<GameEvents>;
+  /** 固定为 1 帧，保留字段便于将来支持变速 / 暂停 */
+  dt: number;
+}
+
+/* ══════════════ 游戏总状态 ══════════════ */
+
+export interface GameState {
+  status: GameStatus;
+  player: PlayerState;
+  entities: Entity[];
+  particles: Particle[];
+  obstacles: Obstacle[];
+  powerUps: PowerUp[];
+  hazards: Hazard[];
+  portals: Portal[];
+  buildings: Building[];
+  treasures: Treasure[];
+  fountains: Fountain[];
+  labels: Label[];
+  worldWidth: number;
+  worldHeight: number;
+  camera: { x: number; y: number; zoom: number };
+  score: number;
+  time: number;
+}
