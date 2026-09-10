@@ -20,6 +20,7 @@
 
 import { SQUAD_CONFIG, PHRASES } from '../data/world';
 import type { Entity, GameState, FrameContext, PlayerState, SquadRecruit } from '../types';
+import { GameStatus } from '../types';
 import { turnToward, pick } from '../core/math';
 import { createEntity } from './spawn';
 
@@ -90,8 +91,13 @@ const flushRecruits = (state: GameState): void => {
 /* ══════════════ 身体交换 ══════════════ */
 
 /**
- * 把 b 的「身体」搬到 a 上：种类 / 体型 / 血量 / 等级 / 外观。
- * 灵魂层面的东西（weight / evolutionPoints / score / 技能）不动。
+ * 把 b 的「身体」搬到 a 上：种类 / 体型 / 血量 / 外观。
+ * 灵魂层面的东西（weight / evolutionPoints / score / **level** / 技能）不动。
+ *
+ * ⚠️ level 明确**不算身体属性**：它由 combat 吃鱼推进（combat.ts），
+ *    又用来解锁流派技能（skills.ts：Lv3 第 1 个、Lv6 第 2 个…）和门控右键主技能。
+ *    如果跟着身体走，附身一条 t1 小鱼（Lv1）会把 `getSchoolSkill` 的 index 算成 -1，
+ *    已解锁的 Q 技能当场消失 —— 这和「灵魂附身不该丢进度」的设计意图直接打架。
  */
 const moveBody = (from: Entity, to: Entity): void => {
   to.type = from.type;
@@ -99,7 +105,6 @@ const moveBody = (from: Entity, to: Entity): void => {
   to.radius = from.radius;
   to.health = from.health;
   to.maxHealth = from.maxHealth;
-  to.level = from.level;
   to.cosmetics = from.cosmetics ?? to.cosmetics;
   to.speed = from.config.speed * (to.id === 'player' ? 1.2 : 1);
 };
@@ -150,24 +155,24 @@ export const possessMember = (
     radius: member.radius,
     health: member.health,
     maxHealth: member.maxHealth,
-    level: member.level,
     cosmetics: member.cosmetics,
   };
 
-  // 成员接管玩家留下的身体，并留在玩家原来的位置
+  // 成员接管玩家留下的身体，并留在玩家原来的位置。
+  // 等级显式转交：这具身体刚才是玩家的，理应保留当时的等级。
   moveBody(player, member);
+  member.level = player.level;
   member.x = playerPos.x;
   member.y = playerPos.y;
   member.angle = playerPos.angle;
   member.speechBubble = { text: '换我了？', timer: 60, color: '#a78bfa' };
 
-  // 玩家接管成员的身体，落到成员原来的位置
+  // 玩家接管成员的身体，落到成员原来的位置。等级不动 —— 那是灵魂的。
   player.type = memberBody.type;
   player.config = memberBody.config;
   player.radius = memberBody.radius;
   player.health = memberBody.health;
   player.maxHealth = memberBody.maxHealth;
-  player.level = memberBody.level;
   if (memberBody.cosmetics) player.cosmetics = memberBody.cosmetics;
   player.speed = player.config.speed * 1.2;
   player.x = memberPos.x;
@@ -189,6 +194,9 @@ let switchCursor = 0;
  * 随机切会让玩家不知道自己会跳到哪条鱼身上，轮转可预期、也更好测。
  */
 export const switchToNextMember = (state: GameState): boolean => {
+  // 只在正常游玩中允许切换。进化选择 / 结算 / 商场这些遮罩态下，
+  // 世界是暂停的，这时候还让 R 生效会让玩家在弹窗背后偷偷换身体（还能白嫖一次位置对调）。
+  if (state.status !== GameStatus.PLAYING) return false;
   if (state.squad.switchCooldown > 0) return false;
 
   const members = getSquadMembers(state);

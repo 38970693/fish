@@ -264,16 +264,36 @@ describe('战队 · 主动切换（灵魂附身）', () => {
     expect(oldBody.y).toBeCloseTo(py, 5);
   });
 
-  it('切换保留灵魂层面的进度（体重 / 分数不因换身体而清零）', () => {
+  it('切换保留灵魂层面的进度（体重 / 分数 / 等级不因换身体而清零）', () => {
     const state = makePlayingState();
     state.player.weight = 123;
     state.score = 456;
+    state.player.level = 9;
     addMember(state, CreatureType.CLOWN_FISH, state.player.x + 100, state.player.y);
 
     switchToNextMember(state);
 
     expect(state.player.weight).toBe(123);
     expect(state.score).toBe(456);
+    // ⚠️ level 必须跟着灵魂走：它由吃鱼推进，又用来解锁流派技能
+    //    （skills.ts：Lv3 第 1 个、Lv6 第 2 个…）。附身 t1 小鱼不能让 Lv 掉到 1，
+    //    否则 getSchoolSkill 的 index 算成 -1，已解锁的 Q 技能当场消失。
+    expect(state.player.level).toBe(9);
+  });
+
+  it('附身很小的小弟也不会把等级拉低（技能不会被锁回去）', () => {
+    const state = makePlayingState();
+    state.player.level = 9;
+    // 一条 t1 的小鱼，等级只有 1
+    const small = addMember(state, CreatureType.CLOWN_FISH, state.player.x + 120, state.player.y);
+    small.level = 1;
+    const smallRadius = small.radius; // 必须在交换前记下来：交换后 small 就变成玩家的旧身体了
+
+    switchToNextMember(state);
+
+    expect(state.player.level).toBe(9);
+    // 玩家的身体换成了小鱼（体型确实变小），但灵魂进度没丢
+    expect(state.player.radius).toBe(smallRadius);
   });
 
   it('有冷却时会拦住连点', () => {
@@ -288,6 +308,33 @@ describe('战队 · 主动切换（灵魂附身）', () => {
     expect(switchToNextMember(state)).toBe(false);
     expect(state.player.type).toBe(typeAfterFirst);
     expect(a.ownerId).toBe('player');
+  });
+
+  it('只有正常游玩中才能切：进化 / 结算 / 商场等遮罩态下按 R 无效', () => {
+    const state = makePlayingState();
+    // 队员刻意用与玩家（默认小丑鱼）不同的种类，才能验证「切成功后身体真的变了」
+    addMember(state, CreatureType.SWORD_FISH, state.player.x + 100, state.player.y);
+    const before = state.player.type;
+
+    // 这些状态下世界是暂停的，keydown 挂在 window 上仍会触发 —— 必须靠 status 门闸挡住，
+    // 否则玩家能在弹窗背后偷偷换身体（还白嫖一次位置对调）。
+    for (const st of [
+      GameStatus.EVOLVING,
+      GameStatus.GAME_OVER,
+      GameStatus.VICTORY,
+      GameStatus.SHOP,
+      GameStatus.MENU,
+    ]) {
+      state.squad.switchCooldown = 0; // 排除冷却干扰，专测 status 门闸
+      state.status = st;
+      expect(switchToNextMember(state)).toBe(false);
+      expect(state.player.type).toBe(before);
+    }
+
+    // 回到 PLAYING 立刻就能切
+    state.status = GameStatus.PLAYING;
+    expect(switchToNextMember(state)).toBe(true);
+    expect(state.player.type).not.toBe(before);
   });
 });
 

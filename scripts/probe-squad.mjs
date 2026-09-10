@@ -91,6 +91,18 @@ for (let round = 1; round <= 60; round++) {
     break;
   }
 
+  // 吃完第一条鱼往往就攒够进化点数 → 弹「选择进化方向」遮罩（世界暂停）。
+  // 不处理的话玩家会一直卡在弹窗里，捕食和截图都拿不到。选第一个方向继续。
+  if (st.status === 'EVOLVING') {
+    const opt = page.locator('button:has-text("右键技能")').first();
+    if (await opt.count()) {
+      await opt.click();
+      log(`    第 ${round} 轮：处理进化弹窗（选了第一个方向）`);
+      await page.waitForTimeout(250);
+      continue;
+    }
+  }
+
   const sq = await readSquad();
   maxSquad = Math.max(maxSquad, sq.members.length);
   recruited = sq.recruitedTotal;
@@ -123,6 +135,8 @@ for (let round = 1; round <= 60; round++) {
     log(`    -> 冷却防连点: ${beforeCd.name === afterCd.name ? '✅ 第二次 R 被挡下' : '⚠️ 第二次 R 也生效了（冷却可能没兜住）'}`);
 
     switchTested = true;
+    // 切换瞬间的实拍：能看到 HUD 战队面板 + 玩家已换成小弟的身体
+    await page.screenshot({ path: 'scripts/squad-probe-swap.png' });
     break;
   }
 
