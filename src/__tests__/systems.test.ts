@@ -195,6 +195,18 @@ describe('整帧冒烟', () => {
       updateGame(state, { x: 640, y: 360 }, i % 3 === 0, i % 5 === 0, i % 7 === 0, 1280, 720);
       expect(Number.isFinite(state.player.x)).toBe(true);
       expect(Number.isFinite(state.player.y)).toBe(true);
+
+      // ⚠️ 这个断言以前是随机的：约 1/6 概率挂在 `expected 272 to be 300` 之类的数字上。
+      //    两个原因都会让世界暂停（都是设计行为，不是 bug）：
+      //      1) 玩家起始 evolutionPoints=15，tier-2 阈值 30 —— 吃几条鱼就触发 EVOLVING
+      //      2) createInitialState **不发放新手保护**（那是 App 点开始游戏时才加的），
+      //         所以这里的玩家真的会被吃掉 → GAME_OVER
+      //    冒烟测试只关心「连跑 300 帧不崩 + 坐标始终有效」，所以把暂停的状态放行回去。
+      //    注意要用断言写法绕开 TS 的控制流收窄（否则 status 已被窄化成 PLAYING）。
+      if ((state.status as GameStatus) !== GameStatus.PLAYING) {
+        state.status = GameStatus.PLAYING;
+      }
+      if (state.player.health <= 0) state.player.health = state.player.maxHealth;
     }
 
     expect(state.time).toBe(300);

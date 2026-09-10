@@ -16,6 +16,7 @@ import { GameStatus } from './types';
 import type { GameState, FrameContext, GameEvents } from './types';
 
 import { createEntity } from './systems/spawn';
+import { switchToNextMember } from './systems/squad';
 import { createObstacles, createBuildings, createPortals } from './systems/world';
 import { createParticle } from './systems/combat';
 import { getMapBoundaryRadius } from './systems/terrain';
@@ -101,8 +102,14 @@ export const updateGame = (
 };
 
 /**
- * 手动切换战队成员。
- * ⚠️ 战队系统尚未实现（见 开发路线图.md P2-6），这里保持返回 false 表示「没有可切换的成员」，
- *    调用方拿到 false 就不做后续处理，不会出错。
+ * 手动切换战队成员（提示词 #234「主动切换」）。
+ *
+ * 2026-09-10 战队系统落地，这里从空桩转正：灵魂附身到下一条小弟身上，
+ * 原来的身体留在队里当小弟。队里没人时返回 false，调用方不做后续处理即可。
+ *
+ * 原本空桩时期的设计（返回 false 表示没得切）保留了下来 —— 这个契约挺好，
+ * 调用方不需要关心队里有没有人。
  */
-export const manualSquadSwitch = (_state: GameState): boolean => false;
+export const manualSquadSwitch = (state: GameState): boolean => switchToNextMember(state);
+
+export { getSquadMembers, tryPossessOnDeath, switchToNextMember } from './systems/squad';

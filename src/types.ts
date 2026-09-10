@@ -199,6 +199,38 @@ export interface PlayerState extends Entity {
   semiGhostTimer?: number;
 }
 
+/* ══════════════ 战队 ══════════════ */
+
+/**
+ * 待入队的俘虏。
+ *
+ * 为什么不是一个直接的实体？—— 吞噬发生在 combat 系统的碰撞遍历中间，
+ * 此时往 `state.entities` 里 push 会让当前这轮 for 循环多跑新元素，
+ * 既可能重复判定也容易长出无限队。所以 combat 只登记「谁被收编了」，
+ * 由 squad 系统在遍历结束后统一转成实体。
+ */
+export interface SquadRecruit {
+  type: string;
+  x: number;
+  y: number;
+  radius: number;
+  health: number;
+  maxHealth: number;
+  level: number;
+  cosmetics?: Cosmetics;
+}
+
+export interface SquadState {
+  /** 本帧待入队的俘虏，squad 系统消费后清空 */
+  pending: SquadRecruit[];
+  /** 主动切换冷却（帧） */
+  switchCooldown: number;
+  /** 累计收编人数（HUD 展示用，成员阵亡不减少） */
+  recruitedTotal: number;
+  /** 夺舍次数（HUD 展示用） */
+  possessCount: number;
+}
+
 /* ══════════════ 世界物件 ══════════════ */
 
 export interface Particle {
@@ -338,6 +370,8 @@ export interface GameState {
   status: GameStatus;
   player: PlayerState;
   entities: Entity[];
+  /** 战队：成员就是 entities 里 ownerId === 'player' 的那些实体，这里只放队列与统计 */
+  squad: SquadState;
   particles: Particle[];
   obstacles: Obstacle[];
   powerUps: PowerUp[];

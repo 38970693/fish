@@ -17,6 +17,7 @@ import { spawnSystem } from './spawn';
 import { playerControlSystem } from './playerControl';
 import { skillsSystem } from './skills';
 import { aiSystem } from './ai';
+import { squadSystem } from './squad';
 import { worldSystem } from './world';
 import { itemsSystem } from './items';
 import { combatSystem } from './combat';
@@ -34,6 +35,7 @@ export interface SystemEntry {
  *   control   玩家先动（技能要基于最新朝向）
  *   skills    放技能
  *   ai        鱼群思考
+ *   squad     战队：把俘虏落地成实体 + 成员跟随（必须紧接 ai 之后，且 ai 会跳过战队成员）
  *   world     统一处理边界 / 障碍 / 生态 / 建筑 / 传送门（放在移动之后，避免被移动覆盖）
  *   items     道具与鱼雷
  *   combat    碰撞结算（放在移动之后才准）
@@ -45,6 +47,7 @@ export const SYSTEMS: SystemEntry[] = [
   { name: 'playerControl', fn: safe('playerControl', playerControlSystem) },
   { name: 'skills', fn: safe('skills', skillsSystem) },
   { name: 'ai', fn: safe('ai', aiSystem) },
+  { name: 'squad', fn: safe('squad', squadSystem) },
   { name: 'world', fn: safe('world', worldSystem) },
   { name: 'items', fn: safe('items', itemsSystem) },
   { name: 'combat', fn: safe('combat', combatSystem) },
@@ -70,4 +73,4 @@ export function runSystems(state: GameState, ctx: FrameContext): void {
   }
 }
 
-export { spawnSystem, playerControlSystem, skillsSystem, aiSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, progressionSystem };
+export { spawnSystem, playerControlSystem, skillsSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, progressionSystem };

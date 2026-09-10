@@ -28,3 +28,6 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+# 本地探针脚本的截图产物（脚本本身要提交，截图不用）
+scripts/*-probe.png

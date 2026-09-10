@@ -7,6 +7,7 @@
 import { EVOLUTION_THRESHOLDS } from '../data/world';
 import { GameStatus } from '../types';
 import type { GameState, FrameContext } from '../types';
+import { tryPossessOnDeath } from './squad';
 
 export const progressionSystem = (state: GameState, ctx: FrameContext): void => {
   const player = state.player;
@@ -32,6 +33,33 @@ export const progressionSystem = (state: GameState, ctx: FrameContext): void => 
 
   /* ── 3. 死亡判定 ── */
   if (player.health <= 0 && state.status === GameStatus.PLAYING) {
+    // 亡语机制（提示词 #234 / #245）：只要队里还有人，就夺舍半径最大的成员继续游戏，
+    // 而不是直接结算。没有成员可夺舍了，才干净地切到 GAME_OVER（#294）。
+    if (tryPossessOnDeath(state)) {
+      // 夺舍不发作废的死亡音效/事件：旧身体是没了，但玩家还活着
+      state.labels.push({
+        x: player.x,
+        y: player.y - 60,
+        text: '亡语 · 夺舍！',
+        color: '#22d3ee',
+        timer: 90,
+      });
+      for (let i = 0; i < 20; i += 1) {
+        state.particles.push({
+          id: `possess-${state.time}-${i}`,
+          x: player.x,
+          y: player.y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          life: 1,
+          maxLife: 1,
+          color: '#22d3ee',
+          size: Math.random() * 3 + 2,
+        });
+      }
+      return;
+    }
+
     state.status = GameStatus.GAME_OVER;
     ctx.events.emit('death', { victim: player });
     return;

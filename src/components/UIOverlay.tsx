@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
-import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG } from '../constants';
+import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, SQUAD_CONFIG } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
 import { SKILL_DATA } from '../data/skills';
 import { drawCuteFish } from './GameCanvas';
-import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX } from 'lucide-react';
+import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat } from 'lucide-react';
 import MiniMap from './MiniMap';
 import CosmeticsPanel from './CosmeticsPanel';
 
@@ -187,14 +187,18 @@ interface UIOverlayProps {
   onToggleGodMode?: () => void;
   onUpdateCosmetics?: (cosmetics: Cosmetics) => void;
   setGameStatus?: (status: GameStatus) => void;
+  /** 战队：主动切换成员（提示词 #234）。没成员时按钮置灰 */
+  onSwitchSquad?: () => void;
   /** P1-4 音效开关 */
   muted?: boolean;
   onToggleMute?: () => void;
 }
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, muted, onToggleMute }) => {
+const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, onSwitchSquad, muted, onToggleMute }) => {
   const { player, status, entities } = gameState;
   const opponent = entities.find(e => e.id !== 'player' && e.type === CreatureType.ORCA);
+  // 战队成员 = ownerId 指向玩家的活体（与 systems/squad.ts 的判定保持一致）
+  const squadMembers = entities.filter(e => e.ownerId === 'player' && e.health > 0);
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
   const [showCosmetics, setShowCosmetics] = useState(false);
 
@@ -309,6 +313,29 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         <Crown size={16} /> 无敌模式 · 按 G 关闭
                     </div>
                 )}
+                {/* 战队面板（提示词 #70 / #234）：吃掉的鱼会倒戈入队，死了能夺舍续命 */}
+                <div className="mt-2 pt-2 border-t border-slate-700/60">
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-cyan-300 font-bold text-sm">
+                            <Users size={15} /> 战队
+                            <span className="text-white">{squadMembers.length}</span>
+                            <span className="text-slate-500 text-xs">/ {SQUAD_CONFIG.MAX_SIZE}</span>
+                        </span>
+                        <button
+                            onClick={() => onSwitchSquad?.()}
+                            disabled={squadMembers.length === 0}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed"
+                            title="灵魂附身到下一条小弟身上（原身体变成小弟）"
+                        >
+                            <Repeat size={13} /> 切换 (R)
+                        </button>
+                    </div>
+                    {squadMembers.length > 0 && (
+                        <div className="mt-1 text-[11px] text-slate-500 text-center">
+                            阵亡可夺舍体型最大的成员续命
+                        </div>
+                    )}
+                </div>
             </div>
 
             {status === GameStatus.BATTLE_TEST && opponent && (

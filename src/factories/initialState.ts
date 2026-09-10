@@ -84,6 +84,7 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     status: GameStatus.MENU,
     player,
     entities: [],
+    squad: { pending: [], switchCooldown: 0, recruitedTotal: 0, possessCount: 0 },
     particles: [],
     obstacles: options.skipWorldGen ? [] : createObstacles(),
     powerUps: [],

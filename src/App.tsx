@@ -4,7 +4,7 @@ import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
 import { GameState, GameStatus, CreatureType } from './types';
 import { CREATURES, MAP_SHAPE_CONFIG, PROTECTION_CONFIG } from './constants';
-import { updateGame, manualSquadSwitch, createEntity } from './gameEngine';
+import { updateGame, manualSquadSwitch, createEntity, getSquadMembers } from './gameEngine';
 import { createInitialState } from './factories/initialState';
 import { subscribeAudio, initAudio, toggleMute, isMuted } from './audio';
 
@@ -33,6 +33,11 @@ const App: React.FC = () => {
       if (e.code === 'Space') keysRef.current.space = true;
       if (e.code === 'KeyQ') keysRef.current.q = true;
       if (e.code === 'KeyE') keysRef.current.e = true;
+      if (e.code === 'KeyR') {
+        // 切换战队成员（提示词 #234）：一次性动作，走事件不走轮询，
+        // 按一次切一次，squad 系统内部有 30 帧冷却防连点
+        manualSquadSwitch(gameStateRef.current);
+      }
       if (e.code === 'KeyG') {
         const p = gameStateRef.current.player;
         p.isGodMode = !p.isGodMode;
@@ -84,6 +89,44 @@ const App: React.FC = () => {
     };
     requestAnimationFrame(loop);
     return () => { alive = false; };
+  }, []);
+
+  // 开发期调试钩子：e2e 探针（scripts/probe-*.mjs）用它直接读真实 gameState。
+  // 比解析 HUD 文本可靠得多 —— HUD 每 100ms 才从 gameStateRef 同步一次，
+  // 按键后立刻读会拿到上一帧的旧快照（踩过这个坑）。生产构建里 DEV 为 false，整块被摇掉。
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as Record<string, unknown>).__FISH_DEBUG__ = {
+      state: () => gameStateRef.current,
+      squad: () => ({
+        members: getSquadMembers(gameStateRef.current).map((e) => ({
+          id: e.id,
+          type: e.type,
+          radius: e.radius,
+          x: Math.round(e.x),
+          y: Math.round(e.y),
+        })),
+        pending: gameStateRef.current.squad.pending.length,
+        recruitedTotal: gameStateRef.current.squad.recruitedTotal,
+        possessCount: gameStateRef.current.squad.possessCount,
+        cooldown: gameStateRef.current.squad.switchCooldown,
+      }),
+      player: () => {
+        const p = gameStateRef.current.player;
+        return {
+          type: p.type,
+          name: p.config.name,
+          radius: Math.round(p.radius),
+          level: p.level,
+          health: Math.round(p.health),
+          x: Math.round(p.x),
+          y: Math.round(p.y),
+        };
+      },
+    };
+    return () => {
+      delete (window as unknown as Record<string, unknown>).__FISH_DEBUG__;
+    };
   }, []);
 
   const startBattleTest = () => {
@@ -166,6 +209,7 @@ const App: React.FC = () => {
             p.speechBubble = { text: '复活成功！', timer: 90, color: '#22d3ee' };
         }}
         setGameStatus={(s) => { gameStateRef.current.status = s; }}
+        onSwitchSquad={() => { manualSquadSwitch(gameStateRef.current); }}
         muted={muted}
         onToggleMute={() => { initAudio(); setMuted(toggleMute()); }}
       />

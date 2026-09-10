@@ -22,9 +22,6 @@ export const GAME_MECHANICS = {
   BASE_TURN_SPEED: 0.5,
   SIZE_AGILITY_PENALTY: 0.002,
 
-  /** P2 战队系统预留（manualSquadSwitch 空桩转正时启用） */
-  MAX_SQUAD_SIZE: 10,
-
   AMBUSH_BONUS_FRAMES: 60,
   AMBUSH_SPEED_BONUS: 2.5,
   AMBUSH_DAMAGE_MULT: 2.0,
@@ -51,6 +48,35 @@ export const BOOST_CONFIG = {
 export const PROTECTION_CONFIG = {
   NEWBIE_DURATION: 480,
   REVIVE_DURATION: 300,
+};
+
+/**
+ * 战队系统（提示词 #70 / #234 / #245 / #254 / #294）
+ *
+ * 规则来源：
+ *   #70  被玩家吃掉的鱼加入战队（而不是消失）
+ *   #234 主动切换：灵魂附身到小弟身上，原来的身体变成小弟
+ *   #245 亡语：本体死亡时夺舍「半径最大」的成员，而不是随机
+ *   #254 自己人不打自己人
+ *   #294 没有成员可夺舍时才干净切到结算
+ */
+export const SQUAD_CONFIG = {
+  /** 战队人数上限。滚雪球的主要刹车 */
+  MAX_SIZE: 10,
+  /** 入队后跟随玩家的理想距离（成员半径 + 玩家半径 + 这个值） */
+  FOLLOW_GAP: 90,
+  /** 落后多远才开始追（避免抖动） */
+  FOLLOW_DEADZONE: 260,
+  /** 队形：第 n 个成员围绕玩家的角度间隔（度） */
+  FORMATION_ANGLE_STEP: 36,
+  /** 主动切换冷却（帧），防连点 */
+  SWITCH_COOLDOWN: 30,
+  /** 夺舍后的保护帧数，防止落地即被守尸 */
+  POSSESS_PROTECTION: 300,
+  /** 入队后不能完全免疫，给个短半虚保护，避免刚入队就被旁边的鱼秒了 */
+  RECRUIT_GHOST: 60,
+  /** 不收编的食物：浮游生物属于饲料，进战队没意义 */
+  RECRUIT_MIN_TIER: 1,
 };
 
 /** 陨石危险事件 */

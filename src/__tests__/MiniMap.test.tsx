@@ -124,6 +124,7 @@ const createMockGameState = (overrides: Partial<GameState> = {}): GameState => (
   status: 'PLAYING' as any,
   player: createMockPlayer(),
   entities: [],
+  squad: { pending: [], switchCooldown: 0, recruitedTotal: 0, possessCount: 0 },
   particles: [],
   obstacles: [],
   powerUps: [],

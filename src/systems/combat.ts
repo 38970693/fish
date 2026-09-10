@@ -16,6 +16,7 @@ import { AMBUSH_CONFIG, COMBAT_CONFIG, PHRASES, REVERSAL_PHRASE } from '../data/
 import { GameStatus } from '../types';
 import type { Entity, GameState, FrameContext, PlayerState, Particle } from '../types';
 import { dist, uuid, pick, clamp } from '../core/math';
+import { recruitToSquad } from './squad';
 
 export const createParticle = (x: number, y: number, color: string): Particle => ({
   id: uuid(),
@@ -136,6 +137,13 @@ const applyDevour = (
     x: victim.x,
     y: victim.y,
   });
+
+  // 战队收编（提示词 #70）：玩家吃掉的鱼不消失，而是倒戈加入战队。
+  // 只登记不落地 —— 实体由 squad 系统在下一帧统一创建，
+  // 避免在碰撞遍历中间改 entities 把当前这轮循环搞乱。
+  if (attackerIsPlayer) {
+    recruitToSquad(state, victim);
+  }
 };
 
 /** 一次攻击判定。attacker 试图吃 victim。 */

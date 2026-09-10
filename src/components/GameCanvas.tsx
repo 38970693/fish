@@ -1263,6 +1263,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         visibleEntities.forEach(e => drawCuteFish(ctx, e, visualTime, false));
 
+        // 战队成员标记：青色虚线环 + 头顶「己」字，跟野怪一眼分开
+        visibleEntities.forEach(e => {
+            if (e.ownerId !== 'player') return;
+            ctx.save();
+            ctx.translate(e.x, e.y);
+            ctx.strokeStyle = 'rgba(34, 211, 238, 0.75)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 5]);
+            ctx.lineDashOffset = -visualTime * 0.05;
+            ctx.beginPath();
+            ctx.arc(0, 0, e.radius + 9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#22d3ee';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('己', 0, -e.radius - 14);
+            ctx.restore();
+        });
+
         // 绘制偷袭提示（在大鱼背后显示偷袭机会）
         visibleEntities.forEach(e => drawAmbushIndicator(ctx, e, player.x, player.y, player.level, visualTime));
 

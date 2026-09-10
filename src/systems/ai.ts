@@ -299,6 +299,10 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
   for (const entity of state.entities) {
     tickTimers(entity);
 
+    // 战队成员不是野怪：行为归 squad 系统管（跟随玩家）。
+    // 这里必须跳过，否则两个系统每帧各写一次位置，成员会原地抽搐。
+    if (entity.ownerId === 'player') continue;
+
     // 远离玩家的鱼不必每帧思考
     if (dist2(entity, state.player) > AI_ACTIVE_RANGE_SQ) continue;
 
