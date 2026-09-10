@@ -124,12 +124,15 @@ const BUILDING_EFFECTS: Record<string, (state: GameState, ctx: FrameContext, b: 
   },
   [BuildingType.SHOP]: (state, ctx, b) => {
     // 必须按 E 才进商场：商场会把整个世界暂停弹面板，路过就被劫持太恶心了。
-    // 平时只在鱼头顶提示，按 E（上升沿）才真正进入。
+    // 提示画在**商场脚下**（b.prompt），不再写 player.speechBubble ——
+    // 那个槽位战斗也在用（升级/吞噬/夺舍），互相顶掉，这就是路线图挂着的遗留 bug。
+    // （不画头顶是因为顶部的「宝贝倒计时」HUD 面板正好压在那儿。）
     const risingE = ctx.input.interact && !prevInteract;
     if (!risingE) {
-      state.player.speechBubble = { text: '按 E 进入商场换装', timer: 30, color: '#ec4899' };
+      b.prompt = { text: '按 E 进入商场换装', color: '#ec4899' };
       return false; // ⚠️ 只提示不触发：不能吃冷却，否则按 E 会连续 10 秒无效
     }
+    b.prompt = null; // 真进去了就别再挂着提示
     state.status = GameStatus.SHOP;
     ctx.events.emit('building', { x: b.x, y: b.y, label: '深海商场', color: '#ec4899' });
     return true;
@@ -170,6 +173,8 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
 
   /* ── 2. 建筑交互 ── */
   for (const b of state.buildings) {
+    // 先清上一帧的提示：本帧不在交互圈里就不该再显示（写入方只在进圈时赋值）
+    b.prompt = null;
     if (b.cooldown > 0) {
       b.cooldown--;
       continue;

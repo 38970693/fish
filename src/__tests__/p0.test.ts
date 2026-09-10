@@ -161,12 +161,23 @@ describe('P0-1 商场换装入口（E 键门闸）', () => {
     state.player.x = shop!.x;
     state.player.y = shop!.y;
 
-    // 只进范围不按键：保持 PLAYING（路过不被劫持），鱼头顶出现提示气泡
+    // 只进范围不按键：保持 PLAYING（路过不被劫持），提示画在**商场头顶**（b.prompt）
+    // —— 以前写在 player.speechBubble 里，和战斗气泡同槽互相顶掉（还曾因渲染丢失从未显示过）
     worldSystem(state, makeCtx());
     expect(state.status).toBe(GameStatus.PLAYING);
-    expect(state.player.speechBubble?.text).toContain('按 E');
+    expect(shop!.prompt?.text).toContain('按 E');
+    // 不再占用战斗气泡槽（speechBubble 要么没写、要么是生态区提示，反正不该是商场文案）
+    expect(state.player.speechBubble?.text ?? '').not.toContain('按 E');
 
-    // 按 E（上升沿）：切换到商场换装
+    // 离开交互圈：提示跟着消失（world 每帧先清残留）
+    state.player.x += shop!.radius * 3;
+    worldSystem(state, makeCtx());
+    expect(shop!.prompt).toBeNull();
+
+    // 游回商场再按 E（上升沿）：切换到商场换装
+    state.player.x = shop!.x;
+    state.player.y = shop!.y;
+    worldSystem(state, makeCtx()); // 先空跑一帧，确保提示恢复、E 归位
     worldSystem(state, makeCtx({ interact: true }));
     expect(state.status).toBe(GameStatus.SHOP);
   });

@@ -303,6 +303,12 @@ export interface Building {
   type: string;
   radius: number;
   cooldown: number;
+  /**
+   * 建筑的交互提示（如商场的「按 E 进入商场换装」），渲染在建筑下方。
+   * 由 world 系统每帧按需写入/清除，不再写 player.speechBubble ——
+   * 以前写在那个槽里跟战斗气泡互相顶掉（而且 speechBubble 的渲染在 v2 重构时丢过）。
+   */
+  prompt?: { text: string; color: string } | null;
 }
 
 export interface Treasure {

@@ -715,6 +715,37 @@ const drawBuilding = (ctx: CanvasRenderingContext2D, b: Building, time: number) 
     ctx.textBaseline = 'middle';
     ctx.fillText(glyph, 0, 0);
 
+    // 交互提示画在建筑**下方**（不是上方）：商场在屏幕中央时，头顶位置正好被
+    // 顶部的「宝贝倒计时」HUD 面板盖住，画在下方永远清爽。小尾巴朝上指着建筑。
+    if (b.prompt) {
+        ctx.globalAlpha = 1; // 冷却压暗不影响提示可读性
+        const bob = Math.sin(time * 0.08) * 4;
+        const py = b.radius + 34 + bob;
+        ctx.font = 'bold 16px sans-serif';
+        const w = ctx.measureText(b.prompt.text).width + 24;
+        const h = 30;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.beginPath();
+        ctx.roundRect(-w / 2, py - h / 2, w, h, 15);
+        ctx.fill();
+        // 小尾巴朝上指向建筑
+        ctx.beginPath();
+        ctx.moveTo(-6, py - h / 2 + 1);
+        ctx.lineTo(6, py - h / 2 + 1);
+        ctx.lineTo(0, py - h / 2 - 9);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = b.prompt.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-w / 2, py - h / 2, w, h, 15);
+        ctx.stroke();
+        ctx.fillStyle = b.prompt.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.prompt.text, 0, py);
+    }
+
     ctx.restore();
 };
 
@@ -1301,6 +1332,44 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         } else {
             drawCuteFish(ctx, player, visualTime, true);
         }
+
+        // 对话气泡：combat/ai/world/squad/skills… 十来个系统都在写 speechBubble，
+        // 但 v2 重构时渲染丢了，一直是「只写不画」的死状态。现在补上，画在实体头顶。
+        // 位置刻意抬高到 -radius-34：避开战队成员的「己」标记（在 -radius-14）。
+        const drawSpeechBubble = (e: Entity) => {
+            const bubble = e.speechBubble;
+            if (!bubble || bubble.timer <= 0 || !bubble.text) return;
+            ctx.save();
+            ctx.translate(e.x, e.y);
+            const bob = Math.sin(visualTime * 0.12) * 3;
+            const by = -e.radius - 34 + bob;
+            ctx.font = 'bold 14px sans-serif';
+            const w = ctx.measureText(bubble.text).width + 20;
+            const h = 26;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+            ctx.beginPath();
+            ctx.roundRect(-w / 2, by - h / 2, w, h, 13);
+            ctx.fill();
+            // 小尾巴
+            ctx.beginPath();
+            ctx.moveTo(-5, by + h / 2 - 1);
+            ctx.lineTo(5, by + h / 2 - 1);
+            ctx.lineTo(0, by + h / 2 + 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = bubble.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(-w / 2, by - h / 2, w, h, 13);
+            ctx.stroke();
+            ctx.fillStyle = bubble.color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(bubble.text, 0, by);
+            ctx.restore();
+        };
+        visibleEntities.forEach(drawSpeechBubble);
+        drawSpeechBubble(player);
 
         // 绘制传送门（最上层）
         gameState.portals.forEach(portal => drawPortal(ctx, portal, visualTime));
