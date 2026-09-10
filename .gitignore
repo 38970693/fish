@@ -31,3 +31,6 @@ playwright/.cache/
 
 # 本地探针脚本的截图产物（脚本本身要提交，截图不用）
 scripts/*-probe.png
+
+# 临时构建校验输出目录
+.build-check/
