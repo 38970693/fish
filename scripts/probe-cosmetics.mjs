@@ -87,7 +87,7 @@ log(`   选红(#ef4444) → 平均色 ${JSON.stringify(red)}`);
 check(!!red && red.r > red.g && red.r > red.b, '预览变红了（r > g 且 r > b）', red ? `r=${red.r} g=${red.g} b=${red.b}` : 'null');
 check(!!green && !!red && Math.abs(green.r - red.r) > 15, '红绿两次的平均色差异明显（不是没重绘）');
 
-await page.screenshot({ path: 'scripts/cosmetics-preview-color-probe.png' });
+await page.screenshot({ path: 'scripts/cosmetics-mirror.png' });
 
 /* ── C. 每类选项的缩略图必须两两不同 ── */
 log('[C] 每个选项的缩略图必须张张不同（这是「选了个寂寞」的唯一有效检测）');
@@ -100,7 +100,7 @@ check(teeth.length === 8, '牙齿有 8 个选项', `实到 ${teeth.length}`);
 const skin = await thumbPrints('skinColor');
 // DEFAULT（本鱼本色）可能正好等于调色板里的某一种，所以允许少 1 张
 check(new Set(skin).size >= skin.length - 1, `皮肤 ${skin.length} 张基本两两不同`, `distinct=${new Set(skin).size}`);
-await page.screenshot({ path: 'scripts/cosmetics-tab-color-probe.png' });
+await page.screenshot({ path: 'scripts/cosmetics-tab-color.png' });
 
 await page.click('[data-tab="pattern"]');
 await page.waitForTimeout(200);
@@ -111,21 +111,21 @@ check(pattern.length === 10, '花纹有 10 个选项', `实到 ${pattern.length}
 check(new Set(pattern).size === pattern.length, `花纹 ${pattern.length} 张两两不同`, `distinct=${new Set(pattern).size}`);
 check(scale.length === 7, '鳞片有 7 个选项', `实到 ${scale.length}`);
 check(new Set(scale).size === scale.length, `鳞片 ${scale.length} 张两两不同`, `distinct=${new Set(scale).size}`);
-await page.screenshot({ path: 'scripts/cosmetics-tab-pattern-probe.png' });
+await page.screenshot({ path: 'scripts/cosmetics-tab-pattern.png' });
 
 await page.click('[data-tab="accessory"]');
 await page.waitForTimeout(200);
 const acc = await thumbPrints('accessory');
 check(acc.length === 8, '配饰有 8 个选项', `实到 ${acc.length}`);
 check(new Set(acc).size === acc.length, `配饰 ${acc.length} 张两两不同`, `distinct=${new Set(acc).size}`);
-await page.screenshot({ path: 'scripts/cosmetics-tab-accessory-probe.png' });
+await page.screenshot({ path: 'scripts/cosmetics-tab-accessory.png' });
 
 await page.click('[data-tab="eyes"]');
 await page.waitForTimeout(200);
 const eyes = await thumbPrints('eyeType');
 check(eyes.length === 8, '眼睛有 8 个选项', `实到 ${eyes.length}`);
 check(new Set(eyes).size === eyes.length, `眼睛 ${eyes.length} 张两两不同`, `distinct=${new Set(eyes).size}`);
-await page.screenshot({ path: 'scripts/cosmetics-tab-eyes-probe.png' });
+await page.screenshot({ path: 'scripts/cosmetics-tab-eyes.png' });
 
 await page.click('[data-tab="ai-presets"]');
 await page.waitForTimeout(300);
@@ -133,7 +133,7 @@ const presets = await thumbPrints('preset');
 check(presets.length === 8, 'AI 预设 8 套', `实到 ${presets.length}`);
 check(new Set(presets).size === presets.length, `AI 预设 ${presets.length} 张两两不同`, `distinct=${new Set(presets).size}`);
 check(!!(await page.$('[data-testid="cosmetics-preview"] canvas')), '切到 AI 预设后大预览仍在');
-await page.screenshot({ path: 'scripts/cosmetics-tab-presets-probe.png' });
+await page.screenshot({ path: 'scripts/cosmetics-tab-presets.png' });
 
 /* ── D. 选中态与关闭 ── */
 log('[D] 选中态高亮 + 完成关闭');
@@ -159,7 +159,7 @@ log(`   status=${inGame.status} fish=${inGame.type} accessory=${inGame.accessory
 check(inGame.status !== 'MENU', '已经离开菜单进入游戏', String(inGame.status));
 check(!!inGame.type, '玩家鱼种有值（预览靠它，不能是 undefined）', String(inGame.type));
 check(inGame.accessory === 'CROWN', '菜单里选的装扮被带进了游戏', String(inGame.accessory));
-await page.screenshot({ path: 'scripts/cosmetics-ingame-probe.png' });
+await page.screenshot({ path: 'scripts/cosmetics-ingame.png' });
 
 log('[F] 页面错误: ' + (errors.length ? JSON.stringify(errors.slice(0, 5), null, 2) : '无'));
 log(failed === 0 ? '\n🎉 全部断言通过' : `\n💥 ${failed} 条断言失败`);
