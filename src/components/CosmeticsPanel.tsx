@@ -1,359 +1,387 @@
 /**
- * 装扮定制面板组件
- * 允许玩家自定义自己鱼的外观
+ * 装扮定制面板 —— 带「试衣镜」的版本。
+ *
+ * 以前这个面板只有色块、文字和 emoji，玩家完全不知道自己选完长什么样，
+ * 得关掉面板游回水里才看得见「哦，原来这个花纹是长这样的」。
+ *
+ * 现在两处预览，都直接画**穿着它的鱼**：
+ *   ① 左侧大预览：玩家当前的鱼种 + 当前装扮，逐帧动画，改一项立刻变；
+ *   ② 每个选项按钮里一张缩略图：`{...当前装扮, [该项]: 该选项}` —— 只动一个变量，
+ *      所以选项之间的差别就是「换上它之后鱼的变化」，对比才有意义。
+ *
+ * 预览一律走 `FishPreview` → `drawCuteFish`，和游戏本体同一套画法。
  */
 
 import React, { useState } from 'react';
-import { Cosmetics, TeethType, PatternType, ScaleType, AccessoryType, TailType, BodyType, MouthType, EyeType, EyebrowType, TrailType } from '../types';
-import { Sparkles, Palette, Crown, Eye as EyeIcon, Heart, Zap } from 'lucide-react';
+import { DEFAULT_COSMETICS, type Cosmetics, type CreatureType } from '../types';
+import { CREATURES } from '../data/creatures';
+import {
+  ACCESSORY_OPTIONS,
+  AI_COSMETICS_PRESETS,
+  COSMETIC_TABS,
+  EYE_OPTIONS,
+  PATTERN_OPTIONS,
+  SCALE_OPTIONS,
+  SKIN_COLOR_OPTIONS,
+  TEETH_OPTIONS,
+  withOption,
+  type CosmeticTabId,
+} from '../data/cosmeticsOptions';
+import { Sparkles, Palette, Crown, Eye as EyeIcon, Check, RotateCcw } from 'lucide-react';
+import FishPreview from './FishPreview';
 
 interface CosmeticsPanelProps {
   cosmetics: Cosmetics;
   onChange: (cosmetics: Cosmetics) => void;
   onClose: () => void;
+  /** 要预览的鱼种。装扮面板在菜单和商场里都可能开，玩家鱼种由调用方给 */
+  fishType?: CreatureType;
   mode?: 'player' | 'ai-fish';
   onModeChange?: (mode: 'player' | 'ai-fish') => void;
 }
 
-// 默认装扮配置
-const DEFAULT_COSMETICS: Cosmetics = {
-  teeth: 'NORMAL', skinColor: '#3b82f6', pattern: 'NONE', scaleType: 'NONE', accessory: 'NONE',
-  tailType: 'DEFAULT', bodyType: 'DEFAULT', mouthType: 'TRIANGLE', eyeType: 'NORMAL', eyebrowType: 'NONE', trailType: 'NONE'
+/** 标签页图标（数据层不引 React，图标在这里配） */
+const TAB_ICONS: Record<CosmeticTabId, React.ReactNode> = {
+  color: <Palette size={16} />,
+  pattern: <Sparkles size={16} />,
+  accessory: <Crown size={16} />,
+  eyes: <EyeIcon size={16} />,
+  'ai-presets': <Sparkles size={16} />,
 };
 
-// AI鱼专属装扮 - 酷炫预设
-const AI_COSMETICS_PRESETS: { name: string; cosmetics: Cosmetics }[] = [
-  { name: '🦈 鲨鱼', cosmetics: { teeth: 'SHARP', skinColor: '#64748b', pattern: 'NONE', scaleType: 'SHINY', accessory: 'NONE', tailType: 'FORKED', bodyType: 'SLENDER', mouthType: 'SQUARE', eyeType: 'MAD', eyebrowType: 'ANGRY', trailType: 'BUBBLES' }},
-  { name: '👑 国王', cosmetics: { teeth: 'GOLD', skinColor: '#fbbf24', pattern: 'NONE', scaleType: 'SHINY', accessory: 'CROWN', tailType: 'FORKED', bodyType: 'CHUNKY', mouthType: 'SQUARE', eyeType: 'MAD', eyebrowType: 'THICK', trailType: 'RAINBOW' }},
-  { name: '🤖 机械', cosmetics: { teeth: 'DIAMOND', skinColor: '#374151', pattern: 'CIRCUIT', scaleType: 'MECHANICAL', accessory: 'SUNGLASSES', tailType: 'MECHANICAL', bodyType: 'BOX', mouthType: 'SQUARE', eyeType: 'CYBORG', eyebrowType: 'NONE', trailType: 'ELECTRIC' }},
-  { name: '🐉 神龙', cosmetics: { teeth: 'SABER', skinColor: '#dc2626', pattern: 'LAVA', scaleType: 'DRAGON', accessory: 'NONE', tailType: 'TRIDENT', bodyType: 'SLENDER', mouthType: 'CURVE', eyeType: 'FIRE', eyebrowType: 'UNI', trailType: 'FIRE' }},
-  { name: '🧜 美人鱼', cosmetics: { teeth: 'NORMAL', skinColor: '#06b6d4', pattern: 'SPOTS', scaleType: 'GLOW', accessory: 'FLOWER', tailType: 'RIBBON', bodyType: 'MERMAID', mouthType: 'CIRCLE', eyeType: 'LOVE', eyebrowType: 'NONE', trailType: 'BUBBLES' }},
-  { name: '🌀 星空', cosmetics: { teeth: 'DIAMOND', skinColor: '#4c1d95', pattern: 'GALAXY', scaleType: 'CRYSTAL', accessory: 'HALO', tailType: 'RIBBON', bodyType: 'SLENDER', mouthType: 'CIRCLE', eyeType: 'ANIME', eyebrowType: 'NONE', trailType: 'GLITTER' }},
-  { name: '🌸 樱花', cosmetics: { teeth: 'NORMAL', skinColor: '#f472b6', pattern: 'HEART', scaleType: 'GLOW', accessory: 'FLOWER', tailType: 'FAN', bodyType: 'ROUND', mouthType: 'CIRCLE', eyeType: 'LOVE', eyebrowType: 'NONE', trailType: 'HEARTS' }},
-  { name: '⚡ 电光', cosmetics: { teeth: 'SHARP', skinColor: '#facc15', pattern: 'STRIPES', scaleType: 'GLOW', accessory: 'SUNGLASSES', tailType: 'FORKED', bodyType: 'SLENDER', mouthType: 'SQUARE', eyeType: 'MAD', eyebrowType: 'ANGRY', trailType: 'ELECTRIC' }},
-];
+/** 选项按钮：上面一张「穿着它的鱼」，下面标签，选中打勾 */
+const OptionButton: React.FC<{
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+  testKey: string;
+  testValue: string;
+}> = ({ selected, onClick, label, children, testKey, testValue }) => (
+  <button
+    onClick={onClick}
+    data-cosmetic-key={testKey}
+    data-cosmetic-value={testValue}
+    className={`relative rounded-xl border-2 p-1.5 transition-all flex flex-col items-center gap-0.5 ${
+      selected
+        ? 'border-cyan-400 bg-cyan-900/50 ring-2 ring-cyan-400/40'
+        : 'border-slate-700 bg-slate-800 hover:border-slate-500 hover:bg-slate-700'
+    }`}
+  >
+    {children}
+    <span className="text-[11px] leading-tight text-white">{label}</span>
+    {selected && (
+      <span className="absolute -top-1.5 -right-1.5 bg-cyan-500 text-slate-900 rounded-full p-0.5">
+        <Check size={12} strokeWidth={4} />
+      </span>
+    )}
+  </button>
+);
 
-// 预定义选项
-const TEETH_OPTIONS: { value: TeethType; label: string; color: string }[] = [
-  { value: 'NORMAL', label: '普通', color: '#ffffff' },
-  { value: 'SHARP', label: '锐齿', color: '#ef4444' },
-  { value: 'VAMPIRE', label: '吸血鬼', color: '#7f1d1d' },
-  { value: 'GOLD', label: '金牙', color: '#fbbf24' },
-  { value: 'SABER', label: '军刀', color: '#94a3b8' },
-  { value: 'DOUBLE_ROW', label: '双排', color: '#fde047' },
-  { value: 'DIAMOND', label: '钻石', color: '#e0f2fe' },
-  { value: 'RAINBOW', label: '彩虹', color: '#f472b6' },
-];
+const SectionTitle: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({ icon, children }) => (
+  <h3 className="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2">
+    {icon} {children}
+  </h3>
+);
 
-const SKIN_COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4',
-  '#3b82f6', '#8b5cf6', '#ec4899', '#a855f7', '#f43f5e',
-  '#14b8a6', '#84cc16', '#fb923c', '#f472b6', '#c084fc'
-];
+const CosmeticsPanel: React.FC<CosmeticsPanelProps> = ({
+  cosmetics,
+  onChange,
+  onClose,
+  fishType = 'CLOWN_FISH' as CreatureType,
+  mode = 'player',
+  onModeChange,
+}) => {
+  const [activeTab, setActiveTab] = useState<CosmeticTabId>('color');
 
-const PATTERN_OPTIONS: { value: PatternType; label: string }[] = [
-  { value: 'NONE', label: '无' },
-  { value: 'STRIPES', label: '条纹' },
-  { value: 'SPOTS', label: '斑点' },
-  { value: 'TIGER', label: '虎纹' },
-  { value: 'ZEBRA', label: '斑马纹' },
-  { value: 'STAR', label: '星星' },
-  { value: 'GALAXY', label: '星系' },
-  { value: 'LAVA', label: '熔岩' },
-  { value: 'HEART', label: '爱心' },
-  { value: 'CLOUD', label: '云朵' },
-];
-
-const ACCESSORY_OPTIONS: { value: AccessoryType; label: string; icon: string }[] = [
-  { value: 'NONE', label: '无', icon: '❌' },
-  { value: 'CROWN', label: '皇冠', icon: '👑' },
-  { value: 'SUNGLASSES', label: '墨镜', icon: '🕶️' },
-  { value: 'FLOWER', label: '花朵', icon: '🌸' },
-  { value: 'HALO', label: '光环', icon: '👼' },
-  { value: 'EYEPATCH', label: '眼罩', icon: '🏴‍☠️' },
-  { value: 'BOW_TIE', label: '领结', icon: '🎀' },
-  { value: 'GOLD_CHAIN', label: '金链', icon: '📿' },
-];
-
-const EYE_OPTIONS: { value: EyeType; label: string }[] = [
-  { value: 'NORMAL', label: '普通' },
-  { value: 'ANIME', label: '动漫' },
-  { value: 'MAD', label: '愤怒' },
-  { value: 'CAT', label: '猫眼' },
-  { value: 'FIRE', label: '火焰' },
-  { value: 'CYBORG', label: '机械' },
-  { value: 'LOVE', label: '爱心' },
-  { value: 'DEAD', label: '死亡' },
-];
-
-const SCALE_OPTIONS: { value: ScaleType; label: string }[] = [
-  { value: 'NONE', label: '无' },
-  { value: 'SHINY', label: '闪亮' },
-  { value: 'GLOW', label: '发光' },
-  { value: 'CRYSTAL', label: '水晶' },
-  { value: 'DRAGON', label: '龙鳞' },
-  { value: 'ARMOR', label: '盔甲' },
-  { value: 'MECHANICAL', label: '机械' },
-];
-
-const CosmeticsPanel: React.FC<CosmeticsPanelProps> = ({ cosmetics, onChange, onClose, mode = 'player', onModeChange }) => {
-  const [activeTab, setActiveTab] = useState<'color' | 'pattern' | 'accessory' | 'eyes' | 'ai-presets'>('color');
-
-  const updateCosmetics = (key: keyof Cosmetics, value: any) => {
-    onChange({ ...cosmetics, [key]: value });
+  const updateCosmetics = <K extends keyof Cosmetics>(key: K, value: Cosmetics[K]) => {
+    onChange(withOption(cosmetics, key, value));
   };
 
-  const applyAIPresets = (preset: Cosmetics) => {
-    onChange(preset);
-  };
+  /** 缩略图：把「这一项换成这个值」之后的鱼画出来。其余项保持玩家当前选择 */
+  const thumb = <K extends keyof Cosmetics>(key: K, value: Cosmetics[K], size = 52) => (
+    <FishPreview type={fishType} cosmetics={withOption(cosmetics, key, value)} size={size} />
+  );
+
+  const fishName = CREATURES[fishType]?.name ?? '你的鱼';
+
+  // 摘要要带类别前缀，否则一排「无 无 无」根本看不出哪个是花纹、哪个是配饰
+  const label = (list: readonly { value: string; label: string }[], v: string): string =>
+    list.find((o) => o.value === v)?.label ?? v;
+
+  const summary: string[] = [
+    `色·${label(SKIN_COLOR_OPTIONS, cosmetics.skinColor)}`,
+    `牙·${label(TEETH_OPTIONS, cosmetics.teeth)}`,
+    `纹·${label(PATTERN_OPTIONS, cosmetics.pattern)}`,
+    `鳞·${label(SCALE_OPTIONS, cosmetics.scaleType)}`,
+    `饰·${label(ACCESSORY_OPTIONS, cosmetics.accessory)}`,
+    `眼·${label(EYE_OPTIONS, cosmetics.eyeType)}`,
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center">
-      <div className="bg-slate-900 rounded-3xl border-2 border-cyan-500 shadow-2xl w-[600px] max-h-[80vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-3xl border-2 border-cyan-500 shadow-2xl w-[960px] max-w-full max-h-[92vh] flex flex-col overflow-hidden">
         {/* 标题栏 */}
-        <div className="bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-4 flex justify-between items-center">
+        <div className="bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-3 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <Sparkles className="text-white" size={24} />
-            <h2 className="text-2xl font-black text-white">装扮定制</h2>
+            <Sparkles className="text-white" size={22} />
+            <h2 className="text-xl font-black text-white">装扮定制</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-white/80 hover:text-white text-2xl font-bold"
-          >
+          <button onClick={onClose} className="text-white/80 hover:text-white text-2xl font-bold leading-none">
             ×
           </button>
         </div>
 
         {/* 模式切换 */}
-        <div className="px-4 pt-3 flex gap-2">
-          <button
-            onClick={() => onModeChange?.('player')}
-            className={`flex-1 py-2 px-4 rounded-xl font-bold transition-all ${
-              mode === 'player' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            🐟 玩家装扮
-          </button>
-          <button
-            onClick={() => onModeChange?.('ai-fish')}
-            className={`flex-1 py-2 px-4 rounded-xl font-bold transition-all ${
-              mode === 'ai-fish' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            🤖 AI鱼装扮
-          </button>
-        </div>
-
-        {/* 标签页 */}
-        <div className="flex border-b border-slate-700">
-          {[
-            { key: 'color' as const, label: '颜色', icon: <Palette size={16} /> },
-            { key: 'pattern' as const, label: '花纹', icon: <Sparkles size={16} /> },
-            { key: 'accessory' as const, label: '配饰', icon: <Crown size={16} /> },
-            { key: 'eyes' as const, label: '眼睛', icon: <EyeIcon size={16} /> },
-            { key: 'ai-presets' as const, label: 'AI预设', icon: <Sparkles size={16} /> },
-          ].map(tab => (
+        {onModeChange && (
+          <div className="px-4 pt-3 flex gap-2 shrink-0">
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 px-4 py-3 flex items-center justify-center gap-2 font-bold transition-all ${
-                activeTab === tab.key
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              onClick={() => onModeChange('player')}
+              className={`flex-1 py-1.5 px-4 rounded-xl font-bold text-sm transition-all ${
+                mode === 'player' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
             >
-              {tab.icon}
-              {tab.label}
+              🐟 玩家装扮
             </button>
-          ))}
-        </div>
+            <button
+              onClick={() => onModeChange('ai-fish')}
+              className={`flex-1 py-1.5 px-4 rounded-xl font-bold text-sm transition-all ${
+                mode === 'ai-fish' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              🤖 AI鱼装扮
+            </button>
+          </div>
+        )}
 
-        {/* 内容区域 */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
-          {/* AI预设标签页 */}
-          {activeTab === 'ai-presets' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-2">
-                <Sparkles size={20} /> AI鱼酷炫预设 - 选择一个应用
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {AI_COSMETICS_PRESETS.map((preset, index) => (
-                  <button
-                    key={index}
-                    onClick={() => applyAIPresets(preset.cosmetics)}
-                    className="p-4 rounded-xl border-2 border-slate-700 bg-slate-800 hover:border-cyan-400 hover:bg-cyan-900/30 transition-all text-left"
-                  >
-                    <div className="text-white font-bold text-lg">{preset.name}</div>
-                    <div className="text-slate-400 text-xs mt-1">
-                      牙齿:{preset.cosmetics.teeth} | 眼睛:{preset.cosmetics.eyeType}
+        {/* 主体：左试衣镜 + 右货架 */}
+        <div className="flex flex-1 min-h-0">
+          <aside className="w-[320px] shrink-0 border-r border-slate-700 bg-slate-950/50 p-4 flex flex-col gap-3 overflow-y-auto">
+            <div className="relative rounded-2xl border border-cyan-500/40 bg-gradient-to-b from-cyan-900/40 via-slate-900/60 to-slate-950/80 overflow-hidden">
+              {/* 水里的气泡点缀，让预览看着像鱼缸而不是空白方块 */}
+              <div className="absolute inset-0 pointer-events-none opacity-40">
+                <div className="absolute left-6 bottom-0 w-2 h-2 rounded-full bg-cyan-200/40" />
+                <div className="absolute left-24 bottom-0 w-1.5 h-1.5 rounded-full bg-cyan-200/30" />
+                <div className="absolute left-44 bottom-0 w-2.5 h-2.5 rounded-full bg-cyan-200/25" />
+              </div>
+              <span className="absolute left-3 top-2 text-[11px] font-black text-cyan-300/80 tracking-wide">
+                实时预览
+              </span>
+              <div data-testid="cosmetics-preview" className="pt-6 pb-2">
+                <FishPreview
+                  type={fishType}
+                  cosmetics={cosmetics}
+                  width={288}
+                  height={200}
+                  animate
+                  title={`${fishName} 的当前装扮预览`}
+                  className="mx-auto"
+                />
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-white font-black">{fishName}</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">换个选项，上面立刻变</div>
+            </div>
+
+            <div className="flex flex-wrap gap-1 justify-center">
+              {summary.map((s, i) => (
+                <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                  {s}
+                </span>
+              ))}
+            </div>
+          </aside>
+
+          <section className="flex-1 min-w-0 flex flex-col">
+            {/* 标签页 */}
+            <div className="flex border-b border-slate-700 shrink-0">
+              {COSMETIC_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  data-tab={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 px-3 py-2.5 flex items-center justify-center gap-1.5 font-bold text-sm transition-all ${
+                    activeTab === tab.id ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  {TAB_ICONS[tab.id]}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 选项区 */}
+            <div className="p-4 overflow-y-auto max-h-[62vh]">
+              {activeTab === 'color' && (
+                <div className="space-y-5">
+                  <div>
+                    <SectionTitle icon={<Palette size={16} />}>皮肤颜色</SectionTitle>
+                    <div className="grid grid-cols-6 gap-2">
+                      {SKIN_COLOR_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.skinColor === opt.value}
+                          onClick={() => updateCosmetics('skinColor', opt.value)}
+                          label={opt.label}
+                          testKey="skinColor"
+                          testValue={opt.value}
+                        >
+                          {thumb('skinColor', opt.value)}
+                        </OptionButton>
+                      ))}
                     </div>
-                    <div className="text-slate-500 text-xs">
-                      花纹:{preset.cosmetics.pattern} | 鳞片:{preset.cosmetics.scaleType}
+                  </div>
+
+                  <div>
+                    <SectionTitle icon={<Sparkles size={16} />}>牙齿类型</SectionTitle>
+                    <div className="grid grid-cols-4 gap-2">
+                      {TEETH_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.teeth === opt.value}
+                          onClick={() => updateCosmetics('teeth', opt.value)}
+                          label={opt.label}
+                          testKey="teeth"
+                          testValue={opt.value}
+                        >
+                          {thumb('teeth', opt.value)}
+                        </OptionButton>
+                      ))}
                     </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 颜色标签页 */}
-          {activeTab === 'color' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
-                  <Palette size={20} /> 皮肤颜色
-                </h3>
-                <div className="grid grid-cols-5 gap-3">
-                  {SKIN_COLORS.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => updateCosmetics('skinColor', color)}
-                      className={`w-14 h-14 rounded-xl transition-all ${
-                        cosmetics.skinColor === color
-                          ? 'ring-4 ring-white scale-110'
-                          : 'hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <h3 className="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
-                  <Sparkles size={20} /> 牙齿类型
-                </h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {TEETH_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => updateCosmetics('teeth', opt.value)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
-                        cosmetics.teeth === opt.value
-                          ? 'border-cyan-400 bg-cyan-900/50'
-                          : 'border-slate-700 bg-slate-800 hover:border-slate-600'
-                      }`}
-                    >
-                      <div
-                        className="w-6 h-6 rounded mx-auto mb-1"
-                        style={{ backgroundColor: opt.color }}
-                      />
-                      <span className="text-xs text-white">{opt.label}</span>
-                    </button>
-                  ))}
+              {activeTab === 'pattern' && (
+                <div className="space-y-5">
+                  <div>
+                    <SectionTitle icon={<Sparkles size={16} />}>花纹图案</SectionTitle>
+                    <div className="grid grid-cols-5 gap-2">
+                      {PATTERN_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.pattern === opt.value}
+                          onClick={() => updateCosmetics('pattern', opt.value)}
+                          label={opt.label}
+                          testKey="pattern"
+                          testValue={opt.value}
+                        >
+                          {thumb('pattern', opt.value)}
+                        </OptionButton>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <SectionTitle icon={<Sparkles size={16} />}>鳞片效果</SectionTitle>
+                    <div className="grid grid-cols-4 gap-2">
+                      {SCALE_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.scaleType === opt.value}
+                          onClick={() => updateCosmetics('scaleType', opt.value)}
+                          label={opt.label}
+                          testKey="scaleType"
+                          testValue={opt.value}
+                        >
+                          {thumb('scaleType', opt.value)}
+                        </OptionButton>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* 花纹标签页 */}
-          {activeTab === 'pattern' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
-                  <Sparkles size={20} /> 花纹图案
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {PATTERN_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => updateCosmetics('pattern', opt.value)}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        cosmetics.pattern === opt.value
-                          ? 'border-cyan-400 bg-cyan-900/50'
-                          : 'border-slate-700 bg-slate-800 hover:border-slate-600'
-                      }`}
-                    >
-                      <span className="text-white font-bold">{opt.label}</span>
-                    </button>
-                  ))}
+              {activeTab === 'accessory' && (
+                <div>
+                  <SectionTitle icon={<Crown size={16} />}>配饰选择</SectionTitle>
+                  <div className="grid grid-cols-4 gap-2">
+                    {ACCESSORY_OPTIONS.map((opt) => (
+                      <OptionButton
+                        key={opt.value}
+                        selected={cosmetics.accessory === opt.value}
+                        onClick={() => updateCosmetics('accessory', opt.value)}
+                        label={`${opt.icon ?? ''} ${opt.label}`.trim()}
+                        testKey="accessory"
+                        testValue={opt.value}
+                      >
+                        {thumb('accessory', opt.value, 58)}
+                      </OptionButton>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <h3 className="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
-                  <Sparkles size={20} /> 鳞片效果
-                </h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {SCALE_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => updateCosmetics('scaleType', opt.value)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
-                        cosmetics.scaleType === opt.value
-                          ? 'border-cyan-400 bg-cyan-900/50'
-                          : 'border-slate-700 bg-slate-800 hover:border-slate-600'
-                      }`}
-                    >
-                      <span className="text-xs text-white">{opt.label}</span>
-                    </button>
-                  ))}
+              {activeTab === 'eyes' && (
+                <div>
+                  <SectionTitle icon={<EyeIcon size={16} />}>眼睛类型</SectionTitle>
+                  <div className="grid grid-cols-4 gap-2">
+                    {EYE_OPTIONS.map((opt) => (
+                      <OptionButton
+                        key={opt.value}
+                        selected={cosmetics.eyeType === opt.value}
+                        onClick={() => updateCosmetics('eyeType', opt.value)}
+                        label={opt.label}
+                        testKey="eyeType"
+                        testValue={opt.value}
+                      >
+                        {thumb('eyeType', opt.value, 58)}
+                      </OptionButton>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* 配饰标签页 */}
-          {activeTab === 'accessory' && (
-            <div>
-              <h3 className="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
-                <Crown size={20} /> 配饰选择
-              </h3>
-              <div className="grid grid-cols-4 gap-2">
-                {ACCESSORY_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => updateCosmetics('accessory', opt.value)}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      cosmetics.accessory === opt.value
-                        ? 'border-cyan-400 bg-cyan-900/50'
-                        : 'border-slate-700 bg-slate-800 hover:border-slate-600'
-                    }`}
-                  >
-                    <span className="text-2xl">{opt.icon}</span>
-                    <span className="block text-xs text-white mt-1">{opt.label}</span>
-                  </button>
-                ))}
-              </div>
+              {activeTab === 'ai-presets' && (
+                <div className="space-y-3">
+                  <SectionTitle icon={<Sparkles size={16} />}>AI鱼酷炫预设 - 整套换上</SectionTitle>
+                  <div className="grid grid-cols-2 gap-3">
+                    {AI_COSMETICS_PRESETS.map((preset) => {
+                      const applied =
+                        cosmetics.teeth === preset.cosmetics.teeth &&
+                        cosmetics.accessory === preset.cosmetics.accessory &&
+                        cosmetics.pattern === preset.cosmetics.pattern;
+                      return (
+                        <button
+                          key={preset.name}
+                          data-cosmetic-key="preset"
+                          data-cosmetic-value={preset.name}
+                          onClick={() => onChange(preset.cosmetics)}
+                          className={`flex items-center gap-3 p-2 rounded-xl border-2 text-left transition-all ${
+                            applied
+                              ? 'border-cyan-400 bg-cyan-900/40'
+                              : 'border-slate-700 bg-slate-800 hover:border-cyan-400/60 hover:bg-cyan-900/20'
+                          }`}
+                        >
+                          <FishPreview type={fishType} cosmetics={preset.cosmetics} size={64} />
+                          <div className="min-w-0">
+                            <div className="text-white font-bold text-sm truncate">{preset.name}</div>
+                            <div className="text-slate-400 text-[11px] truncate">
+                              牙{preset.cosmetics.teeth} · 纹{preset.cosmetics.pattern}
+                            </div>
+                            <div className="text-slate-500 text-[11px] truncate">
+                              鳞{preset.cosmetics.scaleType} · 眼{preset.cosmetics.eyeType}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-
-          {/* 眼睛标签页 */}
-          {activeTab === 'eyes' && (
-            <div>
-              <h3 className="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
-                <EyeIcon size={20} /> 眼睛类型
-              </h3>
-              <div className="grid grid-cols-4 gap-2">
-                {EYE_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => updateCosmetics('eyeType', opt.value)}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      cosmetics.eyeType === opt.value
-                        ? 'border-cyan-400 bg-cyan-900/50'
-                        : 'border-slate-700 bg-slate-800 hover:border-slate-600'
-                    }`}
-                  >
-                    <span className="text-white font-bold text-sm">{opt.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          </section>
         </div>
 
         {/* 底部操作栏 */}
-        <div className="bg-slate-800 px-6 py-4 flex justify-between items-center border-t border-slate-700">
+        <div className="bg-slate-800 px-6 py-3 flex justify-between items-center border-t border-slate-700 shrink-0">
           <button
-            onClick={() => {
-              // 重置为默认装扮
-              onChange(DEFAULT_COSMETICS);
-            }}
-            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all"
+            onClick={() => onChange({ ...DEFAULT_COSMETICS })}
+            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all flex items-center gap-2"
           >
-            重置
+            <RotateCcw size={16} /> 重置
           </button>
           <button
             onClick={onClose}

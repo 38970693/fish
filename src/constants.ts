@@ -15,6 +15,7 @@ export * from './data/ponds';
 export * from './data/skills';
 export * from './data/buildings';
 export * from './data/achievements';
+export * from './data/cosmeticsOptions';
 
 import { BIOME_DATA, BIOME_BOUNDS, BiomeType } from './data/biomes';
 import { PHRASES } from './data/world';

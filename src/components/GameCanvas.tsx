@@ -172,7 +172,14 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     if (concealed && !isSemiGhost) {
         ctx.globalAlpha = isPlayer ? 0.5 : 0.42;
     }
-    
+
+    // 体型：压扁 / 拉长整个鱼身。
+    // ⚠️ 必须放在玩家光环之后 —— 光环是正圆，跟着被压扁一眼就露馅。
+    // getBodyTypeParams 以前是死代码（bodyType 在面板/AI 预设里能选，但完全没效果），
+    // 有了预览之后这种「选了没反应」的项会立刻被看出来，所以接上。
+    const bodyShape = getBodyTypeParams(cosmetics?.bodyType ?? 'DEFAULT');
+    ctx.scale(bodyShape.scaleX, bodyShape.scaleY);
+
     ctx.rotate(entity.angle);
 
     // 核心绘制逻辑
@@ -243,21 +250,39 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     if (type !== CreatureType.PLANKTON && cosmetics?.teeth && cosmetics.teeth !== 'NORMAL') {
         const tType = cosmetics.teeth;
         ctx.save();
-        ctx.fillStyle = tType === 'GOLD' ? '#fbbf24' : (tType === 'DIAMOND' ? '#e0f2fe' : (tType === 'RAINBOW' ? '#ff6b6b' : 'white'));
+        // 颜色基色。RAINBOW 不在这里定，它逐颗按色相算
+        const toothColor = tType === 'GOLD' ? '#fbbf24' : (tType === 'DIAMOND' ? '#e0f2fe' : 'white');
+        const toothSize = radius * 0.15;
 
-        const drawTooth = (ang: number, isUpper: boolean) => {
+        const drawOneTooth = (x: number, color: string) => {
+            ctx.fillStyle = color;
+            if (tType === 'SHARP') {
+                ctx.beginPath(); ctx.moveTo(x, -toothSize/2); ctx.lineTo(x + toothSize, 0); ctx.lineTo(x, toothSize/2); ctx.fill();
+            } else if (tType === 'VAMPIRE') {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + toothSize * 1.5, -toothSize/2); ctx.lineTo(x + toothSize, 0); ctx.lineTo(x + toothSize * 1.5, toothSize/2); ctx.fill();
+            } else if (tType === 'SABER') {
+                ctx.beginPath(); ctx.moveTo(x, -toothSize/3); ctx.lineTo(x + toothSize * 1.2, 0); ctx.lineTo(x, toothSize/3); ctx.fill();
+            } else if (tType === 'DOUBLE_ROW') {
+                // 尖锥：比方块更像牙，双排才看得出层次
+                ctx.beginPath();
+                ctx.moveTo(x, -toothSize/2); ctx.lineTo(x + toothSize * 0.9, 0); ctx.lineTo(x, toothSize/2);
+                ctx.closePath(); ctx.fill();
+            } else {
+                ctx.fillRect(x, -toothSize/2, toothSize, toothSize);
+            }
+        };
+
+        const drawTooth = (ang: number, isUpper: boolean, index: number) => {
             ctx.save();
             ctx.rotate(ang);
             const tx = radius * 0.88;
-            const size = radius * 0.15;
-            if (tType === 'SHARP') {
-                ctx.beginPath(); ctx.moveTo(tx, -size/2); ctx.lineTo(tx + size, 0); ctx.lineTo(tx, size/2); ctx.fill();
-            } else if (tType === 'VAMPIRE') {
-                ctx.beginPath(); ctx.moveTo(tx, 0); ctx.lineTo(tx + size * 1.5, -size/2); ctx.lineTo(tx + size, 0); ctx.lineTo(tx + size * 1.5, size/2); ctx.fill();
-            } else if (tType === 'SABER') {
-                ctx.beginPath(); ctx.moveTo(tx, -size/3); ctx.lineTo(tx + size * 1.2, 0); ctx.lineTo(tx, size/3); ctx.fill();
-            } else {
-                ctx.fillRect(tx, -size/2, size, size);
+            const color = tType === 'RAINBOW'
+                ? `hsl(${(visualTime * 3 + index * 46 + (isUpper ? 0 : 20)) % 360}, 92%, 64%)`
+                : toothColor;
+            drawOneTooth(tx, color);
+            if (tType === 'DOUBLE_ROW') {
+                // 第二排：往嘴里面缩一排，错开半格 —— 「双排」得真的看得到两排
+                drawOneTooth(tx - toothSize * 1.15, isUpper ? '#fef9c3' : '#fde68a');
             }
             ctx.restore();
         };
@@ -265,13 +290,14 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         if (mType === 'CIRCLE') {
             for(let i=0; i<8; i++) {
                 ctx.save(); ctx.translate(radius*0.8, 0); ctx.rotate((i/8)*Math.PI*2);
+                ctx.fillStyle = tType === 'RAINBOW' ? `hsl(${(visualTime * 3 + i * 45) % 360}, 92%, 64%)` : toothColor;
                 ctx.fillRect(radius*0.22*mouthGap, -2, 6, 4); ctx.restore();
             }
         } else {
             const count = 4; const step = 0.15;
             for(let i=0; i<count; i++) {
-                drawTooth(-mouthGap + step * i + 0.05, true);
-                drawTooth(mouthGap - step * i - 0.05, false);
+                drawTooth(-mouthGap + step * i + 0.05, true, i);
+                drawTooth(mouthGap - step * i - 0.05, false, i);
             }
         }
         ctx.restore();
@@ -308,18 +334,18 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
 
 // ============== Cosmetic 渲染辅助函数 ==============
 
-/** 获取身体类型参数 */
-const getBodyTypeParams = (bodyType: BodyType, radius: number) => {
-  const params: Record<BodyType, { scaleX: number; scaleY: number; tailOffset: number }> = {
-    DEFAULT: { scaleX: 1, scaleY: 1, tailOffset: 0 },
-    ROUND: { scaleX: 1.1, scaleY: 1.1, tailOffset: 0 },
-    SLENDER: { scaleX: 0.85, scaleY: 1.2, tailOffset: -5 },
-    CHUNKY: { scaleX: 1.2, scaleY: 0.9, tailOffset: 5 },
-    BOX: { scaleX: 1, scaleY: 0.95, tailOffset: 0 },
-    STAR: { scaleX: 1.15, scaleY: 1.15, tailOffset: 0 },
-    MERMAID: { scaleX: 0.9, scaleY: 1.1, tailOffset: -3 },
-    RAY: { scaleX: 1.3, scaleY: 0.7, tailOffset: 10 },
-    EEL: { scaleX: 0.7, scaleY: 1.4, tailOffset: -8 },
+/** 获取体型参数（scaleX/scaleY 直接乘在鱼身的局部变换上：>1 变胖、<1 变瘦） */
+const getBodyTypeParams = (bodyType: BodyType): { scaleX: number; scaleY: number } => {
+  const params: Record<BodyType, { scaleX: number; scaleY: number }> = {
+    DEFAULT: { scaleX: 1, scaleY: 1 },
+    ROUND: { scaleX: 1.15, scaleY: 1.15 },
+    SLENDER: { scaleX: 0.85, scaleY: 1.2 },
+    CHUNKY: { scaleX: 1.25, scaleY: 0.88 },
+    BOX: { scaleX: 1.05, scaleY: 0.95 },
+    STAR: { scaleX: 1.15, scaleY: 1.15 },
+    MERMAID: { scaleX: 0.9, scaleY: 1.12 },
+    RAY: { scaleX: 1.35, scaleY: 0.7 },
+    EEL: { scaleX: 0.68, scaleY: 1.45 },
   };
   return params[bodyType] || params.DEFAULT;
 };
@@ -379,6 +405,59 @@ const drawTail = (ctx: CanvasRenderingContext2D, tailType: TailType, radius: num
         ctx.stroke();
       }
       break;
+    case 'LOBSTER': { // 龙虾尾：分节 + 尾扇
+      ctx.fillStyle = '#f97316';
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.ellipse(-radius * (0.3 + i * 0.22), 0, radius * 0.16, radius * (0.34 - i * 0.06), 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.95, 0);
+      ctx.lineTo(-radius * 1.35, -radius * 0.3);
+      ctx.lineTo(-radius * 1.2, 0);
+      ctx.lineTo(-radius * 1.35, radius * 0.3);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      break;
+    }
+    case 'MECHANICAL': { // 机械尾：金属板 + 喷口尾焰
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-radius * 0.55, -radius * 0.32);
+      ctx.lineTo(-radius * 0.38, 0);
+      ctx.lineTo(-radius * 0.55, radius * 0.32);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(-radius * 0.66, -radius * 0.1, radius * 0.14, radius * 0.2);
+      ctx.fillStyle = 'rgba(34,211,238,0.7)';
+      const flame = radius * (0.28 + Math.abs(Math.sin(visualTime * 0.25)) * 0.36);
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.66, -radius * 0.08);
+      ctx.lineTo(-radius * 0.66 - flame, 0);
+      ctx.lineTo(-radius * 0.66, radius * 0.08);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'GHOST': { // 幽灵尾：三团半透明飘絮
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = '#c7d2fe';
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.ellipse(
+          -radius * (0.25 + i * 0.28),
+          Math.sin(visualTime * 0.12 + i) * radius * 0.14,
+          radius * 0.28, radius * 0.34, 0, 0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+      break;
+    }
     default:
       ctx.beginPath();
       ctx.moveTo(0, 0);
@@ -424,6 +503,58 @@ const drawEyes = (ctx: CanvasRenderingContext2D, eyeType: EyeType, eyeX: number,
       ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.15, -eyeY - radius * 0.1); ctx.lineTo(eyeX + radius * 0.15, -eyeY + radius * 0.1); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.15, eyeY - radius * 0.1); ctx.lineTo(eyeX + radius * 0.15, eyeY + radius * 0.1); ctx.stroke();
       break;
+    case 'CAT': { // 猫眼：竖瞳
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath(); ctx.ellipse(eyeX, -eyeY, radius * 0.22, radius * 0.26, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(eyeX, eyeY, radius * 0.22, radius * 0.26, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#111827';
+      ctx.beginPath(); ctx.ellipse(eyeX, -eyeY, radius * 0.05, radius * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(eyeX, eyeY, radius * 0.05, radius * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
+    case 'FIRE': { // 火焰眼：外橙内黄 + 跳动火苗
+      const flicker = 1 + Math.sin(visualTime * 0.35) * 0.12;
+      for (const ey of [-eyeY, eyeY]) {
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.ellipse(eyeX, ey, radius * 0.24 * flicker, radius * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath(); ctx.ellipse(eyeX, ey - radius * 0.03, radius * 0.14, radius * 0.17, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff7ed';
+        ctx.beginPath(); ctx.ellipse(eyeX, ey - radius * 0.05, radius * 0.06, radius * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    }
+    case 'CYBORG': { // 机械眼：红色镜头 + 扫描线
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 6;
+      for (const ey of [-eyeY, eyeY]) {
+        ctx.fillStyle = '#111827';
+        ctx.beginPath(); ctx.arc(eyeX, ey, radius * 0.22, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.arc(eyeX, ey, radius * 0.13, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(239,68,68,0.85)';
+      ctx.lineWidth = 2;
+      const scan = -eyeY + Math.sin(visualTime * 0.12) * radius * 0.2;
+      ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.26, scan); ctx.lineTo(eyeX + radius * 0.26, scan); ctx.stroke();
+      break;
+    }
+    case 'LOVE': { // 爱心眼
+      ctx.fillStyle = '#f472b6';
+      for (const ey of [-eyeY, eyeY]) {
+        const s = radius * 0.26;
+        ctx.beginPath();
+        ctx.arc(eyeX - s * 0.35, ey - s * 0.2, s * 0.4, 0, Math.PI * 2);
+        ctx.arc(eyeX + s * 0.35, ey - s * 0.2, s * 0.4, 0, Math.PI * 2);
+        ctx.moveTo(eyeX - s * 0.75, ey - s * 0.02);
+        ctx.lineTo(eyeX, ey + s * 0.8);
+        ctx.lineTo(eyeX + s * 0.75, ey - s * 0.02);
+        ctx.closePath();
+        ctx.fill();
+      }
+      break;
+    }
     default:
       ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(eyeX, eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
@@ -531,6 +662,40 @@ const drawAccessory = (ctx: CanvasRenderingContext2D, accessory: AccessoryType, 
       ctx.ellipse(0, -radius * 0.9, radius * 0.4, radius * 0.1, 0, 0, Math.PI * 2);
       ctx.stroke();
       break;
+    case 'EYEPATCH': { // 眼罩：盖住上面那只眼 + 斜绑带
+      const ex = radius * 0.35;
+      const ey = -radius * 0.45;
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = Math.max(2, radius * 0.09);
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.2, -radius * 0.98);
+      ctx.lineTo(radius * 0.85, -radius * 0.05);
+      ctx.stroke();
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.ellipse(ex, ey, radius * 0.29, radius * 0.24, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'GOLD_CHAIN': { // 金链：绕身子一圈，在嘴的位置留个缺口，两端有卡扣
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = Math.max(2, radius * 0.09);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.74, 0.7, Math.PI * 2 - 0.7);
+      ctx.stroke();
+      ctx.strokeStyle = '#fef3c7'; // 链节高光
+      ctx.lineWidth = Math.max(1, radius * 0.03);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.74, 0.7, Math.PI * 2 - 0.7);
+      ctx.stroke();
+      ctx.fillStyle = '#f59e0b';
+      for (const a of [0.7, -0.7]) {
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * radius * 0.74, Math.sin(a) * radius * 0.74, radius * 0.09, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
     default:
       break;
   }
@@ -574,6 +739,111 @@ const drawPattern = (ctx: CanvasRenderingContext2D, pattern: PatternType, radius
       ctx.bezierCurveTo(hx + radius * 0.3, -radius * 0.3, hx + radius * 0.2, -radius * 0.1, hx, radius * 0.2);
       ctx.fill();
       break;
+    case 'TIGER': { // 虎纹：粗细不一的黑横纹，压着底色走
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = 'rgba(20,12,0,0.85)';
+      const tigerRows = [-0.62, -0.3, 0.02, 0.34, 0.66];
+      tigerRows.forEach((ty, i) => {
+        ctx.lineWidth = radius * (i % 2 === 0 ? 0.13 : 0.08);
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.75, ty * radius);
+        ctx.quadraticCurveTo(0, ty * radius + radius * 0.1 * (i % 2 === 0 ? 1 : -1), radius * 0.75, ty * radius);
+        ctx.stroke();
+      });
+      break;
+    }
+    case 'ZEBRA': { // 斑马纹：密而粗的竖纹（比 STRIPES 更抢眼）
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = radius * 0.16;
+      for (let i = -2; i <= 2; i++) {
+        ctx.strokeStyle = i % 2 === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(15,15,15,0.85)';
+        ctx.beginPath();
+        ctx.moveTo(i * radius * 0.32, -radius);
+        ctx.quadraticCurveTo(i * radius * 0.32 + radius * 0.12, 0, i * radius * 0.32, radius);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'STAR': { // 星星：散布的小五角星，随时间缓慢自转
+      ctx.fillStyle = 'rgba(255,248,200,0.95)';
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + visualTime * 0.01;
+        const cx = Math.cos(a) * radius * 0.42;
+        const cy = Math.sin(a) * radius * 0.32;
+        const rr = radius * (0.14 + (i % 2) * 0.05);
+        ctx.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const ang = (k / 10) * Math.PI * 2 - Math.PI / 2 + visualTime * 0.02;
+          const rad = k % 2 === 0 ? rr : rr * 0.45;
+          const px = cx + Math.cos(ang) * rad;
+          const py = cy + Math.sin(ang) * rad;
+          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      break;
+    }
+    case 'GALAXY': { // 星系：深色底 + 星云 + 星点
+      const nebula = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+      nebula.addColorStop(0, 'rgba(139,92,246,0.75)');
+      nebula.addColorStop(0.55, 'rgba(30,58,138,0.6)');
+      nebula.addColorStop(1, 'rgba(2,6,23,0.85)');
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = nebula;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 14; i++) {
+        // 用固定公式散点，避免每帧抖动；半径用 i 的倍数错开
+        const a = i * 2.399;
+        const rr = radius * (0.2 + ((i * 37) % 100) / 140);
+        const twinkle = 0.55 + Math.sin(visualTime * 0.12 + i) * 0.45;
+        ctx.globalAlpha = twinkle;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr * 0.75, radius * (0.03 + (i % 3) * 0.012), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'LAVA': { // 熔岩：橙红裂纹 + 发光
+      ctx.globalAlpha = 0.85;
+      ctx.shadowColor = '#f97316';
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = radius * 0.1;
+      for (let i = 0; i < 3; i++) {
+        const y = (i - 1) * radius * 0.45;
+        ctx.strokeStyle = i === 1 ? 'rgba(254,215,170,0.95)' : 'rgba(249,115,22,0.9)';
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.9, y);
+        ctx.lineTo(-radius * 0.3, y - radius * 0.14);
+        ctx.lineTo(radius * 0.2, y + radius * 0.16);
+        ctx.lineTo(radius * 0.9, y - radius * 0.05);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'CLOUD': { // 云朵：几团白色椭圆叠着飘
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      const puffs: Array<[number, number, number]> = [
+        [-0.42, -0.18, 0.3], [0.02, -0.34, 0.24], [0.4, -0.05, 0.28], [-0.1, 0.34, 0.22],
+      ];
+      puffs.forEach(([px, py, pr], i) => {
+        ctx.beginPath();
+        ctx.ellipse(
+          px * radius + Math.sin(visualTime * 0.03 + i) * radius * 0.06,
+          py * radius,
+          pr * radius,
+          pr * radius * 0.62,
+          0, 0, Math.PI * 2
+        );
+        ctx.fill();
+      });
+      break;
+    }
     default:
       break;
   }
@@ -616,6 +886,72 @@ const drawScaleEffect = (ctx: CanvasRenderingContext2D, scaleType: ScaleType, ra
         ctx.stroke();
       }
       break;
+    case 'DRAGON': { // 龙鳞：六边形鳞片网格
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = baseColor === 'DEFAULT' ? 'rgba(255,215,120,0.9)' : 'rgba(255,225,150,0.9)';
+      ctx.lineWidth = 1.4;
+      const step = radius * 0.3;
+      for (let row = -2; row <= 2; row++) {
+        for (let col = -2; col <= 2; col++) {
+          const cx = col * step + (row % 2 === 0 ? 0 : step / 2);
+          const cy = row * step * 0.85;
+          ctx.beginPath();
+          for (let k = 0; k < 6; k++) {
+            const a = (k / 6) * Math.PI * 2 - Math.PI / 2;
+            const px = cx + Math.cos(a) * step * 0.42;
+            const py = cy + Math.sin(a) * step * 0.42;
+            if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    case 'ARMOR': { // 盔甲：横向板甲 + 铆钉
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = 'rgba(226,232,240,0.85)';
+      ctx.lineWidth = 2;
+      for (let i = -1; i <= 1; i++) {
+        const y = i * radius * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.85, y);
+        ctx.quadraticCurveTo(0, y + radius * 0.12, radius * 0.85, y);
+        ctx.stroke();
+        // 铆钉
+        ctx.fillStyle = 'rgba(203,213,225,0.95)';
+        for (const rx of [-0.5, 0, 0.5]) {
+          ctx.beginPath();
+          ctx.arc(rx * radius, y + radius * 0.02, radius * 0.045, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'MECHANICAL': { // 机械：面板网格 + 螺栓 + 走动的指示灯
+      ctx.globalAlpha = 0.65;
+      ctx.strokeStyle = 'rgba(148,163,184,0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.5, -radius); ctx.lineTo(-radius * 0.5, radius);
+      ctx.moveTo(radius * 0.2, -radius); ctx.lineTo(radius * 0.2, radius);
+      ctx.moveTo(-radius, -radius * 0.25); ctx.lineTo(radius, -radius * 0.25);
+      ctx.moveTo(-radius, radius * 0.35); ctx.lineTo(radius, radius * 0.35);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(100,116,139,0.95)';
+      for (const [bx, by] of [[-0.7, -0.6], [-0.7, 0.62], [0.62, -0.6], [0.62, 0.62]] as Array<[number, number]>) {
+        ctx.beginPath();
+        ctx.arc(bx * radius, by * radius, radius * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // 呼吸灯
+      ctx.globalAlpha = 0.5 + Math.sin(visualTime * 0.2) * 0.45;
+      ctx.fillStyle = '#22d3ee';
+      ctx.beginPath();
+      ctx.arc(radius * 0.55, radius * 0.05, radius * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
     default:
       break;
   }

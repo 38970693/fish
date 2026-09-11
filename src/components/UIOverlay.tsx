@@ -8,7 +8,6 @@ import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
 import { POND_LIST, DEFAULT_POND, getPond, type PondId } from '../data/ponds';
 import { SKILL_DATA } from '../data/skills';
-import { drawCuteFish } from './GameCanvas';
 import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat, Trophy } from 'lucide-react';
 import MiniMap from './MiniMap';
 import CosmeticsPanel from './CosmeticsPanel';
@@ -599,6 +598,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 cosmetics={player.cosmetics}
                 onChange={(cos) => onUpdateCosmetics?.(cos)}
                 onClose={() => setShowCosmetics(false)}
+                fishType={player.type}
                 mode="player"
             />
         )}
@@ -740,6 +740,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         cosmetics={player.cosmetics}
         onChange={(cos) => onUpdateCosmetics?.(cos)}
         onClose={() => setGameStatus?.(GameStatus.PLAYING)}
+        fishType={player.type}
         mode="player"
       />
     );
