@@ -273,6 +273,7 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               </p>
             ))}
             <p>越危险的塘得分倍率越高，但刷的大鱼更早、食物更少。</p>
+            <p><b className="text-amber-300">塘际门</b>（大号虚线环、琥珀描边）：游进去直接换塘，地形与鱼群整套重建；成长与战队跟着走、分数保留，落地有短暂保护。塘内门（小门）只是在本塘里随机传送。</p>
           </Section>
 
           <Section icon={<ShoppingBag size={20} />} title="建筑与海域">
@@ -403,6 +404,8 @@ const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
  */
 const LeaderboardPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [list, setList] = useState<LeaderboardEntry[]>(getLeaderboard());
+  // 分塘筛选（「多鱼塘」阶段 2a）：各塘得分倍率不同，混在一起比不公平
+  const [pondFilter, setPondFilter] = useState<string>('ALL');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.code === 'Escape') onClose(); };
@@ -412,6 +415,8 @@ const LeaderboardPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const fmtSec = (sec: number) => (sec >= 60 ? `${Math.floor(sec / 60)}分${sec % 60}秒` : `${sec}秒`);
   const medal = (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`);
+  const pondOptions = Array.from(new Set(list.map((e) => e.pond).filter(Boolean))) as string[];
+  const shown = pondFilter === 'ALL' ? list : list.filter((e) => e.pond === pondFilter);
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-6" onClick={onClose}>
@@ -427,10 +432,23 @@ const LeaderboardPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
 
         <div className="px-6 py-4 overflow-y-auto space-y-2">
-          {list.length === 0 && (
+          {pondOptions.length > 1 && (
+            <div className="flex gap-2 flex-wrap pb-1">
+              {['ALL', ...pondOptions].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPondFilter(p)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${pondFilter === p ? 'bg-cyan-900 border-cyan-400 text-cyan-200' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'}`}
+                >
+                  {p === 'ALL' ? '全部' : p}
+                </button>
+              ))}
+            </div>
+          )}
+          {shown.length === 0 && (
             <p className="text-slate-400 text-center py-10">还没有记录，去创造第一个传说吧！</p>
           )}
-          {list.map((e, i) => (
+          {shown.map((e, i) => (
             <div
               key={`${e.date}-${e.score}-${i}`}
               className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${

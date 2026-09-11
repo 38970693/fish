@@ -271,14 +271,23 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
           ctx.fillText(portal.name, x, y - 12);
         }
       } else {
+        // 塘际门：琥珀色大一圈，一眼和塘内门分开（「多鱼塘」阶段 2a）
+        const isPondPortal = portal.kind === 'POND';
         ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#d8b4fe';
+        ctx.arc(x, y, isPondPortal ? 6 : 4, 0, Math.PI * 2);
+        ctx.fillStyle = isPondPortal ? '#fcd34d' : '#d8b4fe';
         ctx.fill();
+        if (isPondPortal) {
+          ctx.strokeStyle = '#fbbf24';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
       }
-      ctx.strokeStyle = '#a855f7';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      if (portal.kind !== 'POND') {
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     });
 
     // Draw treasures (with blinking effect and hover)

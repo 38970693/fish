@@ -15,18 +15,30 @@
 - 收尾：菜单入口 + HUD 展示 + 单测 + `scripts/probe-<x>.mjs` + 开发计划/路线图同步。
 - **向后兼容铁律**：新功能默认值 == 旧硬编码，旧调用点与既有测试零变化。
 
-## 多鱼塘（阶段 1，2026-09-11 · feat 5df754a）
-- `src/data/ponds.ts`：CLEAR/清水塘(×1.0，食物 0.40，tier +0) · CORAL/珊瑚塘(×1.5，0.30，+1) · ABYSS/深渊塘(×2.5，0.20，+2)。
-- `state.pondId` 决定刷怪（`foodRatio` 取代写死的 0.4、`maxTierBonus` 加进刷怪 tier 上限）与**所有**得分倍率；
-  出生点仍 (3000,3000)（阶段 1 故意不动位置）。
-- 菜单选塘 / HUD 塘名+倍率 / 排行榜塘标签 / 规则面板「鱼塘」分节。
-  **不要再用 `speechBubble` 报塘名** —— 会被 worldSystem 的「进入新海域」提示在开局第一帧顶掉。
-- 阶段 2（塘际传送门）方案见《多鱼塘立项设计.md》：需先把 `WORLD_SIZE` / `MAP_SHAPE_CONFIG` / `BIOME_BOUNDS` /
-  `createObstacles|createPortals|createBuildings` 参数化（改成按 pondId 查表），并分清「塘内门 vs 塘际门」+ 排行榜分塘。
+## 多鱼塘（阶段 1 + 2a，2026-09-11）
+- `src/data/ponds.ts`：CLEAR/清水塘(×1.0，食物 0.40，tier +0，障碍 ×1.0) · CORAL/珊瑚塘(×1.5，0.30，+1，×1.6) ·
+  ABYSS/深渊塘(×2.5，0.20，+2，×0.6)。
+- `state.pondId` 决定刷怪（`foodRatio` / `maxTierBonus`）、**所有**得分倍率（`scoreGain` 收口 4 处加分点）、
+  障碍密度（`createObstacles(pondId)`）；出生点仍 (3000,3000)。
+- **阶段 2a 塘际传送门**：`Portal.kind` = `LOCAL`（塘内门，本塘内随机传送）/ `POND`（塘际门，换塘）。
+  `world.ts` 的 `pondTravel(state, 目标塘, ctx?)` 重建世界：保留玩家成长 + 分数 + 计时 + **战队成员**；
+  重建障碍/门/建筑；清空野鱼/道具/宝藏/危险/粒子/飘字；玩家回中心 + 落地保护 + 过场闪屏；
+  传了 ctx 就复用 `spawnSystem` 铺底 12 条鱼。塘际门摆在距中心 1150px 环上，琥珀虚线环造型。
+  - 塘内门只在 `LOCAL` 里挑目标 —— 否则随机传送会把人丢到塘际门上，下一帧被动换塘。
+  - **`teleportLockUntilFrame` 是模块级状态，单测用例间会泄漏 → 用例开头调 `__resetTeleportLock()`**。
+  - **换塘必须同步 `player.currentBiome`**，否则「进入新海域」气泡会顶掉「进入 XX塘」。
+- 菜单选塘 / HUD 塘名+倍率 / 排行榜塘标签+**分塘筛选** / 规则面板「鱼塘」分节。
+  **不要再用 `speechBubble` 报塘名**（会被「进入新海域」提示顶掉）。
+- 阶段 2b（尺寸/形状差异化，待决策）见《多鱼塘立项设计.md》：卡点是 `terrain.ts` 在**模块级**解构
+  `MAP_SHAPE_CONFIG`，要先把 `WORLD_SIZE` / `BIOME_BOUNDS` / 各系统刷点范围参数化成按 pondId 查表。
 
 ## 本机环境坑（重要！）
 - **⚠️ 同一文件的两处 Edit 放在同一条消息里会丢一处**（2026-09-11 实测：App.tsx 的 import 改动留下、
   `onStart` 改动没了，**两个工具调用都报 Success**，疑为并发读同版本+后写覆盖）。→ **一个文件一次只发一条 Edit**，改完 grep 复核。
+  同一文件要改多处时，`Read` 全文 + `Write` 整文件是最稳的单次操作。
+- **⚠️ bash 偶发抽风**（`shell-runtime-bash-env.sh: dirname: command not found`）：简单前景命令还能跑，
+  但**后台任务会直接启动失败**（vite dev server 起不来）。规避：改用 **PowerShell** 跑，
+  且 PowerShell 工具本会话**不回显 stdout** → 一律 `2>&1 | Out-File -Encoding utf8 <文件>` 再用 Read 读文件。
 - **这台机器 npm 被 "safe-delete" 包装器拦截**（非官方 npm），删除走回收站。npm ci 在 vite 占用 esbuild 文件锁时会 trash 失败中止。
 - **⚠️ .git 会不明原因被清空/删除**：2026-09-08 objects+refs 全消失；2026-09-09 跑 `git stash create` 后整个 .git 目录消失。原因未明（疑 safe-delete 或某后台进程与 git 临时文件打架）。**动 git 前先 `tar -czf` 备份 .git**，备份在 E:\gitlab\git-backup\fish-git-20260910.tar.gz（+copy2）。
 - **⚠️ 反向现象：已删除的文件会被还原回来**。2026-09-10 07:57，`git status` 里显示为 `D` 的 `components/*.tsx` 和 `e2e/startButton.spec.ts` 自己复活了（部分还原，同批的 App.tsx/constants.ts/gameEngine.ts 没复活）。**发现工作树里冒出"不该有的旧文件"时，先怀疑这个，不要以为是别人动过**。
@@ -61,3 +73,7 @@
 - **钉 `Math.random` 要按系统真实取数顺序给序列**（spawn：`tier → 食物判定 → 池内选择 → 刷点 x,y`）；
   全程用同一个定值会算出花瓣地图外的刷点，`spawnCreature` 返回 null，症状是 `entities[0]` undefined。
 - **`scripts/` 下的探针截图按仓库惯例要提交**（`.gitignore` 只忽略了 `scripts/*-probe.png` 一种命名）。
+- **探针断言两条纪律**：① 别用严格相等断言「玩家回到某点」—— 世界还在跑，鼠标转向会推走几像素 → 用容差；
+  ② 别用即时 `count()` 读 HUD —— `uiState` 每 100ms 才同步一次，会读到过期快照 → 用 `waitForSelector`。
+- **模块级状态的系统要先加 `__resetXxx()` 再写用例**（已踩过：world 的 `prevInteract`、`teleportLockUntilFrame`，
+  squad 的 `switchCursor`）—— 否则用例顺序一换就假失败。

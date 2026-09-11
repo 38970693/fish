@@ -297,6 +297,15 @@ export interface Portal {
   radius: number;
   angle: number;
   name?: string;
+  /**
+   * 门的种类（「多鱼塘」阶段 2a）：
+   *   LOCAL  塘内门 —— 在**本塘**的门之间随机传送（阶段 1 及以前的唯一行为）
+   *   POND   塘际门 —— 通往另一个塘，触发世界重建
+   * 缺省视为 LOCAL（旧存档 / 旧测试构造的门都按塘内门处理）
+   */
+  kind?: 'LOCAL' | 'POND';
+  /** 塘际门的目的地（kind === 'POND' 时有意义） */
+  targetPond?: string;
 }
 
 export interface Building {
@@ -398,6 +407,11 @@ export interface GameState {
   labels: Label[];
   /** 当前所在的鱼塘（「多鱼塘」阶段 1：开局选塘，影响刷怪/计分/开局生态区） */
   pondId: PondId;
+  /**
+   * 过场闪屏（「多鱼塘」阶段 2a）：塘际传送瞬间全屏染一次目标塘的颜色，
+   * 由 GameCanvas 按 timer 递减绘制。null / 缺省 = 不画。
+   */
+  screenFlash?: { timer: number; color: string } | null;
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };

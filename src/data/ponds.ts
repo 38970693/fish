@@ -1,20 +1,25 @@
 /**
- * 鱼塘注册表 —— 「多鱼塘」阶段 1：开局选塘。
+ * 鱼塘注册表 —— 「多鱼塘」。
  *
  * ┌──────────┬──────────┬──────────┐
  * │ CLEAR    │  CORAL   │  ABYSS   │
  * │ 清水塘(1) │ 珊瑚塘(2) │ 深渊塘(3) │   难度递增、得分倍率递增、越危险食物越少
  * └──────────┴──────────┴──────────┘
  *
- * 阶段 1 的「塘」只影响**开局参数**，不动世界结构（地图尺寸/形状/生态布局仍是全局的）：
- *   - maxTierBonus    刷怪 tier 上限加成（危险塘更早出大鱼）
- *   - foodRatio       刷浮游生物的概率（安全塘喂饱你，危险塘让你自己去抢）
- *   - scoreMult       得分倍率（风险补偿）
- *   - signatureBiome  本塘主生态区（菜单展示 + 开局提示文案）
+ * 塘影响两类东西：
+ *   开局参数（阶段 1）
+ *     - maxTierBonus    刷怪 tier 上限加成（危险塘更早出大鱼）
+ *     - foodRatio       刷浮游生物的概率（安全塘喂饱你，危险塘让你自己去抢）
+ *     - scoreMult       得分倍率（风险补偿）
+ *     - signatureBiome  本塘主生态区（菜单展示用）
+ *   世界内容（阶段 2a，走塘际传送门重建时生效）
+ *     - obstacleScale   障碍物密度倍率（珊瑚塘礁石密布、深渊塘空旷）
  *
- * 出生点仍固定在花瓣地图中心 (3000,3000)，与既有约定一致 —— 阶段 1 不改位置。
- * 阶段 2 再把 worldSize / 地图形状 / 生态布局搬进这张表，实现「塘际传送门」。
- * 加一个新塘：POND_DATA 里加一条即可，类型、菜单、刷怪、计分全部自动生效。
+ * ⚠️ 世界**尺寸与形状**仍是全局的（WORLD_SIZE / MAP_SHAPE_CONFIG 被 terrain.ts 在模块级解构，
+ * 参数化要动十余处调用点）—— 那是阶段 2b 的事，本表先不碰。
+ *
+ * 出生点固定在花瓣地图中心 (3000,3000)，与既有约定一致。
+ * 加一个新塘：POND_DATA 里加一条即可，类型、菜单、刷怪、计分、塘际门全部自动生效。
  */
 
 import type { BiomeType } from './biomes';
@@ -31,8 +36,10 @@ export interface PondConfig {
   foodRatio: number;
   /** 得分倍率：越危险的塘分数越肥 */
   scoreMult: number;
-  /** 本塘主生态区（展示 / 开局提示用） */
+  /** 本塘主生态区（展示用） */
   signatureBiome: BiomeType;
+  /** 障碍物密度倍率（塘际传送重建世界时生效） */
+  obstacleScale: number;
 }
 
 export const POND_DATA = {
@@ -45,6 +52,7 @@ export const POND_DATA = {
     foodRatio: 0.4,
     scoreMult: 1,
     signatureBiome: 'SHALLOWS',
+    obstacleScale: 1,
   },
   CORAL: {
     name: '珊瑚塘',
@@ -55,6 +63,7 @@ export const POND_DATA = {
     foodRatio: 0.3,
     scoreMult: 1.5,
     signatureBiome: 'REEF',
+    obstacleScale: 1.6,
   },
   ABYSS: {
     name: '深渊塘',
@@ -65,6 +74,7 @@ export const POND_DATA = {
     foodRatio: 0.2,
     scoreMult: 2.5,
     signatureBiome: 'ABYSS',
+    obstacleScale: 0.6,
   },
 } as const;
 
@@ -100,3 +110,7 @@ export const POND_LIST: Array<{ id: PondId; config: PondConfig }> = (
 )
   .map((id) => ({ id, config: POND_DATA[id] as PondConfig }))
   .sort((a, b) => a.config.difficulty - b.config.difficulty);
+
+/** 除了 `from` 之外的所有塘（塘际传送门生成用） */
+export const otherPonds = (from?: string | null): PondId[] =>
+  (Object.keys(POND_DATA) as PondId[]).filter((id) => id !== from);

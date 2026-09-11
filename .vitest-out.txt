@@ -1,0 +1,31 @@
+﻿
+[1m[46m RUN [49m[22m [36mv3.2.7 [39m[90mE:/gitlab/fish[39m
+
+ [32m鉁?[39m src/__tests__/building.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/cosmetics-random.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/evolution.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/biome.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/leaderboard.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/ponds.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/pondTravel.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/MiniMap.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/squad.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/cleanup.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/treasure.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/achievements.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+[90mstdout[2m | src/__tests__/p0.test.ts[2m > [22m[2mP0 闄勫甫锛氱姸鎬佹満鏆傚仠[2m > [22m[2m娓哥帺鐘舵€佷笅姝ｅ父鎺ㄨ繘
+[22m[39m[娆箰楸煎] 鏁版嵁鑷閫氳繃 路 23 绉嶇敓鐗?路 39 涓妧鑳?
+ [32m鉁?[39m src/__tests__/p0.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/p1.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+[90mstdout[2m | src/__tests__/systems.test.ts[2m > [22m[2m鏁村抚鍐掔儫[2m > [22m[2m杩炵画璺?300 甯т笉宕╂簝锛屼笖鐜╁鍧愭爣濮嬬粓鏈夋晥
+[22m[39m[娆箰楸煎] 鏁版嵁鑷閫氳繃 路 23 绉嶇敓鐗?路 39 涓妧鑳?
+ [32m鉁?[39m src/__tests__/systems.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 647[2mms[22m[39m
+   [33m[2m鉁?[22m[39m 鏁村抚鍐掔儫[2m > [22m杩炵画璺?300 甯т笉宕╂簝锛屼笖鐜╁鍧愭爣濮嬬粓鏈夋晥 [33m 630[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/constants.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m鉁?[39m src/__tests__/gameEngine.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m      Tests [22m [1m[32m227 passed[39m[22m[90m (227)[39m
+[2m   Start at [22m 22:18:49
+[2m   Duration [22m 6.49s[2m (transform 2.40s, setup 6.03s, collect 8.44s, tests 964ms, environment 34.87s, prepare 2.93s)[22m
+

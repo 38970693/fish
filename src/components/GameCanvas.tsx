@@ -2,7 +2,7 @@
 import React, { useRef, useEffect } from 'react';
 // Added GameStatus to imports to fix line 134 reference error
 import { GameState, GameStatus, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Building, BuildingType, Portal, Cosmetics, BodyType, TailType, TrailType, EyeType, EyebrowType, AccessoryType, PatternType, ScaleType } from '../types';
-import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG } from '../constants';
+import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, getPond } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 
 interface GameCanvasProps {
@@ -602,6 +602,8 @@ const drawScaleEffect = (ctx: CanvasRenderingContext2D, scaleType: ScaleType, ra
 
 // 传送门颜色配置（根据传送门名称分配不同颜色）
 const getPortalColor = (portal: Portal): string => {
+    // 塘际门用自己的塘色（「多鱼塘」阶段 2a）
+    if (portal.kind === 'POND') return getPond(portal.targetPond).color;
     if (portal.name?.includes('浅滩')) return '#22d3ee'; // 青色 - 浅滩
     if (portal.name?.includes('珊瑚')) return '#f0abfc'; // 粉色 - 珊瑚
     if (portal.name?.includes('沼泽')) return '#86efac'; // 绿色 - 沼泽
@@ -610,6 +612,8 @@ const getPortalColor = (portal: Portal): string => {
 };
 
 const getPortalSecondaryColor = (portal: Portal): string => {
+    // 塘际门用琥珀色描边，一眼区分「这扇门会换塘」
+    if (portal.kind === 'POND') return '#fcd34d';
     if (portal.name?.includes('浅滩')) return '#67e8f9';
     if (portal.name?.includes('珊瑚')) return '#fda4af';
     if (portal.name?.includes('沼泽')) return '#4ade80';
@@ -898,6 +902,19 @@ const drawPortal = (ctx: CanvasRenderingContext2D, portal: Portal, visualTime: n
     }
     ctx.closePath();
     ctx.fill();
+
+    // 塘际门：额外套一圈虚线环（「多鱼塘」阶段 2a），和塘内门一眼区分
+    if (portal.kind === 'POND') {
+        ctx.save();
+        ctx.setLineDash([12, 10]);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = `rgba(${hexToRgb(secondaryColor)}, 0.9)`;
+        ctx.beginPath();
+        ctx.arc(0, 0, portal.radius * 1.75 + Math.sin(visualTime * 0.06) * 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
 
     // 传送门名称（带发光背景）
     ctx.shadowBlur = 8;
@@ -1432,6 +1449,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // 绘制传送门（最上层）
         gameState.portals.forEach(portal => drawPortal(ctx, portal, visualTime));
+
+        // 塘际传送过场闪屏（「多鱼塘」阶段 2a）：全屏染一次目标塘的颜色
+        const flash = gameState.screenFlash;
+        if (flash && flash.timer > 0) {
+            const alpha = Math.min(0.8, flash.timer / 40) * 0.8;
+            ctx.fillStyle = `rgba(${hexToRgb(flash.color)}, ${alpha})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
         animationFrameId = requestAnimationFrame(render);
     };
