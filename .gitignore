@@ -34,3 +34,9 @@ scripts/*-probe.png
 
 # 临时构建校验输出目录
 .build-check/
+
+# 本地临时输出（跑 tsc / vitest / 探针时重定向的日志，别提交）
+.tsc-out.txt
+.vitest-out.txt
+.probe-out.txt
+.check.txt
