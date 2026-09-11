@@ -17,6 +17,7 @@ import { GameStatus } from '../types';
 import type { Entity, GameState, FrameContext, PlayerState, Particle } from '../types';
 import { dist, uuid, pick, clamp } from '../core/math';
 import { recruitToSquad } from './squad';
+import { recordRun } from './leaderboard';
 
 export const createParticle = (x: number, y: number, color: string): Particle => ({
   id: uuid(),
@@ -354,6 +355,7 @@ export const checkVictory = (state: GameState, attacker: Entity, victim: Entity)
   if (attacker.id !== 'player') return;
   if (victim.config.behavior !== 'BOSS') return;
   state.status = GameStatus.VICTORY;
+  recordRun(state); // 通关也上本地排行榜
   state.score += Math.floor(victim.config.weightValue);
 };
 

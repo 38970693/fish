@@ -4,6 +4,7 @@ import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType,
 import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, SQUAD_CONFIG } from '../constants';
 import { getMapBoundaryRadius, gameEvents } from '../gameEngine';
 import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
+import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
 import { SKILL_DATA } from '../data/skills';
 import { drawCuteFish } from './GameCanvas';
@@ -385,6 +386,75 @@ const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+/**
+ * 本地排行榜面板（P3 排行榜的本地版）。数据存 localStorage，前 10 名。
+ */
+const LeaderboardPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [list, setList] = useState<LeaderboardEntry[]>(getLeaderboard());
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.code === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const fmtSec = (sec: number) => (sec >= 60 ? `${Math.floor(sec / 60)}分${sec % 60}秒` : `${sec}秒`);
+  const medal = (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`);
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-6" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-600 rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-8 pt-6 pb-4 border-b border-slate-700">
+          <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-500">名人堂 · 前 10</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors" aria-label="关闭排行榜">
+            <X size={26} />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 overflow-y-auto space-y-2">
+          {list.length === 0 && (
+            <p className="text-slate-400 text-center py-10">还没有记录，去创造第一个传说吧！</p>
+          )}
+          {list.map((e, i) => (
+            <div
+              key={`${e.date}-${e.score}-${i}`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${
+                i === 0 ? 'bg-slate-800 border-yellow-500/60' : 'bg-slate-800/40 border-slate-700'
+              }`}
+            >
+              <span className="w-8 text-center text-xl shrink-0">{medal(i + 1)}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-slate-200 font-bold">
+                  得分 <span className="text-yellow-300">{e.score}</span>
+                  <span className="text-slate-500 text-xs font-normal ml-2">{e.date}</span>
+                </div>
+                <div className="text-slate-400 text-xs">
+                  体重 {e.weight} · Lv.{e.level} · 存活 {fmtSec(e.survivedSec)} · 收编 {e.recruits} 人
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-8 py-4 border-t border-slate-700 flex justify-between items-center">
+          <button
+            onClick={() => { clearLeaderboard(); setList([]); }}
+            className="text-slate-500 hover:text-red-400 text-sm transition-colors"
+          >
+            清空记录
+          </button>
+          <button onClick={onClose} className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-colors">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, onSwitchSquad, muted, onToggleMute }) => {
   const { player, status, entities } = gameState;
   const opponent = entities.find(e => e.id !== 'player' && e.type === CreatureType.ORCA);
@@ -394,6 +464,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   const [showCosmetics, setShowCosmetics] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const unlockedCount = getUnlockedCount();
 
   if (status === GameStatus.MENU) {
@@ -458,6 +529,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                 </span>
                             )}
                         </button>
+                        <button onClick={() => setShowLeaderboard(true)} className="px-10 py-3 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-lg rounded-full border border-slate-700 hover:border-amber-400 transition-all flex items-center justify-center gap-3">
+                            <Crown size={20} /> 排行榜
+                        </button>
                     </div>
                 </div>
             </div>
@@ -474,6 +548,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
 
         {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
         {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+        {showLeaderboard && <LeaderboardPanel onClose={() => setShowLeaderboard(false)} />}
       </div>
     );
   }
@@ -667,11 +742,18 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
             <div className="bg-slate-900 p-12 rounded-3xl border-4 border-red-600 shadow-2xl text-center">
                 <Skull size={100} className="text-red-500 mx-auto mb-6" />
                 <h2 className="text-6xl font-black text-white mb-4">战斗失败</h2>
-                <p className="text-slate-300 mb-8">
+                <p className="text-slate-300 mb-3">
                     体重 <span className="text-cyan-400 font-bold">{Math.floor(player.weight)}</span>
                     · 得分 <span className="text-yellow-400 font-bold">{gameState.score}</span>
                     · 已复活 <span className="text-white font-bold">{player.reviveCount}</span> 次
                 </p>
+                {getLastRunRank() > 0 && (
+                    <p className="mb-5 text-amber-300 font-bold">
+                        <Crown size={18} className="inline mr-1 -mt-1" />
+                        本局位列名人堂第 {getLastRunRank()} 名
+                    </p>
+                )}
+                <p className="text-slate-500 text-sm mb-6">名人堂共 {getLeaderboard().length} 条记录</p>
                 <div className="flex gap-6 justify-center">
                     <button
                         onClick={() => onRevive?.(false)}

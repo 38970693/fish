@@ -5,6 +5,7 @@
  */
 
 import { EVOLUTION_THRESHOLDS } from '../data/world';
+import { recordRun } from './leaderboard';
 import { GameStatus } from '../types';
 import type { GameState, FrameContext } from '../types';
 import { tryPossessOnDeath } from './squad';
@@ -61,6 +62,7 @@ export const progressionSystem = (state: GameState, ctx: FrameContext): void => 
     }
 
     state.status = GameStatus.GAME_OVER;
+    recordRun(state); // 本地排行榜：死亡即落榜（同一局复活再死会原地刷新，不会重复）
     ctx.events.emit('death', { victim: player });
     return;
   }
