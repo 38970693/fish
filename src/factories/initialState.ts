@@ -8,12 +8,15 @@
 import { CREATURES, CreatureType } from '../data/creatures';
 import { WORLD_SIZE, BOOST_CONFIG, MAP_SHAPE_CONFIG } from '../data/world';
 import { BiomeType } from '../data/biomes';
+import { DEFAULT_POND, type PondId } from '../data/ponds';
 import { DEFAULT_COSMETICS, GameStatus, type Cosmetics, type GameState } from '../types';
 import { createObstacles, createBuildings, createPortals } from '../systems/world';
 
 export interface CreateInitialStateOptions {
   startType?: string;
   cosmetics?: Cosmetics;
+  /** 选塘（「多鱼塘」阶段 1）：决定开局生态区、刷怪与计分。缺省 = 清水塘 */
+  pondId?: PondId;
   /** 跳过地形生成（测试里想省时间时用） */
   skipWorldGen?: boolean;
 }
@@ -29,6 +32,7 @@ const loadSkillLevel = (): number => {
 
 export const createInitialState = (options: CreateInitialStateOptions = {}): GameState => {
   const startType = options.startType ?? CreatureType.CLOWN_FISH;
+  const pondId = options.pondId ?? DEFAULT_POND;
   const baseConfig = CREATURES[startType as CreatureType] ?? CREATURES[CreatureType.CLOWN_FISH];
   const startX = MAP_SHAPE_CONFIG.CENTER_X;
   const startY = MAP_SHAPE_CONFIG.CENTER_Y;
@@ -94,6 +98,7 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     treasures: [],
     fountains: [],
     labels: [],
+    pondId,
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
     camera: { x: startX, y: startY, zoom: 0.8 },

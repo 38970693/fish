@@ -12,6 +12,7 @@
 import { TREASURE_CONFIG, METEOR_CONFIG, WORLD_SIZE, MAX_ENTITIES } from '../data/world';
 import { TREASURE_COLORS } from '../data/world';
 import { CreatureType } from '../data/creatures';
+import { scoreGain } from '../data/ponds';
 import type { GameState, FrameContext, Hazard, Treasure } from '../types';
 import { dist, uuid, pick } from '../core/math';
 import { isPositionValid } from './terrain';
@@ -85,10 +86,12 @@ export const updateTreasures = (state: GameState, ctx: FrameContext): void => {
         player.evolutionPoints += value;
         player.speechBubble = { text: `+${value} 经验！`, timer: 60, color: '#fcd34d' };
         break;
-      case 'GOLD':
-        state.score += value;
-        player.speechBubble = { text: `+${value} 金币！`, timer: 60, color: '#fbbf24' };
+      case 'GOLD': {
+        const gained = scoreGain(state.pondId, value);
+        state.score += gained;
+        player.speechBubble = { text: `+${gained} 金币！`, timer: 60, color: '#fbbf24' };
         break;
+      }
       case 'SKILL':
         player.skillLevel += 1;
         player.speechBubble = { text: '技能+1！', timer: 60, color: '#a855f7' };

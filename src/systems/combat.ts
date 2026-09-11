@@ -13,6 +13,7 @@
 
 import { CreatureType } from '../data/creatures';
 import { AMBUSH_CONFIG, COMBAT_CONFIG, PHRASES, REVERSAL_PHRASE } from '../data/world';
+import { scoreGain } from '../data/ponds';
 import { GameStatus } from '../types';
 import type { Entity, GameState, FrameContext, PlayerState, Particle } from '../types';
 import { dist, uuid, pick, clamp } from '../core/math';
@@ -286,7 +287,7 @@ export const processCollision = (
       attacker.id !== 'player' &&
       victim.id === 'player'
     ) {
-      state.score += Math.floor(victim.radius * 10);
+      state.score += scoreGain(state.pondId, Math.floor(victim.radius * 10));
       // 逆转特效属于游戏状态的一部分（会存进 GameState 被渲染），直接产生；
       // 同时发事件，方便将来接音效 / 成就，而不用回头改这里。
       // 特效增强：金色大字（Label.size）+ 双圈定向冲击波，这是全游戏最稀缺的高光时刻，值得排场。

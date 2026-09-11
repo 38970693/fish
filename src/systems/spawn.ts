@@ -8,6 +8,7 @@
 import { CREATURES, CreatureType } from '../data/creatures';
 import { randomizeCosmetics } from '../data/cosmetics';
 import { MAX_ENTITIES, TREASURE_CONFIG, WORLD_SIZE } from '../data/world';
+import { getPond } from '../data/ponds';
 import { type Entity, type GameState, type FrameContext } from '../types';
 import { uuid } from '../core/math';
 import { isPositionValid } from './terrain';
@@ -68,18 +69,20 @@ export const spawnCreature = (state: GameState, type: string): Entity | null => 
 
 /**
  * 按玩家等级决定刷什么。
- * 玩家越强，解锁的 tier 越高；始终保留 40% 概率刷食物，保证不会饿死。
+ * 玩家越强，解锁的 tier 越高；刷食物的概率与 tier 上限由**当前鱼塘**决定
+ * （安全塘喂饱你，危险塘更早出大鱼）。
  */
 export const spawnSystem = (state: GameState, _ctx: FrameContext): void => {
   if (state.entities.length >= MAX_ENTITIES) return;
 
-  const maxTier = Math.min(4, Math.floor(state.player.level / 2) + 1);
+  const pond = getPond(state.pondId);
+  const maxTier = Math.min(4, Math.max(1, Math.floor(state.player.level / 2) + 1 + pond.maxTierBonus));
 
   // 新增：附近才刷，远处刷了玩家也看不见，白白浪费实体预算
   const targetTier = Math.floor(Math.random() * maxTier) + 1;
   const pool = SPAWN_TIER_POOL[targetTier as 1 | 2 | 3 | 4];
 
-  if (Math.random() < 0.4 || !pool || pool.length === 0) {
+  if (Math.random() < pond.foodRatio || !pool || pool.length === 0) {
     spawnCreature(state, CreatureType.PLANKTON);
     return;
   }

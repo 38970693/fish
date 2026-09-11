@@ -14,6 +14,7 @@
  */
 
 import type { GameState } from '../types';
+import { getPond } from '../data/ponds';
 
 const STORAGE_KEY = 'fish.leaderboard.v1';
 const MAX_ENTRIES = 10;
@@ -26,6 +27,8 @@ export interface LeaderboardEntry {
   survivedSec: number;
   /** 收编过的队员数 */
   recruits: number;
+  /** 所在鱼塘名（「多鱼塘」阶段 1；旧记录可能没有该字段） */
+  pond?: string;
   date: string;
 }
 
@@ -61,6 +64,7 @@ const toEntry = (state: GameState): LeaderboardEntry => ({
   level: state.player.level,
   survivedSec: Math.floor(state.time / 60),
   recruits: state.squad.recruitedTotal,
+  pond: getPond(state.pondId).name,
   date: new Date().toISOString().slice(0, 10),
 });
 

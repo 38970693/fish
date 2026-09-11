@@ -171,17 +171,21 @@ const App: React.FC = () => {
       />
       <UIOverlay 
         gameState={uiState} 
-        onStart={(type) => {
+        onStart={(type, pondId) => {
             // 浏览器要求音频上下文在用户手势里创建/恢复，开始按钮正是最合适的位置
             initAudio();
             const currentCos = gameStateRef.current.player.cosmetics;
-            gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos });
+            gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos, pondId });
             gameStateRef.current.status = GameStatus.PLAYING;
             // P0-2 新手保护：开局 8 秒不会被吃（自己可以正常捕食）
             gameStateRef.current.player.invulnerableTimer = PROTECTION_CONFIG.NEWBIE_DURATION;
         }}
         onStartBattleTest={startBattleTest}
-        onRestart={() => { gameStateRef.current = createInitialState(); }}
+        onRestart={() => {
+            // 重开保留当前塘：在哪翻的车，就在哪爬起来（「多鱼塘」阶段 1）
+            const pondId = gameStateRef.current.pondId;
+            gameStateRef.current = createInitialState({ pondId });
+        }}
         onEvolve={(type: any) => {
             const player = gameStateRef.current.player;
             const newConfig = CREATURES[type as CreatureType];

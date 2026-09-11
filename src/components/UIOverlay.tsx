@@ -6,6 +6,7 @@ import { getMapBoundaryRadius, gameEvents } from '../gameEngine';
 import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
+import { POND_LIST, DEFAULT_POND, getPond, type PondId } from '../data/ponds';
 import { SKILL_DATA } from '../data/skills';
 import { drawCuteFish } from './GameCanvas';
 import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat, Trophy } from 'lucide-react';
@@ -263,6 +264,17 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <p>进化点数攒够当前阶段的阈值，弹出三选一进化方向，世界暂停随便想。</p>
           </Section>
 
+          <Section icon={<MapPin size={20} />} title="鱼塘（开局选）">
+            {POND_LIST.map(({ id, config }) => (
+              <p key={id}>
+                <b style={{ color: config.color }}>{config.name}</b>
+                <span className="text-amber-300 ml-1">{'★'.repeat(config.difficulty)}</span>：{config.description}
+                （主生态区 {BIOME_CONFIGS[config.signatureBiome].name}，得分 ×{config.scoreMult}）
+              </p>
+            ))}
+            <p>越危险的塘得分倍率越高，但刷的大鱼更早、食物更少。</p>
+          </Section>
+
           <Section icon={<ShoppingBag size={20} />} title="建筑与海域">
             <p>商场：换装（进圈后按 <Key>E</Key>）· 医院：回血 · 龙王庙：随机祝福（技能+1 或护盾）</p>
             <p>阳光浅滩：安全，小型鱼速度+20% · 五彩珊瑚：伪装/伏击技能冷却减半，巨型鱼转向变慢</p>
@@ -432,6 +444,7 @@ const LeaderboardPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   <span className="text-slate-500 text-xs font-normal ml-2">{e.date}</span>
                 </div>
                 <div className="text-slate-400 text-xs">
+                  {e.pond && <span className="text-cyan-300 font-bold mr-1">[{e.pond}]</span>}
                   体重 {e.weight} · Lv.{e.level} · 存活 {fmtSec(e.survivedSec)} · 收编 {e.recruits} 人
                 </div>
               </div>
@@ -461,6 +474,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   // 战队成员 = ownerId 指向玩家的活体（与 systems/squad.ts 的判定保持一致）
   const squadMembers = entities.filter(e => e.ownerId === 'player' && e.health > 0);
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
+  const [selectedPond, setSelectedPond] = useState<PondId>(DEFAULT_POND);
   const [showCosmetics, setShowCosmetics] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
@@ -488,6 +502,30 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 <h1 className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-8">欢乐鱼塘</h1>
                 
                 <div className="flex flex-col gap-6">
+                    <h2 className="text-2xl text-white font-bold mb-4">选择鱼塘</h2>
+                    <div className="flex gap-4 justify-center mb-8 flex-wrap max-w-3xl">
+                        {POND_LIST.map(({ id, config }) => {
+                            const isSel = selectedPond === id;
+                            return (
+                                <button
+                                    key={id}
+                                    onClick={() => setSelectedPond(id)}
+                                    className={`w-60 p-4 rounded-2xl border text-left transition-all ${isSel ? 'bg-indigo-900 border-indigo-400 scale-105 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-indigo-400 hover:bg-slate-700'}`}
+                                >
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: config.color }} />
+                                        <span className="text-white font-bold">{config.name}</span>
+                                        <span className="ml-auto text-[11px] font-black text-amber-300">{'★'.repeat(config.difficulty)}</span>
+                                    </div>
+                                    <p className="text-slate-400 text-xs leading-snug">{config.description}</p>
+                                    <p className="text-slate-500 text-[11px] mt-1">
+                                        主生态区：{BIOME_CONFIGS[config.signatureBiome].name} · 得分 ×{config.scoreMult}
+                                    </p>
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     <h2 className="text-2xl text-white font-bold mb-4">选择你的初始鱼类</h2>
                     <div className="flex gap-4 justify-center mb-8 flex-wrap max-w-2xl">
                         {startOptions.map(type => {
@@ -509,7 +547,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         })}
                     </div>
                     
-                    <button onClick={() => onStart(selectedStarter)} className="px-24 py-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-4xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-4">
+                    <button onClick={() => onStart(selectedStarter, selectedPond)} className="px-24 py-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-4xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-4">
                         <Play size={48} fill="white" /> 开始游戏
                     </button>
 
@@ -568,6 +606,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         <div className="flex justify-between items-start">
             {/* 玩家血条 */}
             <div className="w-80 bg-slate-900/80 p-4 rounded-2xl border-2 border-cyan-500 shadow-2xl pointer-events-auto">
+                {/* 当前鱼塘（「多鱼塘」阶段 1） */}
+                <div className="flex items-center gap-2 mb-1">
+                    <span
+                        className="text-[11px] font-black px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: `${getPond(gameState.pondId).color}33`, color: getPond(gameState.pondId).color }}
+                    >
+                        {getPond(gameState.pondId).name}
+                    </span>
+                    <span className="text-[11px] text-slate-400">得分 ×{getPond(gameState.pondId).scoreMult}</span>
+                </div>
                 <div className="flex justify-between items-end mb-2">
                     <span className="text-cyan-400 font-black text-xl">玩家 ({player.config.name}) Lv.{player.level}</span>
                     <span className="text-purple-400 font-bold ml-4">进化点数: {Math.floor(player.evolutionPoints)}</span>

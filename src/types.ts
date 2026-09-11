@@ -8,6 +8,7 @@
 
 import type { EventBus } from './core/EventBus';
 import type { CreatureConfig } from './data/creatures';
+import type { PondId } from './data/ponds';
 
 /* ══════════════ 内容型类型（从 data 层转发） ══════════════ */
 
@@ -20,6 +21,8 @@ export type { BiomeType as BiomeTypeId, BiomeEffect } from './data/biomes';
 export { SkillId } from './data/skills';
 
 export { BuildingType } from './data/buildings';
+
+export type { PondId, PondConfig } from './data/ponds';
 
 /* ══════════════ 游戏状态机 ══════════════ */
 
@@ -393,6 +396,8 @@ export interface GameState {
   treasures: Treasure[];
   fountains: Fountain[];
   labels: Label[];
+  /** 当前所在的鱼塘（「多鱼塘」阶段 1：开局选塘，影响刷怪/计分/开局生态区） */
+  pondId: PondId;
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };

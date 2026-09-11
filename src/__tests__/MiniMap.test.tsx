@@ -134,6 +134,7 @@ const createMockGameState = (overrides: Partial<GameState> = {}): GameState => (
   treasures: [],
   fountains: [],
   labels: [],
+  pondId: 'CLEAR',
   worldWidth: 6000,
   worldHeight: 6000,
   camera: { x: 3000, y: 3000, zoom: 1 },

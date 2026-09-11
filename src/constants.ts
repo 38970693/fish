@@ -11,6 +11,7 @@
 export * from './data/world';
 export * from './data/creatures';
 export * from './data/biomes';
+export * from './data/ponds';
 export * from './data/skills';
 export * from './data/buildings';
 export * from './data/achievements';

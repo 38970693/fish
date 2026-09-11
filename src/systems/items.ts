@@ -10,6 +10,7 @@
  */
 
 import { MAX_POWERUPS, WORLD_SIZE, GAME_MECHANICS } from '../data/world';
+import { scoreGain } from '../data/ponds';
 import type { GameState, FrameContext, PowerUp } from '../types';
 import { dist, uuid } from '../core/math';
 import { isPositionValid } from './terrain';
@@ -63,8 +64,10 @@ const PICKUP_HANDLERS: Record<PowerUp['type'], PickupHandler> = {
    */
   COIN: (state, ctx, item) => {
     const value = 15;
-    state.score += value;
-    state.player.speechBubble = { text: `+${value} 金币！`, timer: 45, color: '#fbbf24' };
+    // 得分过塘倍率（危险塘的硬币更值钱）
+    const gained = scoreGain(state.pondId, value);
+    state.score += gained;
+    state.player.speechBubble = { text: `+${gained} 金币！`, timer: 45, color: '#fbbf24' };
     ctx.events.emit('coin', { x: item.x, y: item.y, value });
   },
 };
