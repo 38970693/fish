@@ -31,6 +31,7 @@ interface AchievementStats {
   biomes: Record<string, true>;
   recruits: number;
   possessions: number;
+  coins: number;
 }
 
 const emptyStats = (): AchievementStats => ({
@@ -43,6 +44,7 @@ const emptyStats = (): AchievementStats => ({
   biomes: {},
   recruits: 0,
   possessions: 0,
+  coins: 0,
 });
 
 /* ══════════════ 持久化 ══════════════ */
@@ -135,6 +137,10 @@ export const subscribeAchievements = (bus: EventBus<GameEvents> = gameEvents): v
       stats.biomes[to] = true;
       statsDirty = true;
     }
+  });
+  on('coin', () => {
+    stats.coins += 1;
+    statsDirty = true;
   });
   on('death', ({ victim }) => {
     // 预留：死亡类成就目前由夺舍/结算体现，先记着不占成就

@@ -262,7 +262,7 @@ export interface PowerUp {
   id: string;
   x: number;
   y: number;
-  type: 'SPEED' | 'SHIELD' | 'BOTTLE' | 'SHELL';
+  type: 'SPEED' | 'SHIELD' | 'BOTTLE' | 'SHELL' | 'COIN';
   radius: number;
 }
 
@@ -330,6 +330,8 @@ export interface Label {
   color: string;
   /** 存活帧数。重构前 labels 只增不减，属于内存泄漏，现在统一由 progression 系统回收 */
   timer?: number;
+  /** 字号（默认 28）。逆转这类高光时刻用大字（44）撑场面 */
+  size?: number;
 }
 
 /* ══════════════ 事件（逻辑层 → 表现层） ══════════════ */
@@ -349,6 +351,8 @@ export interface GameEvents {
   particle: { x: number; y: number; color: string; count: number };
   /** 成就解锁（achievementsSystem 发出，UI 弹 toast） */
   achievement: { id: string; name: string; desc: string; icon: string };
+  /** 金币拾取（items 的 COIN 发出，成就「守财奴」统计） */
+  coin: { x: number; y: number; value: number };
 }
 
 /* ══════════════ 每帧上下文 ══════════════ */

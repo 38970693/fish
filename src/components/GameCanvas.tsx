@@ -851,6 +851,38 @@ const drawPortal = (ctx: CanvasRenderingContext2D, portal: Portal, visualTime: n
     ctx.arc(0, 0, portal.radius * 0.9 * pulseScale, 0, Math.PI * 2);
     ctx.fill();
 
+    // 漩涡旋臂（特效增强）：三条旋臂绕核心慢转，制造「通往别处」的吸入感
+    ctx.save();
+    ctx.rotate(visualTime * 0.012);
+    ctx.strokeStyle = `rgba(${hexToRgb(secondaryColor)}, 0.45)`;
+    ctx.lineWidth = 2;
+    for (let arm = 0; arm < 3; arm++) {
+        ctx.beginPath();
+        const baseAngle = (arm / 3) * Math.PI * 2;
+        for (let t = 0; t <= 1.001; t += 0.05) {
+            const r = portal.radius * (0.15 + t * 0.75);
+            const a = baseAngle + t * 2.4;
+            const px = Math.cos(a) * r;
+            const py = Math.sin(a) * r;
+            if (t === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // 螺旋吸入的星尘（特效增强）：从外圈卷向核心，越近越亮越大，循环往复
+    const dustCount = 14;
+    for (let i = 0; i < dustCount; i++) {
+        const phase = (visualTime * 0.0006 + i / dustCount) % 1;
+        const r = portal.radius * (1.35 - phase * 1.15);
+        const a = (i / dustCount) * Math.PI * 2 + phase * 5;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * r, Math.sin(a) * r, 1.5 + phase * 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${hexToRgb(primaryColor)}, ${0.15 + phase * 0.75})`;
+        ctx.fill();
+    }
+
     // 中心星芒效果
     const starSize = portal.radius * 0.15 * (1 + pulsePhase * 0.3);
     ctx.fillStyle = '#fff';
@@ -1219,6 +1251,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
                 ctx.moveTo(0, 0); ctx.lineTo(0, -p.radius);
                 ctx.moveTo(0, 0); ctx.lineTo(p.radius*0.5, -p.radius*0.8);
                 ctx.stroke();
+            } else if (p.type === 'COIN') {
+                // 金币：翻转椭圆（伪 3D 旋转）+ 浮动 + 内圈高光，¥ 字随币面一起翻转
+                const spin = Math.max(0.22, Math.abs(Math.sin(gameState.time * 0.08 + p.x)));
+                ctx.save();
+                ctx.translate(0, Math.sin(gameState.time * 0.06 + p.y) * 3);
+                ctx.scale(spin, 1);
+                ctx.beginPath();
+                ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#fbbf24';
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = 'rgba(251, 191, 36, 0.8)';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = '#b45309';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, p.radius * 0.62, 0, Math.PI * 2);
+                ctx.fillStyle = '#fde68a';
+                ctx.fill();
+                ctx.fillStyle = '#b45309';
+                ctx.font = `bold ${Math.round(p.radius * 1.1)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('¥', 0, 1);
+                ctx.restore();
             } else {
                 ctx.fillStyle = p.type === 'SPEED' ? '#3b82f6' : '#8b5cf6';
                 ctx.beginPath();
@@ -1263,12 +1321,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             ctx.shadowBlur = 10;
             ctx.shadowColor = label.color;
             
-            // 绘制背景气泡
-            ctx.font = 'bold 28px sans-serif';
+            // 绘制背景气泡（字号可由 label.size 指定，默认 28；逆转等高光时刻用大字）
+            const fontSize = label.size ?? 28;
+            ctx.font = `bold ${fontSize}px sans-serif`;
             const metrics = ctx.measureText(label.text);
             const padding = 10;
             const bubbleWidth = metrics.width + padding * 2;
-            const bubbleHeight = 40;
+            const bubbleHeight = fontSize + 12;
             
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.beginPath();

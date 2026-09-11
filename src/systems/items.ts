@@ -56,6 +56,17 @@ const PICKUP_HANDLERS: Record<PowerUp['type'], PickupHandler> = {
     state.player.shieldTimer = GAME_MECHANICS.SHIELD_DURATION;
     ctx.events.emit('pickup', { x: item.x, y: item.y, label: '护盾', color: '#38bdf8' });
   },
+
+  /**
+   * 金币：收集系统（待办④）。纯加分不走负重，是「到处逛逛」的奖励。
+   * 成簇投放（见下方 spawn），捡起来有连环进账的爽感；成就「守财奴」挂在 coin 事件上。
+   */
+  COIN: (state, ctx, item) => {
+    const value = 15;
+    state.score += value;
+    state.player.speechBubble = { text: `+${value} 金币！`, timer: 45, color: '#fbbf24' };
+    ctx.events.emit('coin', { x: item.x, y: item.y, value });
+  },
 };
 
 export const itemsSystem = (state: GameState, ctx: FrameContext): void => {
@@ -74,6 +85,26 @@ export const itemsSystem = (state: GameState, ctx: FrameContext): void => {
         type: isShell ? 'SHELL' : 'BOTTLE',
         radius: isShell ? 30 : 20,
       });
+    }
+  }
+
+  /* ── 1.5 金币成簇投放：一滩 3~5 枚，散落在小半径里，捡起来像刮清一波 ── */
+  if (state.time % 480 === 0 && state.powerUps.length < MAX_POWERUPS - 5) {
+    const cx = Math.random() * WORLD_SIZE;
+    const cy = Math.random() * WORLD_SIZE;
+    if (isPositionValid(cx, cy, 120)) {
+      const count = 3 + Math.floor(Math.random() * 3); // 3~5 枚
+      for (let i = 0; i < count; i += 1) {
+        const ang = (i / count) * Math.PI * 2 + Math.random() * 0.6;
+        const d = Math.random() * 90;
+        state.powerUps.push({
+          id: uuid(),
+          x: cx + Math.cos(ang) * d,
+          y: cy + Math.sin(ang) * d,
+          type: 'COIN',
+          radius: 14,
+        });
+      }
     }
   }
 

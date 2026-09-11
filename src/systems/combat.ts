@@ -288,7 +288,24 @@ export const processCollision = (
       state.score += Math.floor(victim.radius * 10);
       // 逆转特效属于游戏状态的一部分（会存进 GameState 被渲染），直接产生；
       // 同时发事件，方便将来接音效 / 成就，而不用回头改这里。
-      state.labels.push({ x: victim.x, y: victim.y - 50, text: REVERSAL_PHRASE, color: '#ef4444', timer: 60 });
+      // 特效增强：金色大字（Label.size）+ 双圈定向冲击波，这是全游戏最稀缺的高光时刻，值得排场。
+      state.labels.push({
+        x: victim.x, y: victim.y - 50,
+        text: REVERSAL_PHRASE, color: '#fbbf24', timer: 90, size: 44,
+      });
+      // 冲击波：内圈快而密（金）、外圈慢而疏（红），定向速度让粒子炸成一圈而不是糊成一团
+      for (let ring = 0; ring < 2; ring += 1) {
+        const speed = ring === 0 ? 7 : 3.5;
+        const count = ring === 0 ? 22 : 14;
+        for (let i = 0; i < count; i += 1) {
+          const a = (i / count) * Math.PI * 2 + ring * 0.35;
+          const spark = createParticle(victim.x, victim.y, ring === 0 ? '#fcd34d' : '#ef4444');
+          spark.vx = Math.cos(a) * speed;
+          spark.vy = Math.sin(a) * speed;
+          spark.size = ring === 0 ? 4 : 3;
+          state.particles.push(spark);
+        }
+      }
       for (let i = 0; i < 30; i += 1) {
         state.particles.push(createParticle(victim.x, victim.y, '#fcd34d'));
         state.particles.push(createParticle(victim.x, victim.y, '#ef4444'));

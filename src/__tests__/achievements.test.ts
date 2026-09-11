@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { EventBus } from '../core/EventBus';
 import { createInitialState } from '../factories/initialState';
 import { createEntity } from '../systems/spawn';
+import { itemsSystem } from '../systems/items';
 import { CreatureType } from '../data/creatures';
 import {
   subscribeAchievements,
@@ -200,12 +201,42 @@ describe('成就 · 解锁与持久化', () => {
   });
 
   it('定义里每条成就的 stat 键都合法（数据自检）', () => {
-    const legalKeys = ['eaten', 'backstabs', 'maxLevel', 'evolutions', 'reversals', 'treasures', 'biomes', 'recruits', 'possessions'];
+    const legalKeys = ['eaten', 'backstabs', 'maxLevel', 'evolutions', 'reversals', 'treasures', 'biomes', 'recruits', 'possessions', 'coins'];
     for (const def of getAchievementView()) {
       expect(legalKeys).toContain(def.stat);
       expect(def.goal).toBeGreaterThan(0);
       expect(def.icon.length).toBeGreaterThan(0);
     }
-    expect(getAchievementView().length).toBeGreaterThanOrEqual(12);
+    expect(getAchievementView().length).toBeGreaterThanOrEqual(13);
+  });
+
+  it('coin 事件计入「守财奴」进度，够 20 枚解锁', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+
+    for (let i = 0; i < 20; i += 1) bus.emit('coin', { x: 0, y: 0, value: 15 });
+    achievementsSystem(state, ctx);
+
+    expect(view('coin20').unlocked).toBe(true);
+    expect(getUnlockedCount()).toBeGreaterThanOrEqual(1);
+  });
+
+  it('联动 items：拾取 COIN 加分、发 coin 事件、道具消失', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+    state.player.x = 500;
+    state.player.y = 500;
+    state.powerUps.push({ id: 'c1', x: 500, y: 500, type: 'COIN', radius: 14 });
+    const scoreBefore = state.score;
+
+    itemsSystem(state, ctx);
+    achievementsSystem(state, ctx);
+
+    expect(state.score).toBeGreaterThanOrEqual(scoreBefore + 15);
+    expect(view('coin20').progress).toBeGreaterThanOrEqual(1);
+    // 拾取后 radius 置 0 → 被过滤掉
+    expect(state.powerUps.find((p) => p.id === 'c1')).toBeUndefined();
   });
 });

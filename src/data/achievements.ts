@@ -18,7 +18,8 @@ export type AchievementStatKey =
   | 'treasures'
   | 'biomes'
   | 'recruits'
-  | 'possessions';
+  | 'possessions'
+  | 'coins';
 
 export interface AchievementDef {
   id: string;
@@ -98,7 +99,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'treasure5',
     name: '拾荒者',
-    desc: '捡到 5 个宝藏',
+    desc: '捡到 5 次掉落物（宝藏 / 道具）',
     icon: '🎁',
     goal: 5,
     stat: 'treasures',
@@ -126,5 +127,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     icon: '👻',
     goal: 3,
     stat: 'possessions',
+  },
+  {
+    id: 'coin20',
+    name: '守财奴',
+    desc: '累计拾取 20 枚金币',
+    icon: '🪙',
+    goal: 20,
+    stat: 'coins',
   },
 ];
