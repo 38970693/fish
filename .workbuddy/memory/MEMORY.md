@@ -12,10 +12,11 @@
   + 取值函数（未知 id 回退默认，**绝不返回 undefined**）；`constants.ts` 门面 `export *`。
 - 状态层：`GameState.<x>` 字段（`types.ts` 转发类型）；`createInitialState(options)` 允许外部传入。
 - 系统层：在 `systems/` 读写 `state.<x>`；**加分一律走 `scoreGain(state.pondId, base)`，别再直接 `state.score +=`**。
-- 收尾：菜单入口 + HUD 展示 + 单测 + `scripts/probe-<x>.mjs` + 开发计划/路线图同步。
+- 收尾：菜单入口 + HUD 展示 + 单测 + `scripts/probe-<x>.mjs` + 开发计划/路线图同步；
+  大改动再补 `交付说明.html`（单文件、内联截图，见 `scripts/gen-deliverable.py`）。
 - **向后兼容铁律**：新功能默认值 == 旧硬编码，旧调用点与既有测试零变化。
 
-## 多鱼塘（阶段 1 + 2a，2026-09-11）
+## 多鱼塘（阶段 1 + 2a 已落地；2b 暂缓，2026-09-11）
 - `src/data/ponds.ts`：CLEAR/清水塘(×1.0，食物 0.40，tier +0，障碍 ×1.0) · CORAL/珊瑚塘(×1.5，0.30，+1，×1.6) ·
   ABYSS/深渊塘(×2.5，0.20，+2，×0.6)。
 - `state.pondId` 决定刷怪（`foodRatio` / `maxTierBonus`）、**所有**得分倍率（`scoreGain` 收口 4 处加分点）、
@@ -29,8 +30,12 @@
   - **换塘必须同步 `player.currentBiome`**，否则「进入新海域」气泡会顶掉「进入 XX塘」。
 - 菜单选塘 / HUD 塘名+倍率 / 排行榜塘标签+**分塘筛选** / 规则面板「鱼塘」分节。
   **不要再用 `speechBubble` 报塘名**（会被「进入新海域」提示顶掉）。
-- 阶段 2b（尺寸/形状差异化，待决策）见《多鱼塘立项设计.md》：卡点是 `terrain.ts` 在**模块级**解构
-  `MAP_SHAPE_CONFIG`，要先把 `WORLD_SIZE` / `BIOME_BOUNDS` / 各系统刷点范围参数化成按 pondId 查表。
+- **阶段 2b（尺寸/形状差异化）决策：暂缓**（2026-09-11 实测）。卡点：`terrain.ts` 在**模块级**解构
+  `MAP_SHAPE_CONFIG`（形状写死进函数）；另有 6 处写死的 `Math.random() * WORLD_SIZE` 刷点
+  （spawn / events×3 / items×2 / world）。合计约 **8 源 + 4 测试文件**，且失败症状隐蔽
+  （刷点落塘外 → `spawnCreature` 静默返回 null，只表现为「鱼变少」）。
+  → **优先做阶段 3「每塘独有内容」**（纯数据驱动，复用 `obstacleScale` 套路，成本低一个量级）。
+  完整推演见《多鱼塘立项设计.md》第四节决策记录。
 
 ## 本机环境坑（重要！）
 - **⚠️ 同一文件的两处 Edit 放在同一条消息里会丢一处**（2026-09-11 实测：App.tsx 的 import 改动留下、
@@ -39,6 +44,13 @@
 - **⚠️ bash 偶发抽风**（`shell-runtime-bash-env.sh: dirname: command not found`）：简单前景命令还能跑，
   但**后台任务会直接启动失败**（vite dev server 起不来）。规避：改用 **PowerShell** 跑，
   且 PowerShell 工具本会话**不回显 stdout** → 一律 `2>&1 | Out-File -Encoding utf8 <文件>` 再用 Read 读文件。
+- **⚠️ PowerShell 工具另有两道拦截**：① 禁用 `cmd /c`（"cmd.exe cannot be used from the PowerShell tool"），
+  一律写原生 cmdlet；② 命令里出现 `%VAR%` 样式的 token 会被安全策略拦掉（`git log --format="SUBJECT:%s%nBODY:%b"`
+  就此被拦）→ 换不带 `%` 的写法；若同一命令里既要删临时文件又含 `%`，会被连坐，拆两条发。
+- **`Get-Content` 不加 `-Encoding utf8` 读 UTF-8 文件会乱码**，据它数行数也不准
+  （路线图实际 358 行，`(Get-Content).Count` 报 265）→ 读内容/数行优先用 **Read 工具**。
+- `git commit -F <UTF-8 文件>` 提交中文 message 没问题（落库是正确的 UTF-8，控制台乱码只是显示问题）；
+  验证方法：`git log -1` 重定向到文件再用 Read 看。
 - **这台机器 npm 被 "safe-delete" 包装器拦截**（非官方 npm），删除走回收站。npm ci 在 vite 占用 esbuild 文件锁时会 trash 失败中止。
 - **⚠️ .git 会不明原因被清空/删除**：2026-09-08 objects+refs 全消失；2026-09-09 跑 `git stash create` 后整个 .git 目录消失。原因未明（疑 safe-delete 或某后台进程与 git 临时文件打架）。**动 git 前先 `tar -czf` 备份 .git**，备份在 E:\gitlab\git-backup\fish-git-20260910.tar.gz（+copy2）。
 - **⚠️ 反向现象：已删除的文件会被还原回来**。2026-09-10 07:57，`git status` 里显示为 `D` 的 `components/*.tsx` 和 `e2e/startButton.spec.ts` 自己复活了（部分还原，同批的 App.tsx/constants.ts/gameEngine.ts 没复活）。**发现工作树里冒出"不该有的旧文件"时，先怀疑这个，不要以为是别人动过**。
@@ -47,7 +59,7 @@
   - 应急：确实要嵌套就手动 `echo <sha> > .git/refs/heads/<ns>/<name>`，git 读得出来；但**千万别再让 git 去写它**。
   - 触发条件与目录是否已存在无关——目录先建好也一样被删。
 - **git 报 `unable to read tree <sha>` 的两层根因**：① `.git/index` 的 cache-tree 指向丢失对象 → `mv .git/index .git/index.bak` + `git add -A` 重建；② HEAD 的 tree 本身缺子树（不可修）。**`git commit` 不需要读父提交的 tree，直接提交就能绕过，提交后 status 自动恢复**（提交时那句 fatal 是噪音）。
-- 现状（2026-09-10）：`dev` = **3281854** 无父根提交（76 文件，全绿）；老历史留在 `archive-broken-history`（26 条 message，内容全损）；`main`/`test` 分支仍指向损坏 commit。备份 `E:\gitlab\git-backup\fish-git-20260910-FINAL.tar.gz`。
+- 分支形态（2026-09-10 事故后）：`dev` = 3281854 无父根提交（76 文件，全绿）；老历史留在 `archive-broken-history`（26 条 message，内容全损）；`main`/`test` 仍指向损坏 commit。备份 `E:\gitlab\git-backup\fish-git-20260910-FINAL.tar.gz`。
 - **⚠️ 远端 github.com/38970693/fish 已不存在**（API 404 / git 协议 "Repository not found"），云端历史彻底没了。本地 25 个 commit（2026-01-15 → 2026-09-07）是全部家底，从 `.git/objects/pack/tmp_pack_TuOylB`（fetch 中断的临时 pack）用 `git unpack-objects -r` 抢救出来的。部分旧 tree 仍缺，老版本能看 log 但 checkout 会失败。
 - **`https_proxy=http://127.0.0.1:10356` 环境变量常驻**，git/curl 会被吞成 401。直连要 `env -u https_proxy -u http_proxy -u HTTPS_PROXY -u HTTP_PROXY <cmd>`。
 - 源码备份：E:\gitlab\fish-backup-20260908.tar.gz（含 src 45 文件，09-09 复核仅 3 个文件与工作区不同，均为主动修改）。
@@ -69,6 +81,11 @@
 - agent-browser 页面状态跨 Bash 调用会重置：全流程必须单条命令完成。
 - e2e 用 channel:'chromium'（完整 Chromium 新 headless），text 正则括号要转义。
 - **Playwright `text=复活` 是子串匹配**，会命中「已复活 0 次」那个 `<p>` 而不是按钮 → 点了个空气、误判"按钮坏了"。**点按钮一律用 `button:has-text("...")`**。
+- **`text=` 的污染不止点击，计数同样中招**（2026-09-11）：`locator('text=得分').count()` 会把弹窗**背后**
+  菜单卡片上的「得分 ×1.5」也算进来，导致差值**恒定**（数出 11/7，实际 5/1）。
+  → **先锁定容器再数行**：`locator('div.rounded-3xl').filter({ hasText: '名人堂' })` →
+  `modal.locator('div.rounded-2xl').count()`；精确相等用 `:text-is()`；先断言容器唯一。
+  **看到「差值恒定」先怀疑作用域，别去查逻辑。**
 - 死亡/胜利等全屏遮罩的验证脚本：scripts/probe-stuck.mjs（开局→采样→死亡→点复活→验证回到 PLAYING）。
 - **钉 `Math.random` 要按系统真实取数顺序给序列**（spawn：`tier → 食物判定 → 池内选择 → 刷点 x,y`）；
   全程用同一个定值会算出花瓣地图外的刷点，`spawnCreature` 返回 null，症状是 `entities[0]` undefined。
