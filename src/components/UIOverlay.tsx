@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
 import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, SQUAD_CONFIG } from '../constants';
-import { getMapBoundaryRadius, gameEvents } from '../gameEngine';
+import { getMapBoundaryRadius, gameEvents, isConcealed } from '../gameEngine';
 import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
@@ -280,6 +280,7 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <p>商场：换装（进圈后按 <Key>E</Key>）· 医院：回血 · 龙王庙：随机祝福（技能+1 或护盾）</p>
             <p>阳光浅滩：安全，小型鱼速度+20% · 五彩珊瑚：伪装/伏击技能冷却减半，巨型鱼转向变慢</p>
             <p>剧毒沼泽：持续腐蚀（硬壳体质免疫）· 深渊海沟：视野受限，发光/感知型攻击+20%</p>
+            <p><b className="text-green-300">水草掩体</b>（沼泽区的绿色草丛）：钻进去即进入隐蔽状态 —— HUD 会亮「隐蔽中」，追你的大鱼跟丢并放弃愤怒。但贴到脸上（约 150px）照样会被发现；被咬过的大鱼还会放声呐扫描，约 7 秒内藏不住。</p>
           </Section>
 
           <Section icon={<Gift size={20} />} title="宝藏与道具">
@@ -633,6 +634,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         {getPond(gameState.pondId).name}
                     </span>
                     <span className="text-[11px] text-slate-400">得分 ×{getPond(gameState.pondId).scoreMult}</span>
+                    {/* 隐蔽提示（藏在水草里 / 开着隐身技能）：告诉玩家「现在追不到我」 */}
+                    {isConcealed(player) && (
+                        <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 border border-green-400/40 animate-pulse">
+                            隐蔽中 · 未被发现
+                        </span>
+                    )}
                 </div>
                 <div className="flex justify-between items-end mb-2">
                     <span className="text-cyan-400 font-black text-xl">玩家 ({player.config.name}) Lv.{player.level}</span>

@@ -20,11 +20,12 @@ import { switchToNextMember } from './systems/squad';
 import { createObstacles, createBuildings, createPortals } from './systems/world';
 import { createParticle } from './systems/combat';
 import { getMapBoundaryRadius } from './systems/terrain';
+import { isConcealed } from './systems/concealment';
 import { validateCreatures, CREATURE_DATA } from './data/creatures';
 import { SKILL_DATA } from './data/skills';
 import { validateSkills } from './systems/skills';
 
-export { createEntity, createObstacles, createBuildings, createPortals, createParticle, getMapBoundaryRadius };
+export { createEntity, createObstacles, createBuildings, createPortals, createParticle, getMapBoundaryRadius, isConcealed };
 
 /** 全局事件总线：音效、统计、成就等外部系统订阅它，不侵入玩法逻辑 */
 export const gameEvents = new EventBus<GameEvents>();

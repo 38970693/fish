@@ -15,6 +15,7 @@ import type { Entity, GameState, FrameContext } from '../types';
 import { dist2, turnToward, num } from '../core/math';
 import { getBiome } from './terrain';
 import { castSkill } from './skills';
+import { isConcealed, CONCEAL_REVEAL_RANGE_SQ } from './concealment';
 
 /** 只更新这个范围内的 AI，远处静止不动省性能 */
 const AI_ACTIVE_RANGE = 2600;
@@ -41,12 +42,31 @@ interface Nearest {
   distSq: number;
 }
 
-/** 在候选里找最近的满足条件者 */
+/**
+ * 能否察觉到目标 —— **所有锁定判定的唯一收口**。
+ *
+ * 隐蔽单位（藏在水草里 / 开着隐身技能）默认看不见，只有两种例外：
+ *   · 已经贴到脸上（CONCEAL_REVEAL_RANGE）—— 钻草丛不等于无敌
+ *   · 猎手刚放过「声呐扫描」（sonarTimer > 0）—— 这是隐蔽的反制手段
+ */
+const canPerceive = (seeker: Entity, target: Entity, distSq: number): boolean => {
+  if (!isConcealed(target)) return true;
+  if (seeker.sonarTimer && seeker.sonarTimer > 0) return true;
+  return distSq <= CONCEAL_REVEAL_RANGE_SQ;
+};
+
+/** 在候选里找最近的满足条件者（隐蔽目标会被 canPerceive 过滤掉） */
 const findNearest = (
   origin: Entity,
   candidates: readonly Entity[],
   predicate: (other: Entity) => boolean,
-  rangeSq: number
+  rangeSq: number,
+  /**
+   * 无视隐蔽。**只给「已经被咬了一口」的大鱼反制用**：
+   * 挨了打就知道附近有东西，于是放声呐把它照出来 —— 这是隐蔽的反制闭环。
+   * 普通锁定一律走默认值 false，否则隐蔽就白做了。
+   */
+  ignoreConcealment = false
 ): Nearest => {
   let best: Entity | null = null;
   let bestSq = rangeSq;
@@ -55,6 +75,10 @@ const findNearest = (
     if (other.health <= 0) continue;
     if (!predicate(other)) continue;
     const d = dist2(origin, other);
+    // ⚠️ 隐蔽门闸刻意放在**这里**：6 种行为 + 大鱼反制挑目标全都走 findNearest，
+    //    收口一处，就不会出现「A 行为尊重隐蔽、B 行为照追」的半吊子状态。
+    //    副作用（有意为之）：躲在水草里的大鱼，小鱼也看不见它 —— 天然的伏击。
+    if (!ignoreConcealment && !canPerceive(origin, other, d)) continue;
     if (d < bestSq) {
       bestSq = d;
       best = other;
@@ -245,6 +269,7 @@ const tickTimers = (entity: Entity): void => {
     entity.health -= entity.maxHealth * 0.001;
   }
   if (entity.angerTimer && entity.angerTimer > 0) entity.angerTimer--;
+  if (entity.sonarTimer && entity.sonarTimer > 0) entity.sonarTimer--;
   if (entity.vulnerableTimer && entity.vulnerableTimer > 0) entity.vulnerableTimer--;
   if (entity.fearTimer && entity.fearTimer > 0) entity.fearTimer--;
   if (entity.happyTimer && entity.happyTimer > 0) entity.happyTimer--;
@@ -277,15 +302,22 @@ const COUNTER_COOLDOWN = 420;
 const tryCounterSkill = (entity: Entity, state: GameState, ctx: FrameContext): void => {
   if (entity.schoolSkillCooldown && entity.schoolSkillCooldown > 0) return;
 
+  // ⚠️ 这里必须 ignoreConcealment=true：挨了咬就知道附近有东西。
+  //    如果也走隐蔽门闸，那隐蔽一旦生效，声呐这个反制技就永远触发不了（分支变成死代码）。
   const foe = findNearest(
     entity,
     [state.player, ...state.entities],
     (other) => isEnemy(entity)(other) && other.radius < entity.radius,
-    600 * 600
+    600 * 600,
+    true
   );
   if (!foe.entity) return;
 
   let skillId: SkillId;
+  // 对手开着**隐身技能** → 声呐扫描，把它照出来（并让施法者 7 秒内看穿隐蔽）。
+  // ⚠️ 这里刻意只认 camoActive，**不认水草掩体**：地形掩体不该被声呐反制，
+  //    否则「躲进水草甩掉追杀」都要先硬挨 7 秒，体验上等于没修。
+  //    分工：隐身技能 ← 声呐反制；水草掩体 ← 只能靠贴脸（150px）破解。
   if (foe.entity.camoActive || foe.entity.isHidden) skillId = BIG_FISH_COUNTER_SKILLS[1];
   else if (entity.health / Math.max(1, entity.maxHealth) < 0.4) skillId = BIG_FISH_COUNTER_SKILLS[2];
   else skillId = BIG_FISH_COUNTER_SKILLS[0];
@@ -293,6 +325,15 @@ const tryCounterSkill = (entity: Entity, state: GameState, ctx: FrameContext): v
   if (castSkill(state, ctx, entity, skillId, 1)) {
     entity.schoolSkillCooldown = COUNTER_COOLDOWN;
   }
+};
+
+/**
+ * 隐蔽把追杀者甩掉时的反馈：头上冒个「?」。
+ * 没有这个提示，玩家分不清「我藏住了」和「AI 只是碰巧没游过来」。
+ */
+const showConfused = (entity: Entity): void => {
+  if (entity.speechBubble) return; // 不抢已有气泡
+  entity.speechBubble = { text: '?', timer: 45, color: '#94a3b8' };
 };
 
 export const aiSystem = (state: GameState, ctx: FrameContext): void => {
@@ -350,6 +391,12 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
       if (foe.entity) {
         chaseTo(entity, foe.entity, state, agility, 1.2);
         continue;
+      }
+      // 一个敌人都找不到，而玩家正藏在水草里 → 判定为**被甩掉**：愤怒清零，放弃追击。
+      // 这就是「躲进水草能甩掉追杀」的落点：不是让你无敌，是让咬过你的那条鱼死心。
+      if (isConcealed(state.player) && dist2(entity, state.player) < 900 * 900) {
+        entity.angerTimer = 0;
+        showConfused(entity);
       }
     }
 

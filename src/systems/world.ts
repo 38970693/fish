@@ -362,15 +362,22 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
   }
 
   /* ── 4. 障碍物与边界（玩家 + 所有鱼）──
-     先推障碍物再拉边界：边界拥有最终决定权，障碍物永远不会把鱼挤到地图外 */
+     先推障碍物再拉边界：边界拥有最终决定权，障碍物永远不会把鱼挤到地图外
+
+     ⚠️ 水草(SEAWEED)**不参与碰撞** —— 它是植物，得能游进去才叫「躲进水草」。
+        以前它混在列表里被 resolveObstacles 一起推开，玩家物理上根本进不去，
+        这就是「水草不能躲避追杀」的根因之一。
+        水草仍留在 `state.obstacles` 里，继续供渲染和隐蔽判定（systems/concealment.ts）使用。
+        这里每帧 filter 一次（80 个元素）换来的可读性，比省那点分配划算。 */
   const obstacles = state.obstacles;
   const isBattleTest = state.status === 'BATTLE_TEST';
+  const solidObstacles = obstacles.filter((o) => o.type !== 'SEAWEED');
 
-  if (obstacles.length) resolveObstacles(player, obstacles);
+  if (solidObstacles.length) resolveObstacles(player, solidObstacles);
   clampToMap(player, isBattleTest);
 
   for (const e of state.entities) {
-    if (obstacles.length) resolveObstacles(e, obstacles);
+    if (solidObstacles.length) resolveObstacles(e, solidObstacles);
     clampToMap(e, isBattleTest);
   }
 

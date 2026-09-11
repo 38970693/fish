@@ -46,6 +46,12 @@ const burst = (state: GameState, x: number, y: number, color: string, count = 5)
   for (let i = 0; i < count; i += 1) state.particles.push(createParticle(x, y, color));
 };
 
+/**
+ * 「看穿隐蔽」持续帧数（约 7 秒），与大鱼反制的冷却（`ai.ts` 的 COUNTER_COOLDOWN）对齐。
+ * 由 skills 写入施法者的 `sonarTimer`，由 `ai.ts` 的 `canPerceive` 读取。
+ */
+const SONAR_REVEAL_FRAMES = 420;
+
 /** 找最近的一个敌人，流派技能里的「锁定目标」都用它 */
 const nearestEnemy = (caster: Entity, state: GameState, range: number): Entity | null => {
   let best: Entity | null = null;
@@ -429,8 +435,15 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     });
   },
 
-  /** 声呐扫描：照出所有隐身的小鱼 */
+  /**
+   * 声呐扫描：照出周围的隐蔽单位（水草掩体 / 隐身技能）。
+   *
+   * `sonarTimer` 是加给**施法者自己**的 —— 一段时间内看穿隐蔽（见 `ai.ts` 的 `canPerceive`）。
+   * 没有它，这条技能只是个「清标志位」的空动作：水草掩体每帧都会重算 `inCover`，
+   * 这一帧清掉、下一帧就回来了，隐蔽照样生效。
+   */
   SONAR_SCAN: (caster, state, power) => {
+    caster.sonarTimer = SONAR_REVEAL_FRAMES;
     forEachNearby(caster, state, 700 * power, (e) => {
       e.isHidden = false;
       e.camoActive = false;

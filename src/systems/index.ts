@@ -16,6 +16,7 @@ import type { GameState, FrameContext } from '../types';
 import { spawnSystem } from './spawn';
 import { playerControlSystem } from './playerControl';
 import { skillsSystem } from './skills';
+import { concealmentSystem } from './concealment';
 import { aiSystem } from './ai';
 import { squadSystem } from './squad';
 import { worldSystem } from './world';
@@ -32,21 +33,24 @@ export interface SystemEntry {
 
 /**
  * 执行顺序说明：
- *   spawn     补货
- *   control   玩家先动（技能要基于最新朝向）
- *   skills    放技能
- *   ai        鱼群思考
- *   squad     战队：把俘虏落地成实体 + 成员跟随（必须紧接 ai 之后，且 ai 会跳过战队成员）
- *   world     统一处理边界 / 障碍 / 生态 / 建筑 / 传送门（放在移动之后，避免被移动覆盖）
- *   items     道具与鱼雷
- *   combat    碰撞结算（放在移动之后才准）
- *   events    宝藏 / 陨石 / 喷泉
- *   cleanup   死亡判定 / 进化 / 粒子回收 / 相机
+ *   spawn       补货
+ *   control     玩家先动（技能要基于最新朝向）
+ *   skills      放技能
+ *   concealment 结算隐蔽状态（水草掩体 / 隐身技能）—— **必须在 ai 之前**，
+ *               否则 AI 当帧读到的是上一帧的 `inCover`，钻草丛那一帧会被追打
+ *   ai          鱼群思考
+ *   squad       战队：把俘虏落地成实体 + 成员跟随（必须紧接 ai 之后，且 ai 会跳过战队成员）
+ *   world       统一处理边界 / 障碍 / 生态 / 建筑 / 传送门（放在移动之后，避免被移动覆盖）
+ *   items       道具与鱼雷
+ *   combat      碰撞结算（放在移动之后才准）
+ *   events      宝藏 / 陨石 / 喷泉
+ *   cleanup     死亡判定 / 进化 / 粒子回收 / 相机
  */
 export const SYSTEMS: SystemEntry[] = [
   { name: 'spawn', fn: safe('spawn', spawnSystem) },
   { name: 'playerControl', fn: safe('playerControl', playerControlSystem) },
   { name: 'skills', fn: safe('skills', skillsSystem) },
+  { name: 'concealment', fn: safe('concealment', concealmentSystem) },
   { name: 'ai', fn: safe('ai', aiSystem) },
   { name: 'squad', fn: safe('squad', squadSystem) },
   { name: 'world', fn: safe('world', worldSystem) },
@@ -75,4 +79,4 @@ export function runSystems(state: GameState, ctx: FrameContext): void {
   }
 }
 
-export { spawnSystem, playerControlSystem, skillsSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, achievementsSystem, progressionSystem };
+export { spawnSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, achievementsSystem, progressionSystem };

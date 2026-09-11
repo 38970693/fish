@@ -108,7 +108,7 @@ const drawTrail = (ctx: CanvasRenderingContext2D, trailType: TrailType | undefin
 };
 
 export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visualTime: number, isPlayer: boolean) => {
-    const { type, radius, animOffset, renderScale, happyTimer, fearTimer, isHidden, camoActive, speedBoostTimer, cosmetics, semiGhostTimer } = entity;
+    const { type, radius, animOffset, renderScale, happyTimer, fearTimer, isHidden, camoActive, inCover, speedBoostTimer, cosmetics, semiGhostTimer } = entity;
 
     if (!Number.isFinite(radius) || radius <= 0) return;
 
@@ -143,9 +143,34 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         ctx.setLineDash([]);
     }
 
-    // 玩家光环
+    // 隐蔽：藏在水草里 / 开着隐身技能。
+    // 以前 camoActive / isHidden 在这里被解构出来却从没被用过 —— 隐身既没逻辑效果也没视觉，
+    // 玩家完全无从判断自己藏没藏好。这里补上「看得见的隐蔽」。
+    const concealed = Boolean(camoActive || inCover);
+
+    // 玩家光环：先画，免得被下面隐蔽的全局透明度削弱。
+    // 隐蔽时换成绿色虚线「藏身环」，平时是青色实线环。
     if (isPlayer && !isSemiGhost) {
-        ctx.beginPath(); ctx.strokeStyle = `rgba(34, 211, 238, ${0.3 + Math.sin(visualTime*0.1)*0.2})`; ctx.lineWidth = 3; ctx.arc(0, 0, radius * 1.6, 0, Math.PI * 2); ctx.stroke();
+        const pulse = 0.3 + Math.sin(visualTime * 0.1) * 0.2;
+        ctx.beginPath();
+        if (concealed) {
+            ctx.strokeStyle = `rgba(74, 222, 128, ${Math.min(1, pulse + 0.4)})`;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 6]);
+            ctx.arc(0, 0, radius * 1.75, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else {
+            ctx.strokeStyle = `rgba(34, 211, 238, ${pulse})`;
+            ctx.lineWidth = 3;
+            ctx.arc(0, 0, radius * 1.6, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+
+    // 隐蔽中的本体压暗成半透明：一眼看出「我现在是藏着的」
+    if (concealed && !isSemiGhost) {
+        ctx.globalAlpha = isPlayer ? 0.5 : 0.42;
     }
     
     ctx.rotate(entity.angle);

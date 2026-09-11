@@ -126,8 +126,12 @@ export interface Entity {
   targetId?: string | null;
   ownerId?: string;
   aggroTimer?: number;
+  /** 声呐反制（帧）：> 0 时看穿隐蔽 —— 由 skills 的「声呐扫描」写入，ai 读 */
+  sonarTimer?: number;
   mouthOpenValue: number;
   isHidden?: boolean;
+  /** 当前是否藏在水草掩体里（每帧由 systems/concealment.ts 刷新） */
+  inCover?: boolean;
 
   isIdle: boolean;
   lureActive: boolean;
