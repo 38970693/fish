@@ -141,8 +141,13 @@
 - 隐蔽相关探针：scripts/probe-concealment.mjs（对照「无草丛愤怒持续」/ 掩体「愤怒清零+冒?」/ 贴脸「不清零」）。
 - **钉 `Math.random` 要按系统真实取数顺序给序列**（spawn：`tier → 食物判定 → 池内选择 → 刷点 x,y`）；
   全程用同一个定值会算出花瓣地图外的刷点，`spawnCreature` 返回 null，症状是 `entities[0]` undefined。
-- **`scripts/` 下的探针截图不提交** —— 一律命名成 `*-probe.png`，正好落进 `.gitignore` 的
-  `scripts/*-probe.png`。（仓库里那 18 个其它名字的 png 是**加忽略规则之前**提交的历史遗留，别照抄那种命名。）
+- **`scripts/` 下的探针截图分两类，`名字决定去留`**（`.gitignore` 第 33 行 `scripts/*-probe.png`）：
+  · 以 `-probe.png` 结尾（`rules-probe.png`/`squad-probe.png`…，跟探针脚本同名）= **临时产物 → 忽略、不提交**；
+  · 描述性命名（`pond-menu.png`/`content-coin.png`/`leaderboard-panel.png`…）= **功能证据 → 必须提交**。
+  ⚠️ 后者是**承重**的：`README.md` 里 `![开局选塘](scripts/pond-menu.png)` 直接引用，
+  `scripts/gen-deliverable.py` 还要把它们 base64 内联进《交付说明.html》。
+  → **新功能收尾时别把截图命名成 `xxx-probe.png`**，会被静默忽略：断言全绿、证据一张没进仓库
+  （2026-09-11 装扮功能踩过；已改名 `cosmetics-mirror.png` 等 7 张入库，commit 6bb8b8f）。
 - **探针断言四条纪律**：
   ① 别用严格相等断言「玩家回到某点」—— 世界还在跑，鼠标转向会推走几像素 → 用容差；
   ② 别用即时 `count()` 读 HUD —— `uiState` 每 100ms 才同步一次，会读到过期快照 → 用 `waitForSelector`；
@@ -162,4 +167,4 @@
   （动画 canvas 的 dataURL 每帧都在变，「变了」不算证据）。
   **这类 bug 的形态是「按钮在、点击对、状态也写回了，只有渲染是空的」，DOM 断言抓不到。**
 - **临时诊断脚本统一 `scripts/_` 前缀**（`_diag-*.mjs` / `_*.log`），收尾即删，别让它们进 git status；
-  **探针截图一律以 `-probe.png` 结尾**（匹配 `.gitignore` 的 `scripts/*-probe.png`，不提交）。
+  **探针截图按开头的命名规则分流**：临时产物 `-probe.png`（忽略），功能证据用描述性名字（提交，README 会引用）。
