@@ -23,6 +23,7 @@ import { itemsSystem } from './items';
 import { combatSystem } from './combat';
 import { eventsSystem } from './events';
 import { progressionSystem } from './progression';
+import { achievementsSystem } from './achievements';
 
 export interface SystemEntry {
   name: string;
@@ -52,6 +53,7 @@ export const SYSTEMS: SystemEntry[] = [
   { name: 'items', fn: safe('items', itemsSystem) },
   { name: 'combat', fn: safe('combat', combatSystem) },
   { name: 'events', fn: safe('events', eventsSystem) },
+  { name: 'achievements', fn: safe('achievements', achievementsSystem) },
   { name: 'progression', fn: safe('progression', progressionSystem) },
 ];
 
@@ -73,4 +75,4 @@ export function runSystems(state: GameState, ctx: FrameContext): void {
   }
 }
 
-export { spawnSystem, playerControlSystem, skillsSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, progressionSystem };
+export { spawnSystem, playerControlSystem, skillsSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, achievementsSystem, progressionSystem };

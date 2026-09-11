@@ -13,6 +13,7 @@ export * from './data/creatures';
 export * from './data/biomes';
 export * from './data/skills';
 export * from './data/buildings';
+export * from './data/achievements';
 
 import { BIOME_DATA, BIOME_BOUNDS, BiomeType } from './data/biomes';
 import { PHRASES } from './data/world';

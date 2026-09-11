@@ -7,9 +7,12 @@ import { CREATURES, MAP_SHAPE_CONFIG, PROTECTION_CONFIG } from './constants';
 import { updateGame, manualSquadSwitch, createEntity, getSquadMembers } from './gameEngine';
 import { createInitialState } from './factories/initialState';
 import { subscribeAudio, initAudio, toggleMute, isMuted } from './audio';
+import { subscribeAchievements } from './systems/achievements';
 
 // 音效只订阅一次：逻辑层发事件，音频层负责发声，两边互不知情（P1-4）
 subscribeAudio();
+// 成就统计同样只订阅一次：逻辑层发事件，成就层负责计数，两边互不知情（待办③）
+subscribeAchievements();
 
 const App: React.FC = () => {
   const gameStateRef = useRef<GameState>(createInitialState());

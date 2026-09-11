@@ -2,11 +2,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
 import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, SQUAD_CONFIG } from '../constants';
-import { getMapBoundaryRadius } from '../gameEngine';
+import { getMapBoundaryRadius, gameEvents } from '../gameEngine';
+import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
 import { SKILL_DATA } from '../data/skills';
 import { drawCuteFish } from './GameCanvas';
-import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat } from 'lucide-react';
+import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat, Trophy } from 'lucide-react';
 import MiniMap from './MiniMap';
 import CosmeticsPanel from './CosmeticsPanel';
 
@@ -282,6 +283,108 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+/**
+ * 成就解锁 toast（待办③）。订阅 gameEvents 的 'achievement' 事件，
+ * 弹 4 秒自动消失；连续解锁时刷新内容并重置计时。
+ */
+const AchievementToast: React.FC = () => {
+  const [toast, setToast] = useState<{ name: string; icon: string; desc: string } | null>(null);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const off = gameEvents.on('achievement', ({ name, icon, desc }) => {
+      setToast({ name, icon, desc });
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => setToast(null), 4000);
+    });
+    return () => {
+      off();
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, []);
+
+  if (!toast) return null;
+  return (
+    <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[70] pointer-events-none">
+      <div className="flex items-center gap-4 bg-slate-900/95 border-2 border-yellow-400 rounded-2xl px-6 py-3 shadow-[0_0_30px_rgba(250,204,21,0.4)]">
+        <span className="text-4xl">{toast.icon}</span>
+        <div className="text-left">
+          <div className="text-yellow-300 font-black text-lg leading-tight">成就解锁 · {toast.name}</div>
+          <div className="text-slate-300 text-sm">{toast.desc}</div>
+        </div>
+        <Trophy size={28} className="text-yellow-400 ml-2" />
+      </div>
+    </div>
+  );
+};
+
+/** 成就面板：已解锁亮着，未解锁灰着 + 进度条 */
+const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.code === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const list: AchievementView[] = getAchievementView();
+  const done = list.filter((a) => a.unlocked).length;
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-6" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-600 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-8 pt-6 pb-4 border-b border-slate-700">
+          <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500">
+            成就 {done}/{list.length}
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors" aria-label="关闭成就">
+            <X size={26} />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 overflow-y-auto grid grid-cols-1 gap-3">
+          {list.map((a) => {
+            const pct = Math.min(100, Math.round((a.progress / a.goal) * 100));
+            return (
+              <div
+                key={a.id}
+                className={`flex items-center gap-4 p-3 rounded-2xl border transition-all ${
+                  a.unlocked ? 'bg-slate-800 border-yellow-500/60' : 'bg-slate-800/40 border-slate-700'
+                }`}
+              >
+                <div className={`text-3xl shrink-0 ${a.unlocked ? '' : 'grayscale opacity-40'}`}>{a.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold ${a.unlocked ? 'text-yellow-300' : 'text-slate-300'}`}>{a.name}</span>
+                    {a.unlocked && <Check size={16} className="text-green-400" />}
+                  </div>
+                  <div className="text-slate-400 text-xs mb-1.5">{a.desc}</div>
+                  {!a.unlocked && (
+                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  )}
+                </div>
+                <div className={`text-xs shrink-0 ${a.unlocked ? 'text-green-400' : 'text-slate-500'}`}>
+                  {a.unlocked ? '已解锁' : `${a.progress}/${a.goal}`}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="px-8 py-4 border-t border-slate-700 flex justify-end">
+          <button onClick={onClose} className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-colors">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, onSwitchSquad, muted, onToggleMute }) => {
   const { player, status, entities } = gameState;
   const opponent = entities.find(e => e.id !== 'player' && e.type === CreatureType.ORCA);
@@ -290,6 +393,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
   const [showCosmetics, setShowCosmetics] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const unlockedCount = getUnlockedCount();
 
   if (status === GameStatus.MENU) {
     const startOptions = [
@@ -341,9 +446,19 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         <Palette size={24} /> 装扮我的鱼
                     </button>
 
-                    <button onClick={() => setShowRules(true)} className="px-10 py-3 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-lg rounded-full border border-slate-700 hover:border-cyan-400 transition-all flex items-center justify-center gap-3 mx-auto">
-                        <BookOpen size={20} /> 游戏规则
-                    </button>
+                    <div className="flex gap-4 justify-center">
+                        <button onClick={() => setShowRules(true)} className="px-10 py-3 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-lg rounded-full border border-slate-700 hover:border-cyan-400 transition-all flex items-center justify-center gap-3">
+                            <BookOpen size={20} /> 游戏规则
+                        </button>
+                        <button onClick={() => setShowAchievements(true)} className="px-10 py-3 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-lg rounded-full border border-slate-700 hover:border-yellow-400 transition-all flex items-center justify-center gap-3 relative">
+                            <Trophy size={20} /> 成就
+                            {unlockedCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-yellow-500 text-slate-900 text-xs font-black rounded-full px-2 py-0.5">
+                                    {unlockedCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -358,6 +473,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         )}
 
         {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
+        {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
       </div>
     );
   }
@@ -365,6 +481,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   if (status === GameStatus.BATTLE_TEST || status === GameStatus.PLAYING) {
     return (
       <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
+        {/* 成就解锁 toast（订阅 gameEvents，解锁时弹 4 秒） */}
+        <AchievementToast />
+
         {/* 宝物倒计时显示 */}
         <TreasureCountdown gameState={gameState} />
 

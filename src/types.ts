@@ -347,6 +347,8 @@ export interface GameEvents {
   biome: { from: string; to: string };
   building: { x: number; y: number; label: string; color: string };
   particle: { x: number; y: number; color: string; count: number };
+  /** 成就解锁（achievementsSystem 发出，UI 弹 toast） */
+  achievement: { id: string; name: string; desc: string; icon: string };
 }
 
 /* ══════════════ 每帧上下文 ══════════════ */
