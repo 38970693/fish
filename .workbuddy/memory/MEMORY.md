@@ -7,7 +7,26 @@
 - 输入：鱼永远朝鼠标游（mouseRef，屏幕系坐标），E=商场交互，Q=流派技能，Space=加速，G=无敌。
 - updateGame 第 9 参 isInteractPressed（E 键），worldSystem 用模块级 prevInteract 做上升沿检测。
 
+## 内容扩展套路（2026-09-11 起统一）—— 加「塘 / 成就 / 道具 / 排行」都走这套
+- 数据层 `src/data/<x>.ts`：`as const` 注册表 + `keyof typeof` 推类型 + 冻结常量对象（`XxxId.KEY` 写法仍可用）
+  + 取值函数（未知 id 回退默认，**绝不返回 undefined**）；`constants.ts` 门面 `export *`。
+- 状态层：`GameState.<x>` 字段（`types.ts` 转发类型）；`createInitialState(options)` 允许外部传入。
+- 系统层：在 `systems/` 读写 `state.<x>`；**加分一律走 `scoreGain(state.pondId, base)`，别再直接 `state.score +=`**。
+- 收尾：菜单入口 + HUD 展示 + 单测 + `scripts/probe-<x>.mjs` + 开发计划/路线图同步。
+- **向后兼容铁律**：新功能默认值 == 旧硬编码，旧调用点与既有测试零变化。
+
+## 多鱼塘（阶段 1，2026-09-11 · feat 5df754a）
+- `src/data/ponds.ts`：CLEAR/清水塘(×1.0，食物 0.40，tier +0) · CORAL/珊瑚塘(×1.5，0.30，+1) · ABYSS/深渊塘(×2.5，0.20，+2)。
+- `state.pondId` 决定刷怪（`foodRatio` 取代写死的 0.4、`maxTierBonus` 加进刷怪 tier 上限）与**所有**得分倍率；
+  出生点仍 (3000,3000)（阶段 1 故意不动位置）。
+- 菜单选塘 / HUD 塘名+倍率 / 排行榜塘标签 / 规则面板「鱼塘」分节。
+  **不要再用 `speechBubble` 报塘名** —— 会被 worldSystem 的「进入新海域」提示在开局第一帧顶掉。
+- 阶段 2（塘际传送门）方案见《多鱼塘立项设计.md》：需先把 `WORLD_SIZE` / `MAP_SHAPE_CONFIG` / `BIOME_BOUNDS` /
+  `createObstacles|createPortals|createBuildings` 参数化（改成按 pondId 查表），并分清「塘内门 vs 塘际门」+ 排行榜分塘。
+
 ## 本机环境坑（重要！）
+- **⚠️ 同一文件的两处 Edit 放在同一条消息里会丢一处**（2026-09-11 实测：App.tsx 的 import 改动留下、
+  `onStart` 改动没了，**两个工具调用都报 Success**，疑为并发读同版本+后写覆盖）。→ **一个文件一次只发一条 Edit**，改完 grep 复核。
 - **这台机器 npm 被 "safe-delete" 包装器拦截**（非官方 npm），删除走回收站。npm ci 在 vite 占用 esbuild 文件锁时会 trash 失败中止。
 - **⚠️ .git 会不明原因被清空/删除**：2026-09-08 objects+refs 全消失；2026-09-09 跑 `git stash create` 后整个 .git 目录消失。原因未明（疑 safe-delete 或某后台进程与 git 临时文件打架）。**动 git 前先 `tar -czf` 备份 .git**，备份在 E:\gitlab\git-backup\fish-git-20260910.tar.gz（+copy2）。
 - **⚠️ 反向现象：已删除的文件会被还原回来**。2026-09-10 07:57，`git status` 里显示为 `D` 的 `components/*.tsx` 和 `e2e/startButton.spec.ts` 自己复活了（部分还原，同批的 App.tsx/constants.ts/gameEngine.ts 没复活）。**发现工作树里冒出"不该有的旧文件"时，先怀疑这个，不要以为是别人动过**。
@@ -39,3 +58,6 @@
 - e2e 用 channel:'chromium'（完整 Chromium 新 headless），text 正则括号要转义。
 - **Playwright `text=复活` 是子串匹配**，会命中「已复活 0 次」那个 `<p>` 而不是按钮 → 点了个空气、误判"按钮坏了"。**点按钮一律用 `button:has-text("...")`**。
 - 死亡/胜利等全屏遮罩的验证脚本：scripts/probe-stuck.mjs（开局→采样→死亡→点复活→验证回到 PLAYING）。
+- **钉 `Math.random` 要按系统真实取数顺序给序列**（spawn：`tier → 食物判定 → 池内选择 → 刷点 x,y`）；
+  全程用同一个定值会算出花瓣地图外的刷点，`spawnCreature` 返回 null，症状是 `entities[0]` undefined。
+- **`scripts/` 下的探针截图按仓库惯例要提交**（`.gitignore` 只忽略了 `scripts/*-probe.png` 一种命名）。
