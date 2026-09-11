@@ -58,6 +58,24 @@
 - 新增契约：**「隐蔽」= `isConcealed(e) = camoActive || inCover`**（`gameEngine` 已 re-export）。
   表现层：藏身时玩家画绿虚线藏身环 + 半透明，HUD 挂「隐蔽中 · 未被发现」，规则面板有「水草掩体」分节。
 
+## 装扮 / 预览（2026-09-11 · feat 029ed2b）
+- **预览必须复用 `drawCuteFish`**（从 `components/GameCanvas.tsx` `export`）。绝不另写简化画法 ——
+  预览与游戏里不一致 = 骗玩家。组件 `components/FishPreview.tsx`：
+  `{ type, cosmetics, size|width/height, animate }`，内部造一个最小 mock entity。
+  动画模式**先同步画一帧再进 rAF**，否则挂载瞬间是空白画布。
+- 选项清单收在 `src/data/cosmeticsOptions.ts`（`TEETH_OPTIONS`/`PATTERN_OPTIONS`/`SCALE_OPTIONS`/
+  `ACCESSORY_OPTIONS`/`EYE_OPTIONS`/`SKIN_COLOR_OPTIONS` + `AI_COSMETICS_PRESETS` + `withOption()`）；
+  `constants.ts` 门面已 `export *`。**加选项 = 改这里 → 面板和测试自动跟上**。
+- 面板元素带 `data-cosmetic-key` / `data-cosmetic-value` / `data-tab`，
+  探针用它们精确定位，**别再用 `text=`**。
+- ⚠️ **已知缺口**：`types.ts` 的装扮联合类型远大于面板暴露的集合
+  （`PatternType` 24 个值、`ScaleType` 15、`TeethType` 13、`AccessoryType` 15、`EyeType` 12），
+  眉毛 / 尾巴 / 体型 / 嘴型 / 拖尾 **在面板上完全没有入口**。
+  缺的都是**没写渲染分支**的 —— 想放出某个值，必须先在 `drawPattern`/`drawScaleEffect`/
+  `drawAccessory`/`drawEyes`/`drawTail` 里补分支，否则就是「按钮在、纹样没有」。
+- `bodyType` 曾经是死代码（`getBodyTypeParams` 定义了从没调用），现已接进鱼身 `ctx.scale`
+  ——  缩放必须放在**玩家光环之后**，否则正圆光环被压扁。
+
 ## 本机环境坑（重要！）
 - **⚠️ 同一文件的两处 Edit 放在同一条消息里会丢一处**（2026-09-11 实测：App.tsx 的 import 改动留下、
   `onStart` 改动没了，**两个工具调用都报 Success**，疑为并发读同版本+后写覆盖）。→ **一个文件一次只发一条 Edit**，改完 grep 复核。
@@ -135,4 +153,13 @@
   再给追兵 `biteCooldown / schoolSkillCooldown = 9999` 屏蔽反制技。
 - **模块级状态的系统要先加 `__resetXxx()` 再写用例**（已踩过：world 的 `prevInteract`、`teleportLockUntilFrame`，
   squad 的 `switchCursor`）—— 否则用例顺序一换就假失败。
-- 临时诊断脚本统一 `scripts/_` 前缀（`_diag-*.mjs` / `_*.log`），收尾即删，别让它们进 git status。
+- **测「每个选项都真的画得出来」= 记录型 canvas context 指纹**（`cosmetics-render.test.ts` 21 例）：
+  假 ctx 记录所有绘制调用 + **样式属性赋值**（必须用 setter，颜色差异全靠它）串成指纹；
+  断言 ① 同类别选项**两两不同** ② 每个非「无」选项**画得比「渲染层未实现的选项」基准多**。
+  ⚠️ 必须配 **positive control** 钉住测法有效（第一版写成「未实现 == `NONE`」是错的：
+  `pattern !== 'NONE'` 外层还有 `clip()`+`globalAlpha` 留下痕迹；真正撞车的是**两个都未实现的选项**）。
+  e2e 侧（`probe-cosmetics.mjs`）用缩略图 `toDataURL()` 去重 + 大预览 `getImageData` **平均色**判断颜色
+  （动画 canvas 的 dataURL 每帧都在变，「变了」不算证据）。
+  **这类 bug 的形态是「按钮在、点击对、状态也写回了，只有渲染是空的」，DOM 断言抓不到。**
+- **临时诊断脚本统一 `scripts/_` 前缀**（`_diag-*.mjs` / `_*.log`），收尾即删，别让它们进 git status；
+  **探针截图一律以 `-probe.png` 结尾**（匹配 `.gitignore` 的 `scripts/*-probe.png`，不提交）。
