@@ -192,7 +192,95 @@ interface UIOverlayProps {
   /** P1-4 音效开关 */
   muted?: boolean;
   onToggleMute?: () => void;
-}
+};
+
+/**
+ * 游戏规则弹窗（待办②）。文案全部按真实机制写，不写没做的功能。
+ * 放在主菜单 —— 对局中不开：世界不会因为看规则暂停，弹窗一开鱼就在裸奔。
+ */
+const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.code === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const Section: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> =
+    ({ icon, title, children }) => (
+      <div className="flex gap-3">
+        <div className="mt-0.5 shrink-0 text-cyan-400">{icon}</div>
+        <div>
+          <h3 className="text-cyan-300 font-bold mb-1">{title}</h3>
+          <div className="text-slate-300 text-sm leading-relaxed space-y-1">{children}</div>
+        </div>
+      </div>
+    );
+
+  const Key = ({ children }: { children: React.ReactNode }) => (
+    <kbd className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-slate-700 border border-slate-500 text-white text-xs font-bold align-middle">
+      {children}
+    </kbd>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-6" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-600 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-8 pt-6 pb-4 border-b border-slate-700">
+          <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">游戏规则</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors" aria-label="关闭规则">
+            <X size={26} />
+          </button>
+        </div>
+
+        <div className="px-8 py-5 overflow-y-auto space-y-5">
+          <Section icon={<Fish size={20} />} title="目标">
+            <p>吃比自己小的鱼成长，攒进化点数进化，最终成为海洋霸主。被大鱼吃掉会结算，能用复活机会续命。</p>
+          </Section>
+
+          <Section icon={<Zap size={20} />} title="操作">
+            <p><Key>鼠标</Key>游动方向（鱼永远朝鼠标游）· <Key>Space</Key>/<Key>左键</Key>加速冲刺（耗体力）</p>
+            <p><Key>Q</Key>流派技能（Lv3/Lv6/Lv9/Lv12 逐档解锁）· <Key>右键</Key>本体技能</p>
+            <p><Key>E</Key>交互（进商场）· <Key>R</Key>切换战队成员 · <Key>G</Key>无敌模式（调试用）</p>
+          </Section>
+
+          <Section icon={<Sword size={20} />} title="战斗">
+            <p>背刺：绕到大鱼身后偷袭，吞噬概率大增；但大鱼也会反制，别贪。</p>
+            <p>同等级比体型，等级压制加成吞噬概率。</p>
+          </Section>
+
+          <Section icon={<Users size={20} />} title={`战队（上限 ${SQUAD_CONFIG.MAX_SIZE}）`}>
+            <p>吃掉的鱼（浮游生物除外）会倒戈入队，护卫跟随，自己人不打自己人。</p>
+            <p><Key>R</Key>灵魂附身下一位成员：身体和位置对调，<b className="text-cyan-300">等级/体重/进化点数都跟着灵魂走</b>，放心换。</p>
+            <p>本体阵亡时自动夺舍<b className="text-cyan-300">体型最大</b>的小弟满血续命；队里没人了才结算。</p>
+          </Section>
+
+          <Section icon={<Sparkles size={20} />} title="进化">
+            <p>进化点数攒够当前阶段的阈值，弹出三选一进化方向，世界暂停随便想。</p>
+          </Section>
+
+          <Section icon={<ShoppingBag size={20} />} title="建筑与海域">
+            <p>商场：换装（进圈后按 <Key>E</Key>）· 医院：回血 · 龙王庙：随机祝福（技能+1 或护盾）</p>
+            <p>阳光浅滩：安全，小型鱼速度+20% · 五彩珊瑚：伪装/伏击技能冷却减半，巨型鱼转向变慢</p>
+            <p>剧毒沼泽：持续腐蚀（硬壳体质免疫）· 深渊海沟：视野受限，发光/感知型攻击+20%</p>
+          </Section>
+
+          <Section icon={<Gift size={20} />} title="宝藏与道具">
+            <p>宝藏定时刷新，出现前 3 秒有预警倒计时；漂流瓶、贝壳等道具各有效果。</p>
+          </Section>
+        </div>
+
+        <div className="px-8 py-4 border-t border-slate-700 flex justify-end">
+          <button onClick={onClose} className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-colors">
+            明白了，开鱼！
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, onSwitchSquad, muted, onToggleMute }) => {
   const { player, status, entities } = gameState;
@@ -201,6 +289,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   const squadMembers = entities.filter(e => e.ownerId === 'player' && e.health > 0);
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
   const [showCosmetics, setShowCosmetics] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   if (status === GameStatus.MENU) {
     const startOptions = [
@@ -251,6 +340,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     <button onClick={() => setShowCosmetics(true)} className="px-10 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xl rounded-full border border-slate-600 hover:border-cyan-400 transition-all flex items-center justify-center gap-3 mx-auto">
                         <Palette size={24} /> 装扮我的鱼
                     </button>
+
+                    <button onClick={() => setShowRules(true)} className="px-10 py-3 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-lg rounded-full border border-slate-700 hover:border-cyan-400 transition-all flex items-center justify-center gap-3 mx-auto">
+                        <BookOpen size={20} /> 游戏规则
+                    </button>
                 </div>
             </div>
         </div>
@@ -263,6 +356,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 mode="player"
             />
         )}
+
+        {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
       </div>
     );
   }
