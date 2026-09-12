@@ -46,7 +46,10 @@ const rockAt = (x: number, y: number, radius = 200): Obstacle => ({
 
 /** 追杀者：双髻鲨是 AGGRESSIVE / tier3（level 4 > 玩家 1），会主动追比自己小的目标 */
 const makePursuer = (x: number, y: number) => {
-  const fish = createEntity(CreatureType.HAMMERHEAD, x, y);
+  // ⚠️ 心境必须钉死：这一组测的是「隐蔽」，心境是另一个维度的随机量。
+  //    不钉的话追杀者会抽到「瞌睡」（原地不动，断言 not.toBe(0) 必挂）
+  //    或「好奇 / 狂躁」（不按种族行为走，断言 toBe(0) 必挂）—— 测试变成掷骰子。
+  const fish = createEntity(CreatureType.HAMMERHEAD, x, y, { moodId: 'CALM' });
   fish.semiGhostTimer = 0;
   fish.angle = 0; // 背对玩家（玩家在左边）—— 真追的话会被 turnToward 掰向 π
   return fish;

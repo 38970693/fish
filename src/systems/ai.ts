@@ -16,6 +16,8 @@ import { dist2, turnToward, num } from '../core/math';
 import { getBiome } from './terrain';
 import { castSkill } from './skills';
 import { isConcealed, CONCEAL_REVEAL_RANGE_SQ } from './concealment';
+import { getMood, randomizeMood, randomMoodTimer } from '../data/moods';
+import type { MoodId } from '../data/moods';
 
 /** 只更新这个范围内的 AI，远处静止不动省性能 */
 const AI_ACTIVE_RANGE = 2600;
@@ -34,7 +36,17 @@ const getAgility = (entity: Entity): number => {
   );
   const biome = (entity.currentBiome ?? getBiome(entity.x, entity.y)) as BiomeType;
   const penalty = BIOME_EFFECTS[biome]?.bigFishTurnPenalty ?? 0;
-  return Math.max(0.02, base * (1 - penalty));
+  // 心境：警觉的鱼转得快，瞌睡的鱼迟钝
+  return Math.max(0.02, base * (1 - penalty) * getMood(entity.moodId).agilityMult);
+};
+
+/**
+ * 感知范围（平方）—— 心境会缩放它：警觉的鱼看得远，瞌睡的鱼看得近。
+ * 所有「锁定目标」的距离都走这里，否则「警觉」就只是个摆设。
+ */
+const senseRangeSq = (entity: Entity, basePx: number): number => {
+  const r = basePx * getMood(entity.moodId).perceptionMult;
+  return r * r;
 };
 
 interface Nearest {
@@ -105,7 +117,8 @@ const wander = (entity: Entity, state: GameState, agility: number): void => {
 const moveForward = (entity: Entity, state: GameState, speedMult = 1): void => {
   const biome = (entity.currentBiome ?? getBiome(entity.x, entity.y)) as BiomeType;
   const effect = BIOME_EFFECTS[biome];
-  let speed = entity.speed * speedMult;
+  // 心境：饥饿 / 狂躁的鱼游得快，瞌睡的鱼慢吞吞
+  let speed = entity.speed * speedMult * getMood(entity.moodId).speedMult;
 
   // 浅滩对小型鱼的速度加成
   if (effect && entity.config.tier <= effect.speedBonusMaxTier) {
@@ -143,7 +156,7 @@ const passiveBehavior: AIHandler = (entity, state) => {
     entity,
     candidates,
     (other) => isEnemy(entity)(other) && other.level > entity.level,
-    320 * 320
+    senseRangeSq(entity, 320)
   );
   if (threat.entity) {
     fleeFrom(entity, threat.entity, state, agility);
@@ -161,7 +174,7 @@ const fleeBehavior: AIHandler = (entity, state) => {
     entity,
     candidates,
     (other) => isEnemy(entity)(other) && other.level > entity.level,
-    700 * 700
+    senseRangeSq(entity, 700)
   );
   if (threat.entity) {
     fleeFrom(entity, threat.entity, state, agility);
@@ -179,7 +192,7 @@ const aggressiveBehavior: AIHandler = (entity, state) => {
     entity,
     candidates,
     (other) => isEnemy(entity)(other) && other.level < entity.level,
-    900 * 900
+    senseRangeSq(entity, 900)
   );
   if (prey.entity) {
     chaseTo(entity, prey.entity, state, agility, 1.0);
@@ -197,7 +210,7 @@ const ambushBehavior: AIHandler = (entity, state) => {
     entity,
     candidates,
     (other) => isEnemy(entity)(other) && other.level < entity.level,
-    GAME_MECHANICS.AMBUSH_DISTANCE * GAME_MECHANICS.AMBUSH_DISTANCE
+    senseRangeSq(entity, GAME_MECHANICS.AMBUSH_DISTANCE)
   );
 
   if (prey.entity) {
@@ -229,7 +242,7 @@ const bossBehavior: AIHandler = (entity, state) => {
     entity,
     candidates,
     (other) => isEnemy(entity)(other) && other.level < entity.level,
-    1400 * 1400
+    senseRangeSq(entity, 1400)
   );
   if (prey.entity) {
     chaseTo(entity, prey.entity, state, agility, 1.0);
@@ -242,6 +255,120 @@ const bossBehavior: AIHandler = (entity, state) => {
 /** 吉祥物：只做上下浮动，不参与任何交互 */
 const mascotBehavior: AIHandler = (entity, state) => {
   entity.y += Math.sin(state.time * 0.05) * 1.5;
+};
+
+/* ══════════ 心境行为（AI 鱼的随机状态） ══════════ */
+
+/** 好奇：近于这个距离就退开，保持围观的体面 */
+const CURIOUS_STANDOFF = 280;
+const CURIOUS_FOLLOW_RANGE = 900;
+/** 群聚：凑到这个距离就停下，免得整群叠在同一个点上 */
+const SOCIABLE_KEEP = 90;
+const SOCIABLE_RANGE = 700;
+/** 饥饿 / 狂躁的搜寻半径 */
+const HUNT_RANGE = 1000;
+
+/** 瞌睡：原地上下漂，被逼近就惊醒转成警觉 */
+const sleepyMood: AIHandler = (entity, state) => {
+  const threat = findNearest(
+    entity,
+    [state.player, ...state.entities],
+    (other) => isEnemy(entity)(other) && other.level > entity.level,
+    senseRangeSq(entity, 260)
+  );
+  if (threat.entity) {
+    // 惊醒：换成警觉并重新计时 —— 打盹被打断的鱼，接下来一阵子都很敏感
+    entity.moodId = 'ALERT';
+    entity.moodTimer = randomMoodTimer();
+    entity.isIdle = false;
+    fleeFrom(entity, threat.entity, state, getAgility(entity));
+    return;
+  }
+  entity.isIdle = true;
+  entity.y += Math.sin(state.time * 0.02 + entity.animOffset) * 0.25;
+  entity.vx = 0;
+  entity.vy = 0;
+};
+
+/** 好奇：远远跟着玩家，不太近也不动手 —— 像被围观，不像被追杀 */
+const curiousMood: AIHandler = (entity, state) => {
+  const agility = getAgility(entity);
+  const d = Math.sqrt(dist2(entity, state.player));
+  if (d < CURIOUS_STANDOFF) {
+    const away = Math.atan2(entity.y - state.player.y, entity.x - state.player.x);
+    entity.angle = turnToward(entity.angle, away, agility);
+    moveForward(entity, state, 0.8);
+    return;
+  }
+  if (d < CURIOUS_FOLLOW_RANGE * getMood(entity.moodId).perceptionMult) {
+    chaseTo(entity, state.player, state, agility, 0.7);
+    return;
+  }
+  if (state.time % 120 === 0) entity.angle += (Math.random() - 0.5) * 0.8;
+  moveForward(entity, state, 0.6);
+};
+
+/** 群聚：往最近的同类身边凑，形成鱼群 */
+const sociableMood: AIHandler = (entity, state) => {
+  const agility = getAgility(entity);
+  const mate = findNearest(
+    entity,
+    state.entities,
+    (other) => other.type === entity.type,
+    senseRangeSq(entity, SOCIABLE_RANGE)
+  );
+  if (mate.entity && mate.distSq > SOCIABLE_KEEP * SOCIABLE_KEEP) {
+    chaseTo(entity, mate.entity, state, agility, 0.9);
+    return;
+  }
+  if (state.time % 140 === 0) entity.angle += (Math.random() - 0.5) * 0.6;
+  moveForward(entity, state, 0.5);
+};
+
+/** 饥饿：主动搜寻比自己小的目标，连温顺的鱼也开荤 */
+const hungryMood: AIHandler = (entity, state) => {
+  const agility = getAgility(entity);
+  const prey = findNearest(
+    entity,
+    [state.player, ...state.entities],
+    (other) => isEnemy(entity)(other) && other.level < entity.level,
+    senseRangeSq(entity, HUNT_RANGE)
+  );
+  if (prey.entity) {
+    chaseTo(entity, prey.entity, state, agility, 1.0);
+    return;
+  }
+  if (state.time % 120 === 0) entity.angle += (Math.random() - 0.5) * 0.8;
+  moveForward(entity, state, 0.6);
+};
+
+/** 狂躁：无视体型差距，见谁咬谁（稀有且危险） */
+const frenzyMood: AIHandler = (entity, state) => {
+  const agility = getAgility(entity);
+  const foe = findNearest(
+    entity,
+    [state.player, ...state.entities],
+    (other) => isEnemy(entity)(other),
+    senseRangeSq(entity, HUNT_RANGE)
+  );
+  if (foe.entity) {
+    chaseTo(entity, foe.entity, state, agility, 1.0);
+    return;
+  }
+  if (state.time % 90 === 0) entity.angle += (Math.random() - 0.5) * 1.2;
+  moveForward(entity, state, 0.8);
+};
+
+/**
+ * 心境注册表 —— 只登记「接管型」心境。
+ * 悠闲 / 警觉 / 胆怯不在这里：它们只改速度·灵活度·感知，行为仍归种族管。
+ */
+export const MOOD_HANDLERS: Partial<Record<MoodId, AIHandler>> = {
+  SLEEPY: sleepyMood,
+  CURIOUS: curiousMood,
+  SOCIABLE: sociableMood,
+  HUNGRY: hungryMood,
+  FRENZY: frenzyMood,
 };
 
 /** 行为注册表：加行为就在这里加一条 */
@@ -276,6 +403,15 @@ const tickTimers = (entity: Entity): void => {
   if (entity.speechBubble && entity.speechBubble.timer > 0) {
     entity.speechBubble.timer--;
     if (entity.speechBubble.timer <= 0) entity.speechBubble = null;
+  }
+  // 心境到期就换一个 —— 鱼群才会「活着」换状态。
+  // 交战中（愤怒未消）不换：追到一半突然佛系，玩家会觉得 AI 抽风。
+  if (typeof entity.moodTimer === 'number') {
+    if (entity.moodTimer > 0) entity.moodTimer--;
+    else if (!(entity.angerTimer && entity.angerTimer > 0)) {
+      entity.moodId = randomizeMood(entity.config);
+      entity.moodTimer = randomMoodTimer();
+    }
   }
   if (entity.renderScale > 1) entity.renderScale = Math.max(1, entity.renderScale - 0.01);
   // 数值兜底：一旦出现 NaN 立刻修复，防止污染后续所有计算
@@ -400,9 +536,16 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
       }
     }
 
-    // 优先级 4：按自身行为分派
-    const handler = AI_HANDLERS[entity.config.behavior as BehaviorId] ?? passiveBehavior;
-    handler(entity, state);
+    // 优先级 4：「接管型」心境先说话 —— 瞌睡 / 好奇 / 群聚 / 饥饿 / 狂躁
+    //            会做出种族行为本来做不出的举动；
+    //            悠闲 / 警觉 / 胆怯只改数值，仍按种族行为分派。
+    const moodHandler = MOOD_HANDLERS[getMood(entity.moodId).id];
+    if (moodHandler) {
+      moodHandler(entity, state);
+    } else {
+      const handler = AI_HANDLERS[entity.config.behavior as BehaviorId] ?? passiveBehavior;
+      handler(entity, state);
+    }
 
     // 边界与障碍物统一交给 world 系统处理，避免两处各自 clamp 打架
   }

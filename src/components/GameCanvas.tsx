@@ -2,7 +2,7 @@
 import React, { useRef, useEffect } from 'react';
 // Added GameStatus to imports to fix line 134 reference error
 import { GameState, GameStatus, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Building, BuildingType, Portal, Cosmetics, BodyType, TailType, TrailType, EyeType, EyebrowType, AccessoryType, PatternType, ScaleType } from '../types';
-import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, getPond } from '../constants';
+import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, getPond, getMood } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 
 interface GameCanvasProps {
@@ -1807,6 +1807,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         };
         visibleEntities.forEach(drawSpeechBubble);
         drawSpeechBubble(player);
+
+        // 心境徽章（「AI 鱼随机状态」）：非「悠闲」的鱼头顶挂一个小 emoji。
+        // 没有徽章的话，随机状态只体现在运动上 —— 玩家看不出哪条在打盹、哪条已经发疯。
+        // 位置刻意偏**左上**：头顶正中让给对话气泡，正上方让给战队成员的「己」标记。
+        // 只画玩家 900px 内的鱼，远处一律不画 —— 满屏 40 个 emoji 只会变成噪音。
+        const MOOD_BADGE_RANGE_SQ = 900 * 900;
+        const drawMoodBadge = (e: Entity) => {
+            const mood = getMood(e.moodId);
+            if (!mood.badge) return; // 悠闲不打扰视线
+            const dx = e.x - player.x;
+            const dy = e.y - player.y;
+            if (dx * dx + dy * dy > MOOD_BADGE_RANGE_SQ) return;
+            ctx.save();
+            ctx.globalAlpha = 0.85;
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const bob = Math.sin(visualTime * 0.08 + e.animOffset) * 2;
+            ctx.fillText(mood.badge, e.x - e.radius * 0.95, e.y - e.radius * 0.8 + bob);
+            ctx.restore();
+        };
+        visibleEntities.forEach(drawMoodBadge);
 
         // 绘制传送门（最上层）
         gameState.portals.forEach(portal => drawPortal(ctx, portal, visualTime));

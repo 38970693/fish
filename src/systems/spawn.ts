@@ -7,14 +7,27 @@
 
 import { CREATURES, CreatureType } from '../data/creatures';
 import { randomizeCosmetics } from '../data/cosmetics';
+import { randomizeMood, randomMoodTimer } from '../data/moods';
+import type { MoodId } from '../data/moods';
 import { MAX_ENTITIES, TREASURE_CONFIG, WORLD_SIZE } from '../data/world';
 import { getPond } from '../data/ponds';
 import { type Entity, type GameState, type FrameContext } from '../types';
 import { uuid } from '../core/math';
 import { isPositionValid } from './terrain';
 
+/** 可选覆盖项 —— 测试要钉住随机性时用（比钉 `Math.random` 干净得多） */
+export interface CreateEntityOptions {
+  /** 钉死心境；不给则按种族加权随机抽 */
+  moodId?: MoodId;
+}
+
 /** 创建一条鱼。配置缺失时回退到小丑鱼，绝不返回 undefined */
-export const createEntity = (type: string, x: number, y: number): Entity => {
+export const createEntity = (
+  type: string,
+  x: number,
+  y: number,
+  options?: CreateEntityOptions
+): Entity => {
   const config = CREATURES[type as CreatureType] ?? CREATURES.CLOWN_FISH;
   return {
     id: uuid(),
@@ -47,6 +60,9 @@ export const createEntity = (type: string, x: number, y: number): Entity => {
     level: config.tier + 1,
     // AI 鱼随机穿搭：让鱼群各有各的样子（玩家走 initialState，用自己的装扮，不受影响）
     cosmetics: randomizeCosmetics(config),
+    // AI 鱼随机心境：同一品种也有不同性格（悠闲 / 警觉 / 饥饿 / 瞌睡…）
+    moodId: options?.moodId ?? randomizeMood(config),
+    moodTimer: randomMoodTimer(),
     poisonTimer: 0,
     angerTimer: 0,
     /** 新生成的鱼有半虚保护期，避免刚出生就被秒 / 刚出生就秒人 */

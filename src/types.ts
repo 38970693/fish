@@ -9,11 +9,13 @@
 import type { EventBus } from './core/EventBus';
 import type { CreatureConfig } from './data/creatures';
 import type { PondId } from './data/ponds';
+import type { MoodId } from './data/moods';
 
 /* ══════════════ 内容型类型（从 data 层转发） ══════════════ */
 
 export { CreatureType } from './data/creatures';
 export type { CreatureConfig, CreatureSpec, BehaviorId, SpecialId } from './data/creatures';
+export type { MoodId } from './data/moods';
 
 export { BiomeType } from './data/biomes';
 export type { BiomeType as BiomeTypeId, BiomeEffect } from './data/biomes';
@@ -168,6 +170,14 @@ export interface Entity {
   invulnerableTimer?: number;
   /** 护盾剩余帧（SHELL / INFLATE 等技能） */
   shieldTimer?: number;
+
+  /**
+   * 当前心境（「AI 鱼随机状态」）—— 叠在种族行为之上的个体性格。
+   * 缺省 = CALM（所有倍率 1），等于「没有心境」，旧实体行为不变。
+   */
+  moodId?: MoodId;
+  /** 心境剩余帧：到 0 重新抽一次，鱼群才会「活着」换状态 */
+  moodTimer?: number;
 }
 
 export interface PlayerState extends Entity {
