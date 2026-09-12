@@ -1,11 +1,11 @@
 /**
  * 实体工厂 + 生成系统
  *
- * 生成池由 data/creatures.ts 的 SPAWN_POOL_BY_TIER 自动推导，
- * 所以往注册表里加一条鱼，它就会按 tier 自动进入刷怪池，不用改这里。
+ * 生成池由 data/creatures.ts 自动推导：spawnSystem 走 getSpawnPool(塘, tier) ——
+ * 塘限定物种（特产鱼）只出现在所属塘；往注册表里加一条鱼，它会自动进对应塘的池子。
  */
 
-import { CREATURES, CreatureType } from '../data/creatures';
+import { CREATURES, CreatureType, getSpawnPool } from '../data/creatures';
 import { randomizeCosmetics } from '../data/cosmetics';
 import { randomizeMood, randomMoodTimer } from '../data/moods';
 import type { MoodId } from '../data/moods';
@@ -85,8 +85,8 @@ export const spawnCreature = (state: GameState, type: string): Entity | null => 
 
 /**
  * 按玩家等级决定刷什么。
- * 玩家越强，解锁的 tier 越高；刷食物的概率与 tier 上限由**当前鱼塘**决定
- * （安全塘喂饱你，危险塘更早出大鱼）。
+ * 玩家越强，解锁的 tier 越高；刷食物的概率、tier 上限与**生成池**都由当前鱼塘决定
+ * （安全塘喂饱你，危险塘更早出大鱼、且有本塘特产）。
  */
 export const spawnSystem = (state: GameState, _ctx: FrameContext): void => {
   if (state.entities.length >= MAX_ENTITIES) return;
@@ -96,9 +96,9 @@ export const spawnSystem = (state: GameState, _ctx: FrameContext): void => {
 
   // 新增：附近才刷，远处刷了玩家也看不见，白白浪费实体预算
   const targetTier = Math.floor(Math.random() * maxTier) + 1;
-  const pool = SPAWN_TIER_POOL[targetTier as 1 | 2 | 3 | 4];
+  const pool = getSpawnPool(state.pondId, targetTier);
 
-  if (Math.random() < pond.foodRatio || !pool || pool.length === 0) {
+  if (Math.random() < pond.foodRatio || pool.length === 0) {
     spawnCreature(state, CreatureType.PLANKTON);
     return;
   }
@@ -106,15 +106,3 @@ export const spawnSystem = (state: GameState, _ctx: FrameContext): void => {
   const pickType = pool[Math.floor(Math.random() * pool.length)];
   spawnCreature(state, pickType);
 };
-
-/** 生成池（从 data 层导入并重导出，方便测试和调试时查看当前池子） */
-import { SPAWN_POOL_BY_TIER } from '../data/creatures';
-
-const SPAWN_TIER_POOL: Record<1 | 2 | 3 | 4, string[]> = {
-  1: SPAWN_POOL_BY_TIER[1] ?? [],
-  2: SPAWN_POOL_BY_TIER[2] ?? [],
-  3: SPAWN_POOL_BY_TIER[3] ?? [],
-  4: SPAWN_POOL_BY_TIER[4] ?? [],
-};
-
-export { SPAWN_TIER_POOL };

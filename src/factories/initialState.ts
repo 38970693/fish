@@ -94,7 +94,7 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     powerUps: [],
     hazards: [],
     portals: options.skipWorldGen ? [] : createPortals(pondId),
-    buildings: options.skipWorldGen ? [] : createBuildings(),
+    buildings: options.skipWorldGen ? [] : createBuildings(pondId),
     treasures: [],
     fountains: [],
     labels: [],

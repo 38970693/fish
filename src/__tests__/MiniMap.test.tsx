@@ -49,6 +49,9 @@ vi.mock('../constants', () => ({
     ARMORY: { name: '军火库', color: '#f59e0b', radius: 150, cooldown: 600 },
     SHRINE: { name: '龙王庙', color: '#8b5cf6', radius: 150, cooldown: 900 },
     SHOP: { name: '深海商场', color: '#ec4899', radius: 200, cooldown: 600 },
+    WISHING_WELL: { name: '许愿池', color: '#f59e0b', radius: 130, cooldown: 1200 },
+    PEARL_FARM: { name: '珍珠养殖场', color: '#cbd5e1', radius: 140, cooldown: 900 },
+    SHIPWRECK: { name: '沉船残骸', color: '#92400e', radius: 170, cooldown: 1500 },
   },
 }));
 

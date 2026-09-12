@@ -13,15 +13,16 @@
  *   POND  塘际门：通往另一个塘，触发 pondTravel() 重建世界（同尺寸，不同内容）
  */
 
-import { MAX_OBSTACLES, WORLD_SIZE, BUILDING_CONFIGS, PORTAL_CONFIG, METEOR_CONFIG, PROTECTION_CONFIG, TREASURE_CONFIG } from '../data/world';
+import { MAX_OBSTACLES, WORLD_SIZE, BUILDING_CONFIGS, PORTAL_CONFIG, METEOR_CONFIG, PROTECTION_CONFIG, TREASURE_CONFIG, MAX_ENTITIES } from '../data/world';
 import { BIOME_DATA, BIOME_EFFECTS, BiomeType } from '../data/biomes';
 import { BUILDING_DATA, BUILDING_SPAWN_RULES, BuildingType } from '../data/buildings';
-import { getPond, otherPonds, DEFAULT_POND, type PondId } from '../data/ponds';
+import { getPond, otherPonds, DEFAULT_POND, POND_DATA, scoreGain, type PondId } from '../data/ponds';
+import { CreatureType } from '../data/creatures';
 import { DEFAULT_COSMETICS, GameStatus, type Building, type GameState, type FrameContext, type Obstacle, type Portal } from '../types';
 import { uuid, dist, pick } from '../core/math';
 import { getBiome, getRandomPosInBiome, isPositionValid, clampToMap, resolveObstacles, MAP_CENTER } from './terrain';
 import { createParticle } from './combat';
-import { spawnSystem } from './spawn';
+import { spawnSystem, createEntity } from './spawn';
 
 /** 塘际门比塘内门大一圈，一眼能认出来 */
 const POND_PORTAL_RADIUS = PORTAL_CONFIG.RADIUS * 1.4;
@@ -70,9 +71,15 @@ export const createObstacles = (pondId?: string | null): Obstacle[] => {
   return obstacles;
 };
 
-export const createBuildings = (): Building[] => {
+/**
+ * 按塘生成建筑：塘限定规则（`rule.pond`）只在所属塘生效，其余全塘生成。
+ * 不传塘按默认塘处理（与开局缺省清水塘一致），保证结果确定性。
+ */
+export const createBuildings = (pondId?: string | null): Building[] => {
+  const pond = ((pondId && pondId in POND_DATA) ? pondId : DEFAULT_POND) as PondId;
   const buildings: Building[] = [];
   for (const rule of BUILDING_SPAWN_RULES) {
+    if (rule.pond && rule.pond !== pond) continue;
     const conf = BUILDING_DATA[rule.type];
     for (let i = 0; i < rule.count; i += 1) {
       const pos = getRandomPosInBiome(rule.biome);
@@ -179,7 +186,8 @@ export const pondTravel = (state: GameState, targetPondId?: string | null, ctx?:
   state.pondId = targetId;
   state.obstacles = createObstacles(targetId);
   state.portals = createPortals(targetId);
-  state.buildings = createBuildings();
+  // 建筑按塘重建：目标塘的特产建筑在这里落地（阶段 3a）
+  state.buildings = createBuildings(targetId);
 
   // 清场：鱼 / 道具 / 宝藏 / 危险事件 / 粒子 / 飘字 全部换成新塘的
   state.powerUps = [];
@@ -256,6 +264,60 @@ const BUILDING_EFFECTS: Record<string, (state: GameState, ctx: FrameContext, b: 
     state.status = GameStatus.SHOP;
     ctx.events.emit('building', { x: b.x, y: b.y, label: '深海商场', color: '#ec4899' });
     return true;
+  },
+
+  /* ── 塘特产建筑（阶段 3a）── */
+
+  /** 清水塘 · 许愿池：投一枚硬币，稳定换回金币（龙王庙的随机祝福的确定性版） */
+  [BuildingType.WISHING_WELL]: (state, ctx, b) => {
+    const gained = scoreGain(state.pondId, 15);
+    state.score += gained;
+    state.player.speechBubble = { text: `许愿成功 +${gained} 金币！`, timer: 60, color: '#f59e0b' };
+    ctx.events.emit('coin', { x: b.x, y: b.y, value: gained });
+    ctx.events.emit('building', { x: b.x, y: b.y, label: '许愿池赐福', color: '#f59e0b' });
+  },
+
+  /** 珊瑚塘 · 珍珠养殖场：珍珠开了，一圈金币滚出来（走 COIN 拾取，吃得到才算） */
+  [BuildingType.PEARL_FARM]: (state, ctx, b) => {
+    for (let i = 0; i < 4; i += 1) {
+      const ang = (i / 4) * Math.PI * 2 + Math.random() * 0.8;
+      const d = 40 + Math.random() * 70;
+      state.powerUps.push({
+        id: uuid(),
+        x: b.x + Math.cos(ang) * d,
+        y: b.y + Math.sin(ang) * d,
+        type: 'COIN',
+        radius: 14,
+      });
+    }
+    ctx.events.emit('building', { x: b.x, y: b.y, label: '珍珠丰收！', color: '#cbd5e1' });
+  },
+
+  /** 深渊塘 · 沉船残骸：高风险高回报——金币滚出来，也惊动了船里的东西 */
+  [BuildingType.SHIPWRECK]: (state, ctx, b) => {
+    const gained = scoreGain(state.pondId, 30);
+    state.score += gained;
+    for (let i = 0; i < 5; i += 1) {
+      const ang = (i / 5) * Math.PI * 2 + Math.random() * 0.8;
+      const d = 50 + Math.random() * 90;
+      state.powerUps.push({
+        id: uuid(),
+        x: b.x + Math.cos(ang) * d,
+        y: b.y + Math.sin(ang) * d,
+        type: 'COIN',
+        radius: 14,
+      });
+    }
+    // 惊扰：船骸里窜出一条吸血鬼乌贼（深渊塘特产），带着怒气直扑玩家
+    if (state.entities.length < MAX_ENTITIES) {
+      const ambusher = createEntity(CreatureType.VAMPIRE_SQUID, b.x, b.y - b.radius - 40);
+      ambusher.angerTimer = 600;
+      ambusher.semiGhostTimer = 0;
+      ambusher.speechBubble = { text: '咕噜噜……！', timer: 90, color: '#9f1239' };
+      state.entities.push(ambusher);
+    }
+    state.player.speechBubble = { text: `船骸惊魂 +${gained} 金币！`, timer: 90, color: '#92400e' };
+    ctx.events.emit('building', { x: b.x, y: b.y, label: '沉船里滚出金币……还有什么', color: '#92400e' });
   },
 };
 

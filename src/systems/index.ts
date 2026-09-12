@@ -23,6 +23,7 @@ import { worldSystem } from './world';
 import { itemsSystem } from './items';
 import { combatSystem } from './combat';
 import { eventsSystem } from './events';
+import { pondEventSystem } from './pondEvents';
 import { progressionSystem } from './progression';
 import { achievementsSystem } from './achievements';
 
@@ -44,6 +45,7 @@ export interface SystemEntry {
  *   items       道具与鱼雷
  *   combat      碰撞结算（放在移动之后才准）
  *   events      宝藏 / 陨石 / 喷泉
+ *   pondEvent   塘专属事件（珊瑚产卵夜 / 星光鱼群潮）
  *   cleanup     死亡判定 / 进化 / 粒子回收 / 相机
  */
 export const SYSTEMS: SystemEntry[] = [
@@ -57,6 +59,7 @@ export const SYSTEMS: SystemEntry[] = [
   { name: 'items', fn: safe('items', itemsSystem) },
   { name: 'combat', fn: safe('combat', combatSystem) },
   { name: 'events', fn: safe('events', eventsSystem) },
+  { name: 'pondEvent', fn: safe('pondEvent', pondEventSystem) },
   { name: 'achievements', fn: safe('achievements', achievementsSystem) },
   { name: 'progression', fn: safe('progression', progressionSystem) },
 ];
@@ -79,4 +82,4 @@ export function runSystems(state: GameState, ctx: FrameContext): void {
   }
 }
 
-export { spawnSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, achievementsSystem, progressionSystem };
+export { spawnSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };

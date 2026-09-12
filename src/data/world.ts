@@ -140,6 +140,10 @@ export const BUILDING_CONFIGS = {
   HOSPITAL: { radius: 150, cooldown: 300, color: '#ef4444', name: '深海急救站' },
   SHRINE: { radius: 150, cooldown: 900, color: '#8b5cf6', name: '龙王庙' },
   SHOP: { radius: 200, cooldown: 600, color: '#ec4899', name: '深海商场' },
+  // ── 塘特产建筑（阶段 3a，与 data/buildings.ts 的 BUILDING_DATA 保持一致）──
+  WISHING_WELL: { radius: 130, cooldown: 1200, color: '#f59e0b', name: '许愿池' },
+  PEARL_FARM: { radius: 140, cooldown: 900, color: '#cbd5e1', name: '珍珠养殖场' },
+  SHIPWRECK: { radius: 170, cooldown: 1500, color: '#92400e', name: '沉船残骸' },
 };
 
 /** 偷袭 / 吞噬判定 */

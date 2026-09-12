@@ -39,6 +39,7 @@ import type { SkillId } from './skills';
 import type { SchoolId } from './schools';
 import type { CreatureShapeId } from './creatureShapes';
 import { SHAPE_DATA } from './creatureShapes';
+import { POND_DATA, type PondId } from './ponds';
 
 /** 行为 ID：对应 systems/ai.ts 里的 AI_HANDLERS */
 export type BehaviorId = 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'AMBUSH' | 'BOSS' | 'MASCOT';
@@ -64,6 +65,11 @@ export interface CreatureSpec {
   school?: SchoolId;
   /** 形状模板：缺省 'FISH' 传统鱼形 */
   shape?: CreatureShapeId;
+  /**
+   * 塘限定（「多鱼塘」阶段 3a 特产鱼）：只在该列表里的塘刷新。
+   * 缺省 = 全塘通用。校验会检查引用的塘 ID 是否存在。
+   */
+  ponds?: readonly PondId[];
   desc?: string;
 }
 
@@ -96,6 +102,8 @@ export interface CreatureConfig {
    * 渲染层按 `config.shape ?? 'FISH'` 读取 —— 旧调用点零变化）
    */
   shape?: CreatureShapeId;
+  /** 塘限定（可选）：只在该列表里的塘刷新，缺省 = 全塘通用 */
+  ponds?: readonly PondId[];
 }
 
 export const CREATURE_DATA = {
@@ -111,13 +119,21 @@ export const CREATURE_DATA = {
     name: '小丑鱼', tier: 1, radius: 15, color: '#fb923c',
     speed: 1.1, health: 30, damage: 2, weight: 5,
     behavior: 'FLEE', biome: 'SHALLOWS', skill: 'DASH',
-    desc: '浅滩特产。在阳光区域非常灵活。',
+    ponds: ['CLEAR'],
+    desc: '清水塘特产。在阳光区域非常灵活。',
   },
   BLUE_TANG: {
     name: '蓝唐王鱼', tier: 1, radius: 14, color: '#2563eb',
     speed: 1.3, health: 20, damage: 1, weight: 5,
     behavior: 'FLEE', biome: 'SHALLOWS', skill: 'DODGE',
     desc: '速度型。游得非常快，容易躲避危险。',
+  },
+  STARLIGHT_FISH: {
+    name: '星光鱼', tier: 1, radius: 13, color: '#67e8f9',
+    speed: 1.35, health: 18, damage: 1, weight: 4,
+    behavior: 'FLEE', biome: 'ABYSS', skill: 'DODGE',
+    shape: 'FISH', ponds: ['ABYSS'],
+    desc: '深渊里的星星，成群过境时像一条发光的河。',
   },
   TURTLE: {
     name: '绿海龟', tier: 1, radius: 18, color: '#166534',
@@ -130,7 +146,7 @@ export const CREATURE_DATA = {
     name: '水母', tier: 1, radius: 20, color: '#d946ef',
     speed: 0.8, health: 30, damage: 5, weight: 6,
     behavior: 'PASSIVE', special: 'SHOCK', biome: 'ABYSS', skill: 'SHOCK',
-    shape: 'JELLY',
+    shape: 'JELLY', ponds: ['ABYSS'],
     desc: '轻微反伤，碰它要小心。',
   },
 
@@ -139,14 +155,14 @@ export const CREATURE_DATA = {
     name: '海马', tier: 2, radius: 22, color: '#fde047',
     speed: 1.2, health: 40, damage: 4, weight: 15,
     behavior: 'FLEE', biome: 'REEF', skill: 'CAMO',
-    shape: 'SEAHORSE',
+    shape: 'SEAHORSE', ponds: ['CORAL'],
     desc: '珊瑚区的伪装大师。',
   },
   CRAB: {
     name: '帝王蟹', tier: 2, radius: 25, color: '#b91c1c',
     speed: 1.0, health: 80, damage: 8, weight: 20,
     behavior: 'AGGRESSIVE', special: 'SPIKE', biome: 'REEF', skill: 'SLAM',
-    shape: 'CRAB',
+    shape: 'CRAB', ponds: ['CORAL'],
     desc: '横行霸道，钳子威力惊人。',
   },
   PUFFER_FISH: {
@@ -167,8 +183,22 @@ export const CREATURE_DATA = {
     name: '吸血鬼乌贼', tier: 2, radius: 27, color: '#9f1239',
     speed: 1.05, health: 60, damage: 8, weight: 24,
     behavior: 'AMBUSH', special: 'CAMO', biome: 'ABYSS', skill: 'INK',
-    shape: 'CEPHALOPOD',
+    shape: 'CEPHALOPOD', ponds: ['ABYSS'],
     desc: '深渊幽影。暗红斗篷般的套膜，静止时像一抹血雾。',
+  },
+  PELICAN_EEL: {
+    name: '吞鳗', tier: 2, radius: 32, color: '#334155',
+    speed: 0.9, health: 65, damage: 9, weight: 30,
+    behavior: 'AMBUSH', biome: 'ABYSS', skill: 'CAMO',
+    shape: 'EEL', ponds: ['ABYSS'],
+    desc: '深渊大嘴客，身体几乎全是嘴，静止时像一段沉木。',
+  },
+  KOI: {
+    name: '锦鲤', tier: 2, radius: 26, color: '#f8fafc',
+    speed: 0.95, health: 60, damage: 5, weight: 24,
+    behavior: 'PASSIVE', biome: 'SHALLOWS', skill: 'DODGE',
+    ponds: ['CLEAR'],
+    desc: '清水塘的风水鱼，据说见到它会走运。',
   },
   DUMBO_OCTOPUS: {
     name: '小飞象章鱼', tier: 2, radius: 28, color: '#f9a8d4',
@@ -204,7 +234,7 @@ export const CREATURE_DATA = {
     name: '灯笼鱼', tier: 3, radius: 45, color: '#3f3f46',
     speed: 0.9, health: 150, damage: 18, weight: 60,
     behavior: 'AMBUSH', special: 'LURE', biome: 'ABYSS', skill: 'LURE',
-    shape: 'ANGLER',
+    shape: 'ANGLER', ponds: ['ABYSS'],
     desc: '头顶灯笼的深海鮟鱇。右键变成大肉块：小鱼扑上来送死，大鱼来了就快跑。',
   },
   HAMMERHEAD: {
@@ -218,15 +248,22 @@ export const CREATURE_DATA = {
     name: '哥布林鲨', tier: 3, radius: 48, color: '#e8a0a0',
     speed: 1.15, health: 170, damage: 22, weight: 72,
     behavior: 'AGGRESSIVE', biome: 'ABYSS', skill: 'PIERCE',
-    shape: 'SHARK',
+    shape: 'SHARK', ponds: ['ABYSS'],
     desc: '深海活化石。粉灰皮肤，突出的长吻一击穿刺。',
   },
   OARFISH: {
     name: '皇带鱼', tier: 3, radius: 55, color: '#cbd5e1',
     speed: 0.95, health: 160, damage: 14, weight: 75,
     behavior: 'PASSIVE', biome: 'ABYSS', skill: 'DODGE',
-    shape: 'OARFISH',
+    shape: 'OARFISH', ponds: ['ABYSS'],
     desc: '深海传说「龙宫使者」。银白长带身，红冠如鬃，飘忽难测。',
+  },
+  LIONFISH: {
+    name: '狮子鱼', tier: 3, radius: 36, color: '#f472b6',
+    speed: 1.05, health: 110, damage: 14, weight: 48,
+    behavior: 'AMBUSH', special: 'POISON', biome: 'REEF', skill: 'VENOM',
+    shape: 'FISH', ponds: ['CORAL'],
+    desc: '珊瑚礁的毒裙舞者，鳍条根根带毒，静止在礁石边等猎物上门。',
   },
   AROWANA: {
     name: '金龙鱼', tier: 3, radius: 42, color: '#f59e0b',
@@ -353,6 +390,7 @@ function buildConfig(type: string, spec: CreatureSpec): CreatureConfig {
     skillId: spec.skill,
     school: spec.school ?? CREATURE_SCHOOLS[type],
     shape: spec.shape ?? 'FISH',
+    ponds: spec.ponds,
   };
 }
 
@@ -370,18 +408,38 @@ export const CREATURES = Object.fromEntries(
   })
 ) as Record<CreatureType, CreatureConfig>;
 
-/** 按 tier 分好组的生成池，systems/spawn.ts 直接取用（自动包含新加的鱼） */
-export const SPAWN_POOL_BY_TIER: Record<number, CreatureType[]> = (() => {
+/** 按 tier 分好组的生成池（**全塘通用视图**：不筛塘限定，供兼容与调试；真正刷怪走 POND_SPAWN_POOLS） */
+export const SPAWN_POOL_BY_TIER: Record<number, CreatureType[]> = buildPoolFor(null);
+
+/**
+ * 按塘构建生成池：塘限定物种（`ponds` 字段）只进所属塘的池子。
+ * 传 null = 不过滤（全塘通用视图，即旧行为）。
+ */
+function buildPoolFor(pond: PondId | null): Record<number, CreatureType[]> {
   const pools: Record<number, CreatureType[]> = {};
   for (const [type, spec] of Object.entries(CREATURE_DATA)) {
     const s = spec as CreatureSpec;
     // 吉祥物不参与随机生成
     if (s.behavior === 'MASCOT') continue;
     if (s.tier === 0) continue;
+    if (pond && s.ponds && !(s.ponds as readonly string[]).includes(pond)) continue;
     (pools[s.tier] ||= []).push(type as CreatureType);
   }
   return pools;
-})();
+}
+
+/** 每塘生成池：POND_SPAWN_POOLS[塘][tier] —— 特产鱼只出现在自己的塘（阶段 3a） */
+export const POND_SPAWN_POOLS: Record<PondId, Record<number, CreatureType[]>> =
+  Object.fromEntries(
+    (Object.keys(POND_DATA) as PondId[]).map((id) => [id, buildPoolFor(id)])
+  ) as Record<PondId, Record<number, CreatureType[]>>;
+
+/**
+ * 取某个塘某个 tier 的生成池。
+ * 未知塘回退全塘通用视图（旧行为），保证任何调用点都拿到数组、绝不 undefined。
+ */
+export const getSpawnPool = (pondId: string | null | undefined, tier: number): CreatureType[] =>
+  POND_SPAWN_POOLS[(pondId ?? '') as PondId]?.[tier] ?? SPAWN_POOL_BY_TIER[tier] ?? [];
 
 /**
  * 启动自检：把数据错误在开发期就骂出来，而不是让玩家遇到「按右键没反应」。
@@ -401,6 +459,13 @@ export function validateCreatures(knownSkills: readonly string[]): string[] {
     }
     if (s.shape && !(s.shape in SHAPE_DATA)) {
       problems.push(`${type}: 引用了未注册的形状 ${s.shape}`);
+    }
+    if (s.ponds) {
+      for (const p of s.ponds) {
+        if (!(p in POND_DATA)) problems.push(`${type}: 引用了未注册的鱼塘 ${String(p)}`);
+      }
+      // 特产鱼必须有明确的塘归属；引用了塘但列表为空没意义
+      if (s.ponds.length === 0) problems.push(`${type}: ponds 是空数组（要么不写，要么至少一个塘）`);
     }
   }
   return problems;

@@ -148,11 +148,14 @@ describe('形状渲染：每个模板都必须画得出区别', () => {
 });
 
 describe('生物数据自身的形状分派', () => {
-  it('每种非 FISH 生物都有专属形状；传统鱼只有小丑鱼/蓝唐王/金龙鱼', () => {
+  it('每种非 FISH 生物都有专属形状；传统鱼白名单=旧五员+星光鱼/狮子鱼（3a 新物种，plain fish 即本体）', () => {
     const fishShaped = Object.values(CREATURE_DATA)
       .filter((s) => ((s as { shape?: string }).shape ?? 'FISH') === 'FISH')
       .map((s) => (s as { name: string }).name);
-    // PLANKTON 有专属画法（圆饼干）但 shape 走 FISH 缺省；MASCOT 同理
-    expect(fishShaped.sort()).toEqual(['蓝唐王鱼', '金龙鱼', '磷虾', '新春吉祥物', '小丑鱼'].sort());
+    // PLANKTON 有专属画法（圆饼干）但 shape 走 FISH 缺省；MASCOT 同理；
+    // 星光鱼（发光小鱼）/ 狮子鱼（鳍棘靠色与毒表达）/ 锦鲤（白底靠装扮花纹）刻意用传统鱼形
+    expect(fishShaped.sort()).toEqual(
+      ['蓝唐王鱼', '金龙鱼', '磷虾', '新春吉祥物', '小丑鱼', '星光鱼', '狮子鱼', '锦鲤'].sort()
+    );
   });
 });

@@ -24,13 +24,19 @@ const THREAT_COLORS = {
 const BUILDING_LABELS: Record<string, string> = {
   HOSPITAL: '医院',
   SHRINE: '圣地',
-  SHOP: '商店'
+  SHOP: '商店',
+  WISHING_WELL: '许愿池',
+  PEARL_FARM: '珍珠场',
+  SHIPWRECK: '沉船'
 };
 
 const BUILDING_COLORS: Record<string, string> = {
   HOSPITAL: BUILDING_CONFIGS.HOSPITAL.color,
   SHRINE: BUILDING_CONFIGS.SHRINE.color,
-  SHOP: BUILDING_CONFIGS.SHOP.color
+  SHOP: BUILDING_CONFIGS.SHOP.color,
+  WISHING_WELL: BUILDING_CONFIGS.WISHING_WELL.color,
+  PEARL_FARM: BUILDING_CONFIGS.PEARL_FARM.color,
+  SHIPWRECK: BUILDING_CONFIGS.SHIPWRECK.color
 };
 
 // MiniMap component

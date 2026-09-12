@@ -7,6 +7,7 @@ import { getAchievementView, getUnlockedCount, type AchievementView } from '../s
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
 import { POND_LIST, DEFAULT_POND, getPond, type PondId } from '../data/ponds';
+import { getPondSpecialties } from '../data/pondEvents';
 import { SKILL_DATA } from '../data/skills';
 import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat, Trophy } from 'lucide-react';
 import MiniMap from './MiniMap';
@@ -272,11 +273,13 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               </p>
             ))}
             <p>越危险的塘得分倍率越高，但刷的大鱼更早、食物更少。</p>
+            <p><b className="text-amber-300">每塘有特产</b>：部分鱼、建筑与事件只在特定塘出现 —— 清水塘特产小丑鱼、锦鲤与许愿池；珊瑚塘特产海马、帝王蟹、狮子鱼、珍珠养殖场，还有「珊瑚产卵夜」金币雨；深渊塘特产水母、灯笼鱼、吸血鬼乌贼、哥布林鲨、皇带鱼、吞鳗、星光鱼与沉船残骸，定期有「星光鱼群潮」过境。想集齐图鉴，就得换塘。</p>
             <p><b className="text-amber-300">塘际门</b>（大号虚线环、琥珀描边）：游进去直接换塘，地形与鱼群整套重建；成长与战队跟着走、分数保留，落地有短暂保护。塘内门（小门）只是在本塘里随机传送。</p>
           </Section>
 
           <Section icon={<ShoppingBag size={20} />} title="建筑与海域">
             <p>商场：换装（进圈后按 <Key>E</Key>）· 医院：回血 · 龙王庙：随机祝福（技能+1 或护盾）</p>
+            <p><b className="text-amber-300">塘特产建筑</b>：许愿池（清水塘，游进去稳定得金币）· 珍珠养殖场（珊瑚塘，滚出一圈金币）· 沉船残骸（深渊塘，金币丰厚，但会惊动船里的东西）</p>
             <p>阳光浅滩：安全，小型鱼速度+20% · 五彩珊瑚：伪装/伏击技能冷却减半，巨型鱼转向变慢</p>
             <p>剧毒沼泽：持续腐蚀（硬壳体质免疫）· 深渊海沟：视野受限，发光/感知型攻击+20%</p>
             <p><b className="text-green-300">水草掩体</b>（沼泽区的绿色草丛）：钻进去即进入隐蔽状态 —— HUD 会亮「隐蔽中」，追你的大鱼跟丢并放弃愤怒。但贴到脸上（约 150px）照样会被发现；被咬过的大鱼还会放声呐扫描，约 7 秒内藏不住。</p>
@@ -524,6 +527,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     <div className="flex gap-4 justify-center mb-8 flex-wrap max-w-3xl">
                         {POND_LIST.map(({ id, config }) => {
                             const isSel = selectedPond === id;
+                            const specialties = getPondSpecialties(id);
+                            const fishText = specialties.fish.length > 2
+                              ? `${specialties.fish.slice(0, 2).join('·')} 等 ${specialties.fish.length} 种`
+                              : specialties.fish.join('·');
+                            const specialtyLine = [fishText, specialties.building, specialties.event].filter(Boolean).join(' · ');
                             return (
                                 <button
                                     key={id}
@@ -539,6 +547,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                     <p className="text-slate-500 text-[11px] mt-1">
                                         主生态区：{BIOME_CONFIGS[config.signatureBiome].name} · 得分 ×{config.scoreMult}
                                     </p>
+                                    <p className="text-[11px] mt-1 text-amber-200/80">特产：{specialtyLine || '——'}</p>
                                 </button>
                             );
                         })}

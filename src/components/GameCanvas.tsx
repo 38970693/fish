@@ -1140,12 +1140,22 @@ const drawObstacle = (ctx: CanvasRenderingContext2D, o: Obstacle) => {
     ctx.restore();
 };
 
+/** 建筑标识字：新增建筑在这里补一个字（画圈逻辑通用，只有字和颜色来自数据） */
+const BUILDING_GLYPHS: Record<string, string> = {
+  HOSPITAL: '医',
+  SHRINE: '庙',
+  SHOP: '商',
+  WISHING_WELL: '愿',
+  PEARL_FARM: '珠',
+  SHIPWRECK: '船',
+};
+
 /** 建筑绘制 —— 之前同样只生成不绘制 */
 const drawBuilding = (ctx: CanvasRenderingContext2D, b: Building, time: number) => {
     const conf = (BUILDING_CONFIGS as Record<string, { color: string; name: string }>)[b.type];
     if (!conf) return;
 
-    const glyph = b.type === 'HOSPITAL' ? '医' : b.type === 'SHRINE' ? '庙' : b.type === 'SHOP' ? '商' : '军';
+    const glyph = BUILDING_GLYPHS[b.type] ?? '军';
     const onCooldown = b.cooldown > 0;
 
     ctx.save();
