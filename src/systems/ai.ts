@@ -261,9 +261,17 @@ const mascotBehavior: AIHandler = (entity, state) => {
 
 /** 好奇：近于这个距离就退开，保持围观的体面 */
 const CURIOUS_STANDOFF = 280;
+/**
+ * 停泊带外沿：距离落在 [STANDOFF, PARK) 时不再追加任何推力，减速悬停、转身面向玩家。
+ * ⚠️ 这条带是「原地转圈」bug 的修复关键：没有它，「追」（≥PARK）和「退」（<STANDOFF）
+ * 在边界两侧都是全推力，而转向增益高达 ~0.45/帧 —— 鱼会在 280px 环上每几帧
+ * 被抢一次方向盘，原地高频往返打转（用户实测：900 帧穿越 460 次）。
+ * 修法与 squad 跟随同款（SQUAD_CONFIG.FOLLOW_DEADZONE）：死区外追，死区内减速滑停。
+ */
+const CURIOUS_PARK = 380;
 const CURIOUS_FOLLOW_RANGE = 900;
-/** 群聚：凑到这个距离就停下，免得整群叠在同一个点上 */
-const SOCIABLE_KEEP = 90;
+/** 群聚：凑到这个距离就配对悬停，免得整群叠在同一个点上（同样是停泊带，防两条鱼互绕对穿） */
+const SOCIABLE_KEEP = 135;
 const SOCIABLE_RANGE = 700;
 /** 饥饿 / 狂躁的搜寻半径 */
 const HUNT_RANGE = 1000;
@@ -295,20 +303,34 @@ const curiousMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const d = Math.sqrt(dist2(entity, state.player));
   if (d < CURIOUS_STANDOFF) {
+    // 太近：掉头拉开距离。滑出 280 之后会被下面的停泊带接住减速，不会形成往返抖动
+    entity.isIdle = false;
     const away = Math.atan2(entity.y - state.player.y, entity.x - state.player.x);
     entity.angle = turnToward(entity.angle, away, agility);
     moveForward(entity, state, 0.8);
     return;
   }
+  if (d < CURIOUS_PARK) {
+    // 停泊带：不追加推力，速度衰减滑停 + 转身面向玩家 —— 「停下来盯着你看」
+    entity.isIdle = true;
+    const toward = Math.atan2(state.player.y - entity.y, state.player.x - entity.x);
+    entity.angle = turnToward(entity.angle, toward, agility * 0.5);
+    entity.vx *= 0.85;
+    entity.vy *= 0.85;
+    return;
+  }
   if (d < CURIOUS_FOLLOW_RANGE * getMood(entity.moodId).perceptionMult) {
+    entity.isIdle = false;
     chaseTo(entity, state.player, state, agility, 0.7);
     return;
   }
+  // 距离太远失去兴趣：随机游荡
+  entity.isIdle = false;
   if (state.time % 120 === 0) entity.angle += (Math.random() - 0.5) * 0.8;
   moveForward(entity, state, 0.6);
 };
 
-/** 群聚：往最近的同类身边凑，形成鱼群 */
+/** 群聚：往最近的同类身边凑，到位就配对悬停，形成鱼群 */
 const sociableMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const mate = findNearest(
@@ -317,12 +339,24 @@ const sociableMood: AIHandler = (entity, state) => {
     (other) => other.type === entity.type,
     senseRangeSq(entity, SOCIABLE_RANGE)
   );
-  if (mate.entity && mate.distSq > SOCIABLE_KEEP * SOCIABLE_KEEP) {
+  if (!mate.entity) {
+    entity.isIdle = false;
+    if (state.time % 140 === 0) entity.angle += (Math.random() - 0.5) * 0.6;
+    moveForward(entity, state, 0.5);
+    return;
+  }
+  if (mate.distSq > SOCIABLE_KEEP * SOCIABLE_KEEP) {
+    entity.isIdle = false;
     chaseTo(entity, mate.entity, state, agility, 0.9);
     return;
   }
-  if (state.time % 140 === 0) entity.angle += (Math.random() - 0.5) * 0.6;
-  moveForward(entity, state, 0.5);
+  // 到位：贴着同伴悬停 —— 速度衰减滑停 + 面向同伴。没有这条带，两条鱼会在
+  // 停泊距离上互相穿来穿去打转（「追」在 >KEEP、「漂」在 ≤KEEP，边界互抢方向盘）
+  entity.isIdle = true;
+  const toward = Math.atan2(mate.entity.y - entity.y, mate.entity.x - entity.x);
+  entity.angle = turnToward(entity.angle, toward, agility * 0.5);
+  entity.vx *= 0.85;
+  entity.vy *= 0.85;
 };
 
 /** 饥饿：主动搜寻比自己小的目标，连温顺的鱼也开荤 */

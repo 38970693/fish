@@ -439,3 +439,115 @@ describe('心境计时', () => {
     expect(fish.moodTimer).toBeUndefined();
   });
 });
+
+/* ══════════════ 8. 原地转圈回归（追/退边界必须有停泊带） ══════════════ */
+
+/**
+ * 「有些鱼会原地转圈圈」回归测试。
+ *
+ * 根因：好奇 / 群聚在「追」与「退」的边界两侧都是全推力分支，中间没有停泊带 ——
+ * 转向增益高达 ~0.45/帧（BASE_TURN_SPEED 0.5 减半径惩罚），鱼在 280px / 停泊距离的环上
+ * 每几帧被抢一次方向盘，表现就是原地高频往返打转。
+ * 修法与 squad 跟随同款（SQUAD_CONFIG.FOLLOW_DEADZONE）：死区外追，死区内减速滑停。
+ *
+ * 断言选「边界环的穿越次数」+「收尾是否停泊」：抖动时穿越数以十计、永不静止；
+ * 修复后穿越 ≤1 次、isIdle 停泊。用例要跑几百帧，所以 moodTimer 钉成超大值防中途换心境。
+ */
+describe('原地转圈回归（追/退边界必须有停泊带）', () => {
+  /** 玩家钉在地图中心、无其它干扰的空场 */
+  const spinScene = () => {
+    const state = createInitialState();
+    state.time = 1;
+    state.entities = [];
+    state.player.level = 1;
+    state.player.x = CX;
+    state.player.y = CY;
+    return state;
+  };
+
+  /** 边界环穿越计数：每帧采样，侧别翻转一次记一次 */
+  const countCrossings = (
+    state: GameState,
+    fish: Entity,
+    edge: number,
+    frames: number
+  ): number => {
+    let prevInside = dist(fish, state.player) < edge;
+    let crossings = 0;
+    for (let i = 0; i < frames; i += 1) {
+      state.time += 1;
+      aiSystem(state, makeCtx());
+      const inside = dist(fish, state.player) < edge;
+      if (inside !== prevInside) crossings += 1;
+      prevInside = inside;
+    }
+    return crossings;
+  };
+
+  it('好奇：靠近到停泊带就悬停看玩家，不在 280px 环上打转', () => {
+    const state = spinScene();
+    const fish = createEntity(CreatureType.CLOWN_FISH, CX + 600, CY, { moodId: 'CURIOUS' });
+    fish.semiGhostTimer = 0;
+    fish.angle = Math.PI; // 正对玩家
+    fish.moodTimer = 1e9; // 钉死心境，别让长用例跑到一半换状态
+    state.entities = [fish];
+
+    const crossings = countCrossings(state, fish, 280, 900);
+
+    expect(crossings, '在 280px 环上往返打转 → 停泊带没生效').toBeLessThanOrEqual(2);
+    expect(fish.isIdle, '收尾应处于停泊（盯着玩家看）').toBe(true);
+    const finalD = dist(fish, state.player);
+    expect(finalD, '最终停在被围观的体面距离上').toBeGreaterThanOrEqual(270);
+    expect(finalD).toBeLessThanOrEqual(400);
+  });
+
+  it('好奇：玩家凑近时退开，退够就停 —— 退/停交接不抖', () => {
+    const state = spinScene();
+    const fish = createEntity(CreatureType.CLOWN_FISH, CX + 300, CY, { moodId: 'CURIOUS' });
+    fish.semiGhostTimer = 0;
+    fish.angle = Math.PI;
+    fish.moodTimer = 1e9;
+    state.entities = [fish];
+
+    runFrames(state, 120); // 先停在停泊带里（300 ∈ [280, 380)）
+    state.player.x = CX + 150; // 玩家凑到 150px 内
+    const crossings = countCrossings(state, fish, 280, 600);
+
+    expect(crossings, '退出 280 后应被停泊带接住，而不是退一点又被拽回来').toBeLessThanOrEqual(2);
+    expect(fish.isIdle).toBe(true);
+    const finalD = dist(fish, state.player);
+    expect(finalD, '退开后停在 280 外的体面距离').toBeGreaterThanOrEqual(280);
+    expect(finalD).toBeLessThanOrEqual(420);
+  });
+
+  it('群聚：凑到同伴身边就配对悬停，不互相穿来穿去', () => {
+    const state = spinScene();
+    const fish = createEntity(CreatureType.CLOWN_FISH, CX + 150, CY, { moodId: 'SOCIABLE' });
+    const mate = createEntity(CreatureType.CLOWN_FISH, CX - 150, CY, { moodId: 'SOCIABLE' });
+    fish.semiGhostTimer = 0;
+    mate.semiGhostTimer = 0;
+    fish.angle = Math.PI; // 面向同伴
+    mate.angle = 0;
+    fish.moodTimer = 1e9;
+    mate.moodTimer = 1e9;
+    state.entities = [fish, mate];
+
+    // 穿越计数的参照点是同伴（不是玩家），手动循环
+    let prevApart = dist(fish, mate) > 135;
+    let crossings = 0;
+    for (let i = 0; i < 900; i += 1) {
+      state.time += 1;
+      aiSystem(state, makeCtx());
+      const apart = dist(fish, mate) > 135;
+      if (apart !== prevApart) crossings += 1;
+      prevApart = apart;
+    }
+
+    expect(crossings, '在停泊距离上往返互穿 → 配对悬停没生效').toBeLessThanOrEqual(2);
+    expect(fish.isIdle, '两条鱼都应配对悬停').toBe(true);
+    expect(mate.isIdle).toBe(true);
+    const d = dist(fish, mate);
+    expect(d, '停在并肩不叠点的距离').toBeGreaterThanOrEqual(80);
+    expect(d).toBeLessThanOrEqual(145);
+  });
+});
