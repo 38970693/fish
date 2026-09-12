@@ -16,11 +16,16 @@
 
 import type {
   AccessoryType,
+  BodyType,
   Cosmetics,
   EyeType,
+  EyebrowType,
+  MouthType,
   PatternType,
   ScaleType,
+  TailType,
   TeethType,
+  TrailType,
 } from '../types';
 
 /** 一个可选项。色块型选项（皮肤/牙齿）带 `color`，图标型选项（配饰）带 `icon` */
@@ -117,13 +122,80 @@ export const EYE_OPTIONS: readonly CosmeticOption<EyeType>[] = [
   { value: 'DEAD', label: '死亡' },
 ];
 
+/** 眉毛类型（渲染分支见 drawEyebrows，6 个非 NONE 值全有专属画法） */
+export const EYEBROW_OPTIONS: readonly CosmeticOption<EyebrowType>[] = [
+  { value: 'NONE', label: '无' },
+  { value: 'ANGRY', label: '愤怒' },
+  { value: 'SAD', label: '忧愁' },
+  { value: 'CONFUSED', label: '困惑' },
+  { value: 'THICK', label: '粗眉' },
+  { value: 'UNI', label: '一字' },
+  { value: 'TIERED', label: '层叠' },
+];
+
+/**
+ * 嘴型。嘴的形状决定的是鱼身前缘的开口轮廓（见 defineBodyPath），
+ * FLAT / CURVE / BEAK 是「差口圆」+ 各自的专属画法（细缝 / 微笑唇线 / 橙色喙）。
+ */
+export const MOUTH_OPTIONS: readonly CosmeticOption<MouthType>[] = [
+  { value: 'TRIANGLE', label: '三角' },
+  { value: 'CIRCLE', label: '圆嘴' },
+  { value: 'SQUARE', label: '方嘴' },
+  { value: 'FLAT', label: '平嘴' },
+  { value: 'BEAK', label: '鸟喙' },
+  { value: 'CURVE', label: '微笑' },
+];
+
+/**
+ * 体型：压扁 / 拉长整条鱼（getBodyTypeParams 的 scaleX/scaleY）。
+ * ⚠️ 不上架 STAR —— 它的缩放参数和 ROUND 完全一样（1.15/1.15），
+ * 摆上货架就是「按钮在、区别没有」的死选项，等它有了专属轮廓再放出来。
+ */
+export const BODY_OPTIONS: readonly CosmeticOption<BodyType>[] = [
+  { value: 'DEFAULT', label: '标准' },
+  { value: 'ROUND', label: '圆滚' },
+  { value: 'SLENDER', label: '修长' },
+  { value: 'CHUNKY', label: '敦实' },
+  { value: 'BOX', label: '方正' },
+  { value: 'MERMAID', label: '人鱼' },
+  { value: 'RAY', label: '鳐鱼' },
+  { value: 'EEL', label: '鳗鱼' },
+];
+
+/** 尾巴（渲染分支见 drawTail，8 个非 DEFAULT 值全有专属画法） */
+export const TAIL_OPTIONS: readonly CosmeticOption<TailType>[] = [
+  { value: 'DEFAULT', label: '普通' },
+  { value: 'CRESCENT', label: '新月' },
+  { value: 'FORKED', label: '燕尾' },
+  { value: 'FAN', label: '扇尾' },
+  { value: 'TRIDENT', label: '三叉' },
+  { value: 'LOBSTER', label: '龙虾' },
+  { value: 'MECHANICAL', label: '机械' },
+  { value: 'GHOST', label: '幽灵' },
+  { value: 'RIBBON', label: '飘带' },
+];
+
+/** 拖尾：身后拖出的粒子痕迹（drawTrail，7 个非 NONE 值全有专属画法） */
+export const TRAIL_OPTIONS: readonly CosmeticOption<TrailType>[] = [
+  { value: 'NONE', label: '无' },
+  { value: 'BUBBLES', label: '气泡' },
+  { value: 'RAINBOW', label: '彩虹' },
+  { value: 'FIRE', label: '火焰' },
+  { value: 'GLITTER', label: '闪粉' },
+  { value: 'HEARTS', label: '爱心' },
+  { value: 'ELECTRIC', label: '电弧' },
+  { value: 'SLIME', label: '黏液' },
+];
+
 /** 标签页 key */
-export type CosmeticTabId = 'color' | 'pattern' | 'accessory' | 'eyes' | 'ai-presets';
+export type CosmeticTabId = 'color' | 'pattern' | 'face' | 'body' | 'accessory' | 'eyes' | 'ai-presets';
 
 /** 标签页顺序与标题（图标由组件层给，数据层不引 React） */
 export const COSMETIC_TABS: readonly { id: CosmeticTabId; label: string }[] = [
   { id: 'color', label: '颜色' },
   { id: 'pattern', label: '花纹' },
+  { id: 'face', label: '五官' },
+  { id: 'body', label: '身形' },
   { id: 'accessory', label: '配饰' },
   { id: 'eyes', label: '眼睛' },
   { id: 'ai-presets', label: 'AI预设' },

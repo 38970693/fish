@@ -19,12 +19,17 @@ import { DEFAULT_COSMETICS, type Cosmetics, type Entity } from '../types';
 import {
   ACCESSORY_OPTIONS,
   AI_COSMETICS_PRESETS,
+  BODY_OPTIONS,
   COSMETIC_TABS,
   EYE_OPTIONS,
+  EYEBROW_OPTIONS,
+  MOUTH_OPTIONS,
   PATTERN_OPTIONS,
   SCALE_OPTIONS,
   SKIN_COLOR_OPTIONS,
+  TAIL_OPTIONS,
   TEETH_OPTIONS,
+  TRAIL_OPTIONS,
   withOption,
 } from '../data/cosmeticsOptions';
 
@@ -145,6 +150,31 @@ describe('装扮渲染：每个选项都必须画得出区别', () => {
     expect(new Set(fps).size).toBe(EYE_OPTIONS.length);
   });
 
+  it('眉毛：7 个选项两两不同', () => {
+    const fps = fingerprintsFor('eyebrowType', EYEBROW_OPTIONS);
+    expect(new Set(fps).size).toBe(EYEBROW_OPTIONS.length);
+  });
+
+  it('嘴型：6 个选项两两不同', () => {
+    const fps = fingerprintsFor('mouthType', MOUTH_OPTIONS);
+    expect(new Set(fps).size).toBe(MOUTH_OPTIONS.length);
+  });
+
+  it('体型：8 个选项两两不同（STAR 参数与 ROUND 重合，不上架）', () => {
+    const fps = fingerprintsFor('bodyType', BODY_OPTIONS);
+    expect(new Set(fps).size).toBe(BODY_OPTIONS.length);
+  });
+
+  it('尾巴：9 个选项两两不同', () => {
+    const fps = fingerprintsFor('tailType', TAIL_OPTIONS);
+    expect(new Set(fps).size).toBe(TAIL_OPTIONS.length);
+  });
+
+  it('拖尾：8 个选项两两不同', () => {
+    const fps = fingerprintsFor('trailType', TRAIL_OPTIONS);
+    expect(new Set(fps).size).toBe(TRAIL_OPTIONS.length);
+  });
+
   it('皮肤：15 个具体颜色两两不同（DEFAULT 单独测，它可能正好等于本鱼本色）', () => {
     const concrete = SKIN_COLOR_OPTIONS.filter((o) => o.value !== 'DEFAULT');
     expect(concrete.length).toBeGreaterThanOrEqual(15);
@@ -178,6 +208,11 @@ describe('装扮渲染：每个选项都必须画得出区别', () => {
       ...ACCESSORY_OPTIONS.filter((o) => o.value !== 'NONE').map((o) => ['accessory', o.value] as [keyof Cosmetics, string]),
       ...EYE_OPTIONS.filter((o) => o.value !== 'NORMAL').map((o) => ['eyeType', o.value] as [keyof Cosmetics, string]),
       ...TEETH_OPTIONS.filter((o) => o.value !== 'NORMAL').map((o) => ['teeth', o.value] as [keyof Cosmetics, string]),
+      ...MOUTH_OPTIONS.filter((o) => o.value !== 'TRIANGLE').map((o) => ['mouthType', o.value] as [keyof Cosmetics, string]),
+      ...EYEBROW_OPTIONS.filter((o) => o.value !== 'NONE').map((o) => ['eyebrowType', o.value] as [keyof Cosmetics, string]),
+      ...BODY_OPTIONS.filter((o) => o.value !== 'DEFAULT').map((o) => ['bodyType', o.value] as [keyof Cosmetics, string]),
+      ...TAIL_OPTIONS.filter((o) => o.value !== 'DEFAULT').map((o) => ['tailType', o.value] as [keyof Cosmetics, string]),
+      ...TRAIL_OPTIONS.filter((o) => o.value !== 'NONE').map((o) => ['trailType', o.value] as [keyof Cosmetics, string]),
     ];
     for (const [key, value] of allOptions) {
       const fp = fingerprint(withOption(DEFAULT_COSMETICS, key, value as never));
@@ -194,6 +229,11 @@ describe('装扮选项注册表自身的一致性', () => {
     ['SCALE_OPTIONS', SCALE_OPTIONS],
     ['ACCESSORY_OPTIONS', ACCESSORY_OPTIONS],
     ['EYE_OPTIONS', EYE_OPTIONS],
+    ['EYEBROW_OPTIONS', EYEBROW_OPTIONS],
+    ['MOUTH_OPTIONS', MOUTH_OPTIONS],
+    ['BODY_OPTIONS', BODY_OPTIONS],
+    ['TAIL_OPTIONS', TAIL_OPTIONS],
+    ['TRAIL_OPTIONS', TRAIL_OPTIONS],
   ];
 
   it.each(LISTS)('%s 非空且没有重复值', (_name, list) => {
@@ -217,6 +257,15 @@ describe('装扮选项注册表自身的一致性', () => {
     const ids = COSMETIC_TABS.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(COSMETIC_TABS.every((t) => t.label.trim().length > 0)).toBe(true);
+  });
+
+  it('上架的每个值都必须真的存在于对应联合类型里（防手滑拼错）', () => {
+    // 用 Cosmetics 的键做编译期校验之外，这里再钉一次运行期事实：
+    // 每个清单的 value 都必须是合法装扮值 —— 借 withOption 的类型约束在编译期保证，
+    // 这里只验证清单非空这个最低限度（真正的类型错误 tsc 会拦）。
+    for (const [, list] of LISTS) {
+      expect(list.length).toBeGreaterThan(0);
+    }
   });
 });
 

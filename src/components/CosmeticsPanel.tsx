@@ -18,16 +18,21 @@ import { CREATURES } from '../data/creatures';
 import {
   ACCESSORY_OPTIONS,
   AI_COSMETICS_PRESETS,
+  BODY_OPTIONS,
   COSMETIC_TABS,
   EYE_OPTIONS,
+  EYEBROW_OPTIONS,
+  MOUTH_OPTIONS,
   PATTERN_OPTIONS,
   SCALE_OPTIONS,
   SKIN_COLOR_OPTIONS,
+  TAIL_OPTIONS,
   TEETH_OPTIONS,
+  TRAIL_OPTIONS,
   withOption,
   type CosmeticTabId,
 } from '../data/cosmeticsOptions';
-import { Sparkles, Palette, Crown, Eye as EyeIcon, Check, RotateCcw } from 'lucide-react';
+import { Sparkles, Palette, Crown, Eye as EyeIcon, Check, RotateCcw, Smile, Fish } from 'lucide-react';
 import FishPreview from './FishPreview';
 
 interface CosmeticsPanelProps {
@@ -44,6 +49,8 @@ interface CosmeticsPanelProps {
 const TAB_ICONS: Record<CosmeticTabId, React.ReactNode> = {
   color: <Palette size={16} />,
   pattern: <Sparkles size={16} />,
+  face: <Smile size={16} />,
+  body: <Fish size={16} />,
   accessory: <Crown size={16} />,
   eyes: <EyeIcon size={16} />,
   'ai-presets': <Sparkles size={16} />,
@@ -114,8 +121,13 @@ const CosmeticsPanel: React.FC<CosmeticsPanelProps> = ({
     `牙·${label(TEETH_OPTIONS, cosmetics.teeth)}`,
     `纹·${label(PATTERN_OPTIONS, cosmetics.pattern)}`,
     `鳞·${label(SCALE_OPTIONS, cosmetics.scaleType)}`,
-    `饰·${label(ACCESSORY_OPTIONS, cosmetics.accessory)}`,
+    `嘴·${label(MOUTH_OPTIONS, cosmetics.mouthType)}`,
+    `眉·${label(EYEBROW_OPTIONS, cosmetics.eyebrowType)}`,
     `眼·${label(EYE_OPTIONS, cosmetics.eyeType)}`,
+    `形·${label(BODY_OPTIONS, cosmetics.bodyType)}`,
+    `尾·${label(TAIL_OPTIONS, cosmetics.tailType)}`,
+    `迹·${label(TRAIL_OPTIONS, cosmetics.trailType)}`,
+    `饰·${label(ACCESSORY_OPTIONS, cosmetics.accessory)}`,
   ];
 
   return (
@@ -162,7 +174,7 @@ const CosmeticsPanel: React.FC<CosmeticsPanelProps> = ({
               <div className="absolute inset-0 pointer-events-none opacity-40">
                 <div className="absolute left-6 bottom-0 w-2 h-2 rounded-full bg-cyan-200/40" />
                 <div className="absolute left-24 bottom-0 w-1.5 h-1.5 rounded-full bg-cyan-200/30" />
-                <div className="absolute left-44 bottom-0 w-2.5 h-2.5 rounded-full bg-cyan-200/25" />
+                <div className="absolute left-44 bottom-0 w-2.5 h-1.5 rounded-full bg-cyan-200/25" />
               </div>
               <span className="absolute left-3 top-2 text-[11px] font-black text-cyan-300/80 tracking-wide">
                 实时预览
@@ -287,6 +299,104 @@ const CosmeticsPanel: React.FC<CosmeticsPanelProps> = ({
                           testValue={opt.value}
                         >
                           {thumb('scaleType', opt.value)}
+                        </OptionButton>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'face' && (
+                <div className="space-y-5">
+                  <div>
+                    <SectionTitle icon={<Smile size={16} />}>嘴型</SectionTitle>
+                    <div className="grid grid-cols-3 gap-2">
+                      {MOUTH_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.mouthType === opt.value}
+                          onClick={() => updateCosmetics('mouthType', opt.value)}
+                          label={opt.label}
+                          testKey="mouthType"
+                          testValue={opt.value}
+                        >
+                          {thumb('mouthType', opt.value, 58)}
+                        </OptionButton>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <SectionTitle icon={<Sparkles size={16} />}>眉毛</SectionTitle>
+                    <div className="grid grid-cols-4 gap-2">
+                      {EYEBROW_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.eyebrowType === opt.value}
+                          onClick={() => updateCosmetics('eyebrowType', opt.value)}
+                          label={opt.label}
+                          testKey="eyebrowType"
+                          testValue={opt.value}
+                        >
+                          {thumb('eyebrowType', opt.value, 58)}
+                        </OptionButton>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'body' && (
+                <div className="space-y-5">
+                  <div>
+                    <SectionTitle icon={<Fish size={16} />}>体型</SectionTitle>
+                    <div className="grid grid-cols-4 gap-2">
+                      {BODY_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.bodyType === opt.value}
+                          onClick={() => updateCosmetics('bodyType', opt.value)}
+                          label={opt.label}
+                          testKey="bodyType"
+                          testValue={opt.value}
+                        >
+                          {thumb('bodyType', opt.value, 58)}
+                        </OptionButton>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <SectionTitle icon={<Fish size={16} />}>尾巴</SectionTitle>
+                    <div className="grid grid-cols-5 gap-2">
+                      {TAIL_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.tailType === opt.value}
+                          onClick={() => updateCosmetics('tailType', opt.value)}
+                          label={opt.label}
+                          testKey="tailType"
+                          testValue={opt.value}
+                        >
+                          {thumb('tailType', opt.value, 58)}
+                        </OptionButton>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <SectionTitle icon={<Sparkles size={16} />}>拖尾特效</SectionTitle>
+                    <div className="grid grid-cols-4 gap-2">
+                      {TRAIL_OPTIONS.map((opt) => (
+                        <OptionButton
+                          key={opt.value}
+                          selected={cosmetics.trailType === opt.value}
+                          onClick={() => updateCosmetics('trailType', opt.value)}
+                          label={opt.label}
+                          testKey="trailType"
+                          testValue={opt.value}
+                        >
+                          {thumb('trailType', opt.value, 58)}
                         </OptionButton>
                       ))}
                     </div>

@@ -188,12 +188,19 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     const mouthPhase = (visualTime * biteSpeed + animOffset) % (Math.PI * 2);
     const mouthGap = (Math.sin(mouthPhase) + 1) / 2 * 0.55 + 0.05;
     const mType = cosmetics?.mouthType || 'TRIANGLE';
+    // 嘴型专属开口角：FLAT 永远是细缝（平嘴不张合，这正是它的性格）、
+    // CURVE/BEAK 缩小开口（微笑嘴几乎闭着、喙只留一点缝）。
+    // TRIANGLE/SQUARE 原样用 mouthGap —— 旧行为零变化。
+    const mouthOpen = mType === 'FLAT' ? 0.06
+      : mType === 'CURVE' ? mouthGap * 0.4
+      : mType === 'BEAK' ? mouthGap * 0.5 + 0.05
+      : mouthGap;
     const bodyFill = cosmetics?.skinColor === 'DEFAULT' ? entity.config.color : cosmetics?.skinColor || entity.config.color;
 
     const defineBodyPath = () => {
         ctx.beginPath();
-        if (type === CreatureType.PLANKTON) { 
-            ctx.arc(0, 0, radius, 0, Math.PI * 2); 
+        if (type === CreatureType.PLANKTON) {
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
         }
         else {
             if (mType === 'CIRCLE') {
@@ -203,6 +210,10 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
                 const h = radius * mouthGap;
                 ctx.moveTo(radius, h); ctx.lineTo(radius * 0.5, h); ctx.lineTo(radius * 0.5, -h); ctx.lineTo(radius, -h);
                 ctx.arc(0, 0, radius, -mouthGap, mouthGap, true);
+            } else if (mType === 'FLAT' || mType === 'CURVE' || mType === 'BEAK') {
+                // 平嘴 / 微笑 / 鸟喙：同为「差口圆」轮廓，只是开口角不同 ——
+                // 喙片和微笑唇线在身体画完后另画（见「绘制尾巴」前的 BEAK / CURVE 块）
+                ctx.moveTo(0, 0); ctx.arc(0, 0, radius, mouthOpen, -mouthOpen);
             } else { // TRIANGLE
                 ctx.moveTo(0, 0); ctx.arc(0, 0, radius, mouthGap, -mouthGap);
             }
@@ -217,7 +228,7 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     if (type !== CreatureType.PLANKTON) {
         ctx.save(); ctx.fillStyle = '#400505'; ctx.beginPath();
         if (mType === 'CIRCLE') ctx.arc(radius * 0.8, 0, radius * 0.28 * mouthGap, 0, Math.PI * 2);
-        else { ctx.moveTo(0, 0); ctx.arc(0, 0, radius * 0.95, -mouthGap, mouthGap); }
+        else if (mType !== 'FLAT') { ctx.moveTo(0, 0); ctx.arc(0, 0, radius * 0.95, -mouthOpen, mouthOpen); }
         ctx.fill(); ctx.restore();
     }
 
@@ -293,13 +304,48 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
                 ctx.fillStyle = tType === 'RAINBOW' ? `hsl(${(visualTime * 3 + i * 45) % 360}, 92%, 64%)` : toothColor;
                 ctx.fillRect(radius*0.22*mouthGap, -2, 6, 4); ctx.restore();
             }
-        } else {
+        } else if (mType === 'TRIANGLE' || mType === 'SQUARE') {
+            // 只有三角/方嘴露牙：平嘴是闭着的细缝、微笑嘴和鸟喙里塞牙既穿帮又看不清
             const count = 4; const step = 0.15;
             for(let i=0; i<count; i++) {
-                drawTooth(-mouthGap + step * i + 0.05, true, i);
-                drawTooth(mouthGap - step * i - 0.05, false, i);
+                drawTooth(-mouthOpen + step * i + 0.05, true, i);
+                drawTooth(mouthOpen - step * i - 0.05, false, i);
             }
         }
+        ctx.restore();
+    }
+
+    // 鸟喙（BEAK）：两片橙色喙盖在嘴缺口上，张合度跟着 mouthOpen，盖在身体之后才不会被鱼身盖掉
+    if (mType === 'BEAK' && type !== CreatureType.PLANKTON) {
+        const open = radius * (0.08 + mouthOpen * 0.35);
+        ctx.save();
+        ctx.fillStyle = '#f59e0b';
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 1.5;
+        // 上喙：长而弯钩
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.55, -open - radius * 0.16);
+        ctx.quadraticCurveTo(radius * 1.32, -open * 0.5, radius * 1.2, open * 0.15);
+        ctx.lineTo(radius * 0.55, -open + radius * 0.09);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        // 下喙：短而直
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.55, open + radius * 0.09);
+        ctx.quadraticCurveTo(radius * 1.1, open * 0.5, radius * 1.0, open * 0.1);
+        ctx.lineTo(radius * 0.55, open - radius * 0.05);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
+    // 微笑唇线（CURVE）：细口之上另画一条向前凸的弯弧 —— 一条「笑得眯起来」的嘴
+    if (mType === 'CURVE' && type !== CreatureType.PLANKTON) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.lineWidth = Math.max(1.5, radius * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.58, -radius * 0.04);
+        ctx.quadraticCurveTo(radius * 0.98, radius * 0.28, radius * 0.52, radius * 0.36);
+        ctx.stroke();
         ctx.restore();
     }
 
@@ -577,6 +623,27 @@ const drawEyebrows = (ctx: CanvasRenderingContext2D, eyebrowType: EyebrowType, e
       ctx.moveTo(eyeX - radius * 0.2, yOff - radius * 0.1);
       ctx.lineTo(eyeX + radius * 0.2, yOff + radius * 0.1);
       ctx.stroke();
+      break;
+    case 'SAD': // 八字愁眉：和 ANGRY 镜像 + 中段下坠，一副委屈样
+      ctx.beginPath();
+      ctx.moveTo(eyeX - radius * 0.22, yOff + radius * 0.12);
+      ctx.quadraticCurveTo(eyeX, yOff + radius * 0.02, eyeX + radius * 0.22, yOff - radius * 0.1);
+      ctx.stroke();
+      break;
+    case 'CONFUSED': // 困惑挑眉：单边高高挑起的拱线
+      ctx.beginPath();
+      ctx.moveTo(eyeX - radius * 0.22, yOff + radius * 0.08);
+      ctx.quadraticCurveTo(eyeX - radius * 0.02, yOff - radius * 0.28, eyeX + radius * 0.16, yOff - radius * 0.02);
+      ctx.stroke();
+      break;
+    case 'TIERED': // 层层眉：三条渐细的平行横线堆出层次
+      for (let i = 0; i < 3; i++) {
+        ctx.lineWidth = 3 - i * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(eyeX - radius * 0.24, yOff - radius * 0.08 + i * radius * 0.12);
+        ctx.lineTo(eyeX + radius * 0.22, yOff - radius * 0.1 + i * radius * 0.12);
+        ctx.stroke();
+      }
       break;
     case 'THICK':
       ctx.lineWidth = 4;
