@@ -14,8 +14,9 @@
 
 ## 功能现状
 - **多鱼塘**（阶段 1+2a；2b 暂缓，卡点见《多鱼塘立项设计.md》第四节）：CLEAR/CORAL/ABYSS，pondId 决定刷怪/得分倍率/障碍密度；world.ts `pondTravel` 换塘（保留成长+战队，重建世界）；塘内门只在 LOCAL 挑目标；换塘同步 player.currentBiome；塘名别用 speechBubble（被「进入新海域」顶掉）；⚠️ teleportLockUntilFrame 模块级 → 单测开头 `__resetTeleportLock()`。
+- **生物形状**（2026-09-12 晚）：data/creatureShapes.ts 注册表（20 形状）+ components/fishShapes.ts 三件套（轮廓/背景附属/前景附属）+ CREATURE_DATA.shape 字段（缺省 FISH=旧管线零变化）。非鱼形公约：表面嘴、无内壁/装扮牙/装扮尾；眼/眉/花/鳞/配饰照常。3 条深渊新物种：皇带鱼/吸血鬼乌贼（CEPHALOPOD 复用）/哥布林鲨（SHARK 复用）——复用形状换色=新物种低成本差异化。⚠️ 测试造实体测形状必须显式传 shape id（undefined=FISH 路径）。
 - **隐蔽/掩体**（c9442ba）：水草 85% 半径藏身、碰撞滤 SEAWEED（草≠墙）；ai.ts `canPerceive` 是锁定判定唯一收口（贴脸 150px 或 sonarTimer>0 才见隐蔽目标）；⚠️ 设计分工：隐身 ← 被声呐反制，**草丛 ← 只能贴脸破**（tryCounterSkill 只认 camoActive/isHidden，别当 bug 改）。
-- **装扮/预览**（029ed2b）：预览必须复用 drawCuteFish（GameCanvas 导出）；选项收在 data/cosmeticsOptions.ts，面板用 data-cosmetic-key/value 选择器；缺口：眉毛/尾巴/嘴型/拖尾等没渲染分支 = 面板无入口；bodyType 缩放放玩家光环之后。
+- **装扮/预览**（029ed2b → 45e4a89，2026-09-12 补全）：预览必须复用 drawCuteFish（GameCanvas 导出）；选项收在 data/cosmeticsOptions.ts（11 份清单），面板用 data-cosmetic-key/value 选择器 + 7 页签（含五官/身形）。⚠️ **上架铁律两面**：没渲染分支的不上架 + 渲染无区分度的也不上架（体型 STAR 参数与 ROUND 重合）。嘴型改鱼身前缘轮廓（mouthOpen 收口开口角），牙齿只给 TRIANGLE/SQUARE 露、FLAT 不画内壁、喙/唇线画在身体 fill 之后；bodyType 缩放放玩家光环之后。
 - **AI 心境**（8fc876e，2026-09-12）：data/moods.ts 8 心境（悠闲/警觉/胆怯/饥饿/好奇/群聚/瞌睡/狂躁）；数值型只改倍率（CALM 全 1 = 旧行为），接管型 MOOD_HANDLERS 先于种族行为分发；`senseRangeSq` 收口感知半径；到期重抽（angerTimer>0 交战不换）；HUD 画 emoji 徽章（玩家 900px 内）。⚠️ **随机性纪律：测试钉 `moodId:'CALM'` 或钉 moodWeights 权重，不掷骰子做断言**（concealment flake 实证）。⚠️ **追/退边界必须有停泊带**（squad FOLLOW_DEADZONE 同款经验）：两个全推力分支贴一条边界 + 转向增益 ~0.45/帧 = 原地打转 —— 好奇 CURIOUS_PARK=380、群聚 SOCIABLE_KEEP=135，带内减速滑停（修复见 2026-09-12 日志）。
 
 ## 本机环境坑（重要！）
@@ -40,4 +41,4 @@
 - 探针断言：玩家位置用容差；HUD 用 waitForSelector（uiState 100ms 才同步）；瞬时表现按 timer 帧数倒推采样（气泡仅 45 帧）；诱饵/追兵给 biteCooldown=9999 防被玩家吞掉；冻结画面别用 status='MENU'（GameCanvas 会卸载）；清场+读像素同一次 evaluate；采样框用当帧 camera 现算；测试物染与待测特征正交的颜色。
 - text= 是子串匹配，点击与计数都会被污染（**差值恒定 → 先怀疑作用域，别查逻辑**）；点按钮用 button:has-text，计数先锁容器再数行；e2e 用 channel:'chromium'。
 - 探针截图命名定去留：与脚本同名的 `-probe.png` 忽略；描述性命名 = 功能证据 = 提交（README/gen-deliverable 引用，承重）。凡「脚本产物+忽略规则」收尾看 git status 是否以 `??` 出现。
-- 「按钮在、渲染空」类 bug：单测用记录型 canvas ctx 指纹（调用+样式 setter 串串，两两不同 + 比未实现基准多，配 positive control）；e2e 用 toDataURL 去重 / getImageData 平均色；动画 canvas 进 rAF 前先同步画一帧防首帧空白。
+- 「按钮在、渲染空」类 bug：单测用记录型 canvas ctx 指纹（调用+样式 setter 串串，两两不同 + 比未实现基准多，配 positive control）；e2e 用 toDataURL 去重 / getImageData 平均色；动画 canvas 进 rAF 前先同步画一帧防首帧空白。⚠️ animate=true 的预览**不能拿 toDataURL 做前后对比**（每帧都不同，断言恒真）→ 用静态缩略图采像素或平均色分量。
