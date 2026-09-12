@@ -13,6 +13,7 @@
  *     name: '小飞象章鱼', tier: 2, radius: 28, color: '#f9a8d4',
  *     speed: 1.0, health: 55, damage: 7, weight: 22,
  *     behavior: 'FLEE', biome: 'ABYSS', skill: 'INK',
+ *     shape: 'OCTOPUS',
  *     desc: '深渊居民，靠耳朵状的鳍缓缓滑行。',
  *   },
  *
@@ -29,12 +30,15 @@
  *   special  POISON 毒 / SHOCK 电 / SPIKE 刺 / LURE 诱饵 / CAMO 伪装 / SHELL 硬壳
  *   biome    原生生态区，影响进化推荐与生成分布
  *   skill    技能 ID，见 data/skills.ts
+ *   shape    形状模板 ID，见 data/creatureShapes.ts（缺省 'FISH' 传统鱼形）
  */
 
 import { BASE_SWIM_SPEED } from './world';
 import type { BiomeType } from './biomes';
 import type { SkillId } from './skills';
 import type { SchoolId } from './schools';
+import type { CreatureShapeId } from './creatureShapes';
+import { SHAPE_DATA } from './creatureShapes';
 
 /** 行为 ID：对应 systems/ai.ts 里的 AI_HANDLERS */
 export type BehaviorId = 'PASSIVE' | 'FLEE' | 'AGGRESSIVE' | 'AMBUSH' | 'BOSS' | 'MASCOT';
@@ -58,6 +62,8 @@ export interface CreatureSpec {
   skill?: SkillId;
   /** 所属战斗流派，决定玩家的流派技能（也可以在下面的 CREATURE_SCHOOLS 里统一配） */
   school?: SchoolId;
+  /** 形状模板：缺省 'FISH' 传统鱼形 */
+  shape?: CreatureShapeId;
   desc?: string;
 }
 
@@ -85,6 +91,11 @@ export interface CreatureConfig {
   skillDescription?: string;
   /** 所属战斗流派 */
   school?: SchoolId;
+  /**
+   * 形状模板（可选：手工构造的配置没有它 = 传统鱼形，
+   * 渲染层按 `config.shape ?? 'FISH'` 读取 —— 旧调用点零变化）
+   */
+  shape?: CreatureShapeId;
 }
 
 export const CREATURE_DATA = {
@@ -112,12 +123,14 @@ export const CREATURE_DATA = {
     name: '绿海龟', tier: 1, radius: 18, color: '#166534',
     speed: 0.9, health: 60, damage: 3, weight: 8,
     behavior: 'PASSIVE', special: 'SHELL', biome: 'SWAMP', skill: 'SHELL',
+    shape: 'TURTLE',
     desc: '防御型。适应沼泽环境，抗毒回血。',
   },
   JELLYFISH: {
     name: '水母', tier: 1, radius: 20, color: '#d946ef',
     speed: 0.8, health: 30, damage: 5, weight: 6,
     behavior: 'PASSIVE', special: 'SHOCK', biome: 'ABYSS', skill: 'SHOCK',
+    shape: 'JELLY',
     desc: '轻微反伤，碰它要小心。',
   },
 
@@ -126,36 +139,49 @@ export const CREATURE_DATA = {
     name: '海马', tier: 2, radius: 22, color: '#fde047',
     speed: 1.2, health: 40, damage: 4, weight: 15,
     behavior: 'FLEE', biome: 'REEF', skill: 'CAMO',
+    shape: 'SEAHORSE',
     desc: '珊瑚区的伪装大师。',
   },
   CRAB: {
     name: '帝王蟹', tier: 2, radius: 25, color: '#b91c1c',
     speed: 1.0, health: 80, damage: 8, weight: 20,
     behavior: 'AGGRESSIVE', special: 'SPIKE', biome: 'REEF', skill: 'SLAM',
+    shape: 'CRAB',
     desc: '横行霸道，钳子威力惊人。',
   },
   PUFFER_FISH: {
     name: '河豚', tier: 2, radius: 24, color: '#84cc16',
     speed: 1.0, health: 50, damage: 10, weight: 18,
     behavior: 'PASSIVE', special: 'POISON', biome: 'SWAMP', skill: 'INFLATE',
+    shape: 'PUFFER',
     desc: '膨胀后反弹伤害，别乱咬。',
   },
   SQUID: {
     name: '乌贼', tier: 2, radius: 26, color: '#a855f7',
     speed: 1.2, health: 60, damage: 6, weight: 25,
     behavior: 'AMBUSH', special: 'CAMO', biome: 'REEF', skill: 'INK',
+    shape: 'CEPHALOPOD',
     desc: '静止时伪装成障碍物，伺机而动。',
+  },
+  VAMPIRE_SQUID: {
+    name: '吸血鬼乌贼', tier: 2, radius: 27, color: '#9f1239',
+    speed: 1.05, health: 60, damage: 8, weight: 24,
+    behavior: 'AMBUSH', special: 'CAMO', biome: 'ABYSS', skill: 'INK',
+    shape: 'CEPHALOPOD',
+    desc: '深渊幽影。暗红斗篷般的套膜，静止时像一抹血雾。',
   },
   DUMBO_OCTOPUS: {
     name: '小飞象章鱼', tier: 2, radius: 28, color: '#f9a8d4',
     speed: 1.0, health: 55, damage: 7, weight: 22,
     behavior: 'FLEE', biome: 'ABYSS', skill: 'INK',
+    shape: 'OCTOPUS',
     desc: '深渊居民，靠耳朵状的鳍缓缓滑行。',
   },
   ELECTRIC_EEL: {
     name: '电鳗', tier: 2, radius: 30, color: '#ca8a04',
     speed: 1.25, health: 70, damage: 15, weight: 35,
     behavior: 'AGGRESSIVE', special: 'SHOCK', biome: 'SWAMP', skill: 'THUNDER',
+    shape: 'EEL',
     desc: '释放高压电流，麻翻一片。',
   },
 
@@ -164,25 +190,43 @@ export const CREATURE_DATA = {
     name: '魔鬼鱼', tier: 3, radius: 40, color: '#475569',
     speed: 1.1, health: 120, damage: 12, weight: 50,
     behavior: 'PASSIVE', special: 'POISON', biome: 'SWAMP', skill: 'VENOM',
+    shape: 'RAY',
     desc: '尾刺带毒，被蜇到会持续掉血。',
   },
   SWORD_FISH: {
     name: '剑鱼', tier: 3, radius: 38, color: '#3b82f6',
     speed: 1.3, health: 100, damage: 15, weight: 55,
     behavior: 'AGGRESSIVE', biome: 'SHALLOWS', skill: 'PIERCE',
+    shape: 'BILLFISH',
     desc: '极速突进，一击穿心。',
   },
   ANGLER_FISH: {
     name: '灯笼鱼', tier: 3, radius: 45, color: '#3f3f46',
     speed: 0.9, health: 150, damage: 18, weight: 60,
     behavior: 'AMBUSH', special: 'LURE', biome: 'ABYSS', skill: 'LURE',
+    shape: 'ANGLER',
     desc: '头顶灯笼的深海鮟鱇。右键变成大肉块：小鱼扑上来送死，大鱼来了就快跑。',
   },
   HAMMERHEAD: {
     name: '双髻鲨', tier: 3, radius: 50, color: '#9ca3af',
     speed: 1.1, health: 180, damage: 20, weight: 70,
     behavior: 'AGGRESSIVE', biome: 'ABYSS', skill: 'SONAR',
+    shape: 'HAMMERHEAD',
     desc: '声呐扫描，隐身也躲不掉。',
+  },
+  GOBLIN_SHARK: {
+    name: '哥布林鲨', tier: 3, radius: 48, color: '#e8a0a0',
+    speed: 1.15, health: 170, damage: 22, weight: 72,
+    behavior: 'AGGRESSIVE', biome: 'ABYSS', skill: 'PIERCE',
+    shape: 'SHARK',
+    desc: '深海活化石。粉灰皮肤，突出的长吻一击穿刺。',
+  },
+  OARFISH: {
+    name: '皇带鱼', tier: 3, radius: 55, color: '#cbd5e1',
+    speed: 0.95, health: 160, damage: 14, weight: 75,
+    behavior: 'PASSIVE', biome: 'ABYSS', skill: 'DODGE',
+    shape: 'OARFISH',
+    desc: '深海传说「龙宫使者」。银白长带身，红冠如鬃，飘忽难测。',
   },
   AROWANA: {
     name: '金龙鱼', tier: 3, radius: 42, color: '#f59e0b',
@@ -194,6 +238,7 @@ export const CREATURE_DATA = {
     name: '海狗', tier: 3, radius: 46, color: '#3f2c22',
     speed: 1.15, health: 140, damage: 14, weight: 60,
     behavior: 'FLEE', biome: 'REEF', skill: 'ROLL',
+    shape: 'SEAL',
     desc: '圆润灵活，翻滚躲避攻击。',
   },
 
@@ -202,30 +247,35 @@ export const CREATURE_DATA = {
     name: '大白鲨', tier: 4, radius: 80, color: '#e5e7eb',
     speed: 1.1, health: 400, damage: 40, weight: 200,
     behavior: 'AGGRESSIVE', biome: 'SHALLOWS', skill: 'DEVOUR',
+    shape: 'SHARK',
     desc: '海洋霸主，张大嘴就是一口吞。',
   },
   ORCA: {
     name: '虎鲸', tier: 4, radius: 100, color: '#020617',
     speed: 1.15, health: 600, damage: 50, weight: 300,
     behavior: 'BOSS', biome: 'ABYSS', skill: 'SONIC',
+    shape: 'ORCA',
     desc: '声波冲击，范围毁灭。',
   },
   NARWHAL: {
     name: '独角鲸', tier: 4, radius: 90, color: '#64748b',
     speed: 1.1, health: 500, damage: 60, weight: 250,
     behavior: 'AGGRESSIVE', special: 'SPIKE', biome: 'REEF', skill: 'UNICORN',
+    shape: 'NARWHAL',
     desc: '独角贯穿，无视防御。',
   },
   MERMAID: {
     name: '美人鱼', tier: 4, radius: 75, color: '#22d3ee',
     speed: 1.25, health: 350, damage: 30, weight: 500,
     behavior: 'BOSS', biome: 'REEF', skill: 'SIREN',
+    shape: 'MERMAID',
     desc: '海妖之歌，让敌人自相残杀。',
   },
   KRAKEN: {
     name: '深海巨怪', tier: 4, radius: 180, color: '#7f1d1d',
     speed: 0.9, health: 2000, damage: 80, weight: 1000,
     behavior: 'BOSS', biome: 'ABYSS', skill: 'TENTACLE',
+    shape: 'KRAKEN',
     desc: '触手绞杀，把整个鱼塘拉向深渊。',
   },
 
@@ -259,9 +309,11 @@ const CREATURE_SCHOOLS: Record<string, SchoolId> = {
   DUMBO_OCTOPUS: 'MOBILITY',
 
   SQUID: 'ASSASSIN',
+  VAMPIRE_SQUID: 'ASSASSIN',
   ANGLER_FISH: 'ASSASSIN',
   STINGRAY: 'ASSASSIN',
   NARWHAL: 'ASSASSIN',
+  GOBLIN_SHARK: 'ASSASSIN',
 
   JELLYFISH: 'CONTROL',
   CRAB: 'CONTROL',
@@ -272,6 +324,7 @@ const CREATURE_SCHOOLS: Record<string, SchoolId> = {
 
   TURTLE: 'SURVIVAL',
   PUFFER_FISH: 'SURVIVAL',
+  OARFISH: 'SURVIVAL',
   FUR_SEAL: 'SURVIVAL',
   GREAT_WHITE: 'SURVIVAL',
   ORCA: 'SURVIVAL',
@@ -299,6 +352,7 @@ function buildConfig(type: string, spec: CreatureSpec): CreatureConfig {
     nativeBiome: spec.biome,
     skillId: spec.skill,
     school: spec.school ?? CREATURE_SCHOOLS[type],
+    shape: spec.shape ?? 'FISH',
   };
 }
 
@@ -344,6 +398,9 @@ export function validateCreatures(knownSkills: readonly string[]): string[] {
     if (s.tier < 0 || s.tier > 4) problems.push(`${type}: tier 超出 0-4 (${s.tier})`);
     if (s.skill && !knownSkills.includes(s.skill)) {
       problems.push(`${type}: 引用了未实现的技能 ${s.skill}`);
+    }
+    if (s.shape && !(s.shape in SHAPE_DATA)) {
+      problems.push(`${type}: 引用了未注册的形状 ${s.shape}`);
     }
   }
   return problems;

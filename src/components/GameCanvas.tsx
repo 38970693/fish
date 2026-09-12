@@ -4,6 +4,8 @@ import React, { useRef, useEffect } from 'react';
 import { GameState, GameStatus, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Building, BuildingType, Portal, Cosmetics, BodyType, TailType, TrailType, EyeType, EyebrowType, AccessoryType, PatternType, ScaleType } from '../types';
 import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, getPond, getMood } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
+import { defineShapePath, drawShapeBack, drawShapeFront, drawSurfaceMouth } from './fishShapes';
+import type { CreatureShapeId } from '../data/creatureShapes';
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -112,6 +114,12 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
 
     if (!Number.isFinite(radius) || radius <= 0) return;
 
+    // 形状分发：FISH（缺省）= 传统鱼形，走全部历史管线；其他形状由 fishShapes 模板接管
+    // 身体轮廓与附属，嘴画成表面五官、不画内壁/装扮牙/装扮尾。手工构造的 config 没有
+    // shape 字段 = FISH，旧调用点零变化。
+    const shape = (entity.config?.shape ?? 'FISH') as CreatureShapeId;
+    const isFish = shape === 'FISH';
+
     // 吉祥物
     if (type === CreatureType.MASCOT) {
         ctx.save();
@@ -202,6 +210,10 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         if (type === CreatureType.PLANKTON) {
             ctx.arc(0, 0, radius, 0, Math.PI * 2);
         }
+        else if (!isFish) {
+            // 非鱼形：轮廓由形状模板给出（完整闭合 path，无嘴部缺口）
+            defineShapePath(ctx, shape, radius);
+        }
         else {
             if (mType === 'CIRCLE') {
                 ctx.arc(0, 0, radius, 0, Math.PI * 2);
@@ -224,8 +236,13 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     // 尾迹特效：画在鱼身下层（装扮面板选了尾迹从此真正生效）
     drawTrail(ctx, cosmetics?.trailType, radius, visualTime, animOffset);
 
-    // 绘制口腔内壁
-    if (type !== CreatureType.PLANKTON) {
+    // 形状背景附属（触须/腿/尾鳍/背鳍…）：画在身体 fill 之前，根部被身体盖住只露外段
+    if (!isFish && type !== CreatureType.PLANKTON) {
+        drawShapeBack(ctx, shape, radius, visualTime, animOffset, bodyFill);
+    }
+
+    // 绘制口腔内壁（只有轮廓缺口嘴的鱼形才有「口腔」）
+    if (isFish && type !== CreatureType.PLANKTON) {
         ctx.save(); ctx.fillStyle = '#400505'; ctx.beginPath();
         if (mType === 'CIRCLE') ctx.arc(radius * 0.8, 0, radius * 0.28 * mouthGap, 0, Math.PI * 2);
         else if (mType !== 'FLAT') { ctx.moveTo(0, 0); ctx.arc(0, 0, radius * 0.95, -mouthOpen, mouthOpen); }
@@ -257,8 +274,8 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         ctx.restore();
     }
 
-    // 绘制牙齿
-    if (type !== CreatureType.PLANKTON && cosmetics?.teeth && cosmetics.teeth !== 'NORMAL') {
+    // 绘制牙齿（轮廓缺口嘴是鱼形专属；非鱼形的表面嘴塞不下牙）
+    if (isFish && type !== CreatureType.PLANKTON && cosmetics?.teeth && cosmetics.teeth !== 'NORMAL') {
         const tType = cosmetics.teeth;
         ctx.save();
         // 颜色基色。RAINBOW 不在这里定，它逐颗按色相算
@@ -315,6 +332,11 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         ctx.restore();
     }
 
+    // 表面嘴（非鱼形）：小图形贴在头部前缘，响应嘴型装扮与呼吸张合
+    if (!isFish && type !== CreatureType.PLANKTON) {
+        drawSurfaceMouth(ctx, mType, radius, mouthOpen);
+    }
+
     // 鸟喙（BEAK）：两片橙色喙盖在嘴缺口上，张合度跟着 mouthOpen，盖在身体之后才不会被鱼身盖掉
     if (mType === 'BEAK' && type !== CreatureType.PLANKTON) {
         const open = radius * (0.08 + mouthOpen * 0.35);
@@ -349,8 +371,8 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
         ctx.restore();
     }
 
-    // 绘制尾巴
-    if (cosmetics?.tailType && cosmetics.tailType !== 'DEFAULT') {
+    // 绘制尾巴（装扮尾巴是鱼形专属；水母/章鱼等的尾/触须由形状模板自带）
+    if (isFish && cosmetics?.tailType && cosmetics.tailType !== 'DEFAULT') {
         drawTail(ctx, cosmetics.tailType, radius, visualTime);
     }
 
@@ -368,6 +390,11 @@ export const drawCuteFish = (ctx: CanvasRenderingContext2D, entity: Entity, visu
     // 绘制眉毛
     if (cosmetics?.eyebrowType && cosmetics.eyebrowType !== 'NONE') {
         drawEyebrows(ctx, cosmetics.eyebrowType, eyeX, eyeY, radius);
+    }
+
+    // 形状前景附属（灯笼/独角/长剑/钳/壳纹…）：盖在身体上，仍位于配饰之下
+    if (!isFish && type !== CreatureType.PLANKTON) {
+        drawShapeFront(ctx, shape, radius, visualTime, animOffset, bodyFill, { lureActive: entity.lureActive });
     }
 
     // 绘制配饰
