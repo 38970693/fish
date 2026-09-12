@@ -68,6 +68,18 @@ const canPerceive = (seeker: Entity, target: Entity, distSq: number): boolean =>
 };
 
 /** 在候选里找最近的满足条件者（隐蔽目标会被 canPerceive 过滤掉） */
+/**
+ * 锁定迟滞：新目标必须比当前锁定目标近 1.25 倍，才允许换目标（比较用平方距离）。
+ *
+ * 病根：鱼群里往往同时有若干条距离相近的威胁 / 猎物，「最近的那条」每帧都在变，
+ * 目标方位角随之每两帧跳 ~2 rad，鱼就一边高频抖动一边转圈 ——
+ * 实测 FLEE 小丑鱼 900 帧扫掠 57 圈、转弯半径不到 6px，看上去就是原地打转。
+ *
+ * 思路与 squad 的 FOLLOW_DEADZONE、好奇 / 群聚的停泊带一脉相承：
+ * 在边界处留一段「不改主意」的余量。
+ */
+const TARGET_HYSTERESIS_SQ = 1.25 * 1.25;
+
 const findNearest = (
   origin: Entity,
   candidates: readonly Entity[],
@@ -96,6 +108,25 @@ const findNearest = (
       best = other;
     }
   }
+
+  // 锁定迟滞：上一帧锁的是谁，这帧就还是谁 —— 除非别人明显更近（见上方注释）。
+  // 隐蔽仍然一票否决：原本锁定的目标一旦藏起来（且没有声呐），立刻改锁别人。
+  const locked = origin.lockId
+    ? candidates.find(
+        (o) => o.id === origin.lockId && o.id !== origin.id && o.health > 0 && predicate(o)
+      )
+    : undefined;
+  if (locked) {
+    const lockedSq = dist2(origin, locked);
+    const visible = ignoreConcealment || canPerceive(origin, locked, lockedSq);
+    if (visible && lockedSq <= rangeSq && (!best || bestSq * TARGET_HYSTERESIS_SQ >= lockedSq)) {
+      return { entity: locked, distSq: lockedSq };
+    }
+  }
+
+  // 大鱼反制（ignoreConcealment）只是临时探测，不写回锁定记忆，
+  // 免得探测结果污染同一帧后面的行为锁定
+  if (!ignoreConcealment) origin.lockId = best?.id ?? null;
   return { entity: best, distSq: bestSq };
 };
 
@@ -133,16 +164,44 @@ const moveForward = (entity: Entity, state: GameState, speedMult = 1): void => {
   entity.y += entity.vy;
 };
 
+/**
+ * 目标是否已经**压在身上**（双方圆相交）—— 「原地转圈」的通用解药。
+ *
+ * 病根：实体之间没有分离力，可以互相重叠。一旦追 / 逃的双方贴到几乎重合，
+ * `atan2` 就掉进奇点 —— 相对位移抖动一丁点，「目标在我哪边」就能翻半圈，
+ * 于是鱼每帧都以最大敏捷转向，转弯半径缩到 1px 以内，看上去正是原地打转。
+ * 实测（seed 12345，1200 帧）：磷虾 0.84 rad/帧、乌龟 1.44 rad/帧（≈ 满敏捷 × π），
+ * 各转上百圈，路程 450px 而净位移只有 12px。
+ *
+ * 此前给好奇 / 群聚加的「停泊带」属于同一类病的不同表现：那条治的是
+ * 「距离边界两侧互抢方向盘」，治不了「目标已经压在身上」这种奇点情形。
+ *
+ * 治法：双方已经重叠时就**不再追方位角**，保持当前朝向直冲出去，
+ * 脱离重叠后自动恢复转向；没重叠时行为零变化。
+ * 判定刻意只用半径和、不加额外余量 —— 加余量会把「贴脸识破隐蔽」的正常
+ * 追击也吞掉（双髻鲨半径 50，concealment 用例把它摆在 75px 处）。
+ */
+const isOverlapping = (entity: Entity, target: Entity): boolean => {
+  const reach = entity.radius + target.radius;
+  return dist2(entity, target) < reach * reach;
+};
+
 const fleeFrom = (entity: Entity, threat: Entity, state: GameState, agility: number): void => {
-  const away = Math.atan2(entity.y - threat.y, entity.x - threat.x);
-  entity.angle = turnToward(entity.angle, away, agility);
+  // 已经压在身上：方位角不可信，保持朝向直接冲出去，别原地打转
+  if (!isOverlapping(entity, threat)) {
+    const away = Math.atan2(entity.y - threat.y, entity.x - threat.x);
+    entity.angle = turnToward(entity.angle, away, agility);
+  }
   moveForward(entity, state, 1.1);
   entity.fearTimer = 30;
 };
 
 const chaseTo = (entity: Entity, prey: Entity, state: GameState, agility: number, mult = 1): void => {
-  const toward = Math.atan2(prey.y - entity.y, prey.x - entity.x);
-  entity.angle = turnToward(entity.angle, toward, agility);
+  // 同上：贴到猎物身上时不再追方位角，直接冲过去
+  if (!isOverlapping(entity, prey)) {
+    const toward = Math.atan2(prey.y - entity.y, prey.x - entity.x);
+    entity.angle = turnToward(entity.angle, toward, agility);
+  }
   moveForward(entity, state, mult);
 };
 

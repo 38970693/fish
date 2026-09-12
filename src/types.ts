@@ -126,6 +126,11 @@ export interface Entity {
   config: CreatureConfig;
 
   targetId?: string | null;
+  /**
+   * AI 上一帧锁定的目标（追 / 逃 / 群聚），用于「锁定迟滞」。
+   * 与 targetId 分开：targetId 会被技能（混乱）改写，AI 不能拿它当自己的记忆。
+   */
+  lockId?: string | null;
   ownerId?: string;
   aggroTimer?: number;
   /** 声呐反制（帧）：> 0 时看穿隐蔽 —— 由 skills 的「声呐扫描」写入，ai 读 */
