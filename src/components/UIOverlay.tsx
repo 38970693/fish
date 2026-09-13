@@ -679,11 +679,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         <Shield size={16} /> {player.reviveCount > 0 ? '复活保护' : '新手保护'} · {Math.ceil(player.invulnerableTimer / 60)}s
                     </div>
                 )}
-                {player.isGodMode && (
-                    <div className="mt-2 flex items-center justify-center gap-2 text-yellow-300 font-bold text-sm">
-                        <Crown size={16} /> 无敌模式 · 按 G 关闭
-                    </div>
-                )}
+                {/* 无敌模式开关：G 键的可见形态（之前只有按键，玩家根本不知道有这功能） */}
+                <button
+                    onClick={() => onToggleGodMode?.()}
+                    title="无敌模式：免疫一切伤害与捕食（快捷键 G）"
+                    className={`mt-2 w-full px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 border ${player.isGodMode
+                        ? 'bg-yellow-500/20 border-yellow-400 text-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.35)]'
+                        : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:border-yellow-400/60 hover:text-yellow-200'}`}
+                >
+                    <Crown size={15} /> {player.isGodMode ? '无敌模式：开（点击关闭）' : '无敌模式：关（点击开启）'}
+                </button>
                 {/* 战队面板（提示词 #70 / #234）：吃掉的鱼会倒戈入队，死了能夺舍续命 */}
                 <div className="mt-2 pt-2 border-t border-slate-700/60">
                     <div className="flex items-center justify-between gap-2">

@@ -44,13 +44,7 @@ const App: React.FC = () => {
         manualSquadSwitch(gameStateRef.current);
       }
       if (e.code === 'KeyG') {
-        const p = gameStateRef.current.player;
-        p.isGodMode = !p.isGodMode;
-        p.speechBubble = {
-          text: p.isGodMode ? '无敌模式 开' : '无敌模式 关',
-          timer: 60,
-          color: p.isGodMode ? '#facc15' : '#94a3b8',
-        };
+        toggleGodMode();
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -201,6 +195,17 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // 无敌模式开关（G 键与 HUD 按钮共用一个入口，别各写一份）
+  const toggleGodMode = () => {
+    const p = gameStateRef.current.player;
+    p.isGodMode = !p.isGodMode;
+    p.speechBubble = {
+      text: p.isGodMode ? '无敌模式 开' : '无敌模式 关',
+      timer: 60,
+      color: p.isGodMode ? '#facc15' : '#94a3b8',
+    };
+  };
+
   const startBattleTest = () => {
       const state = createInitialState({ startType: CreatureType.GREAT_WHITE });
       state.status = GameStatus.BATTLE_TEST;
@@ -288,6 +293,7 @@ const App: React.FC = () => {
         }}
         setGameStatus={(s) => { gameStateRef.current.status = s; }}
         onSwitchSquad={() => { manualSquadSwitch(gameStateRef.current); }}
+        onToggleGodMode={toggleGodMode}
         muted={muted}
         onToggleMute={() => { initAudio(); setMuted(toggleMute()); }}
       />
