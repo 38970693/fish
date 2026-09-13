@@ -5,6 +5,7 @@
 - 门面聚合：constants.ts/types.ts/gameEngine.ts re-export src/data/* 与 src/systems/*，旧导入路径不变。
 - 数据驱动：as const 注册表 + keyof typeof；系统注册表 systems/index.ts 顺序执行；EventBus 解耦逻辑→表现（SKILL_HANDLERS / AI_HANDLERS / MOOD_HANDLERS 分发表）。
 - 输入：鱼朝鼠标游；E=商场 Q=技能 Space=加速 G=无敌；updateGame 第 9 参 isInteractPressed（worldSystem 用模块级 prevInteract 检测上升沿）。
+- **React 渲染纪律（2026-09-13 踩出来的）**：任何**随机 / 时变 / 需洗牌**的派生值都不许在渲染期算。`App.tsx` 的 `setInterval(() => setUiState({ ...gameStateRef.current }), 100)` **无条件跑、不看 status** —— 世界在 EVOLVING 暂停了，UIOverlay 仍每 100ms 收到新对象并重渲染，渲染期里的 `Math.random` 于是每秒被重掷 10 次（用户报「选择进化方向，后两个选项一直在变化」）。这类值一律「**逻辑触发点算一次 → 存进 `GameState` 快照 → UI 只渲染快照**」（范例：`GameState.evolveOptions` + 纯函数 `data/creatures.ts pickEvolveOptions()`，由 `systems/progression.ts` 写入、`App.tsx` 进化后清空）。⚠️ 快照为空时的**兜底也必须确定性**（别在兜底里再调一次带随机的抽取）；⚠️ 触发点要加**幂等门闸**（`status !== EVOLVING`），否则系统被重复调用会重掷候选并重复发 `evolve` 事件（成就重复计数）。
 
 ## 内容扩展套路（加塘/成就/道具/排行/心境统一走这套）
 - 数据层 src/data/<x>.ts：as const + keyof 推类型 + 取值函数（未知 id 回退默认，绝不 undefined）→ constants.ts 门面 export *。
@@ -27,6 +28,7 @@
 
 ## 本机环境坑（重要！）
 - **同文件两处 Edit 同消息发会丢一处**（双双报 Success）→ 一文件一消息一条 Edit；多处改 = Read 全文 + Write 整文件；改完 grep 复核。
+- **整块替换长代码段（尤其含「多行行尾空白」）时，Edit 的 old_string 极易失手** → 用**一次性 node 脚本按行号替换**：先 assert 起止锚点行内容 + 一条中间行内容（不符就 throw），替换后打印 `patched: import@4 | block 27→13 lines`，跑完立刻 `unlinkSync` 删脚本。本项目替换 UIOverlay 那个含 5 行「10 空格」行尾空白的 27 行块，就是这么一次成功的。
 - bash 偶发抽风（dirname not found），后台任务起不来 → 改用 PowerShell；**PowerShell 不回显 stdout** → 一律 `2>&1 | Out-File -Encoding utf8 <文件>` 再用 Read 看。
 - PowerShell 禁 `cmd /c`；含 %VAR% 样式 token 的命令被拦（git log --format=%s 也拦）→ 换写法或拆两条发。
 - Get-Content 读 UTF-8 要加 -Encoding utf8（乱码/行数不准）→ 读文件优先 Read 工具。
@@ -63,3 +65,4 @@
 - ⚠️ **「随机流 + 硬阈值」的统计型测试天然 flaky**：任何玩法改动都会平移 `Math.random` 取数顺序，阈值就漂了 —— `orbit.test` 的「转弯半径 < 12px」换 8 个种子误报 4 次（全是漂游的磷虾）。阈值要绑**物理不变量**（净位移/路程比值），别绑**运气量**（半径刚好几 px）。改判据两头都要验：**多-seed 阴性对照**（确认不再误报）+ **关掉修复的反向验证**（确认还能抓到真 bug）。
 - ⚠️ **用常量推导测试距离/位置时，检查推导值有没有掉进别的机制的区间**：`concealment.test.ts` 用 `Math.floor(CONCEAL_REVEAL_RANGE / 2)` 造「贴脸」距离，常量 150→80 后算出 40，小于「双髻鲨 r50 + 玩家 r17 = 67」的半径和 → 被 `ai.ts isOverlapping`（重叠时刻意不转向）接管，断言测的根本不是识破。**改成显式量 + 一条 `expect(值).toBeLessThan(常量)` 前提守卫** —— 常量再漂会当场报错，而不是静默测错对象。
 - 概率类改动优先用**固定骰点**而不是「跑 N 次数频率」：把 `Math.random` mock 成两个点夹住改动后的概率（本项目用 0.5 / 0.15 夹住掩体后的命中率），既确定性又能证明「不是无敌」。⚠️ `vitest.config.ts` 没开 `restoreMocks` → mock `Math.random` 的文件要自己 `afterEach(() => vi.restoreAllMocks())`，否则同文件用例互相污染。
+- ⚠️ **「渲染期不许掷骰子」有直证写法**：组件测试里 `vi.spyOn(Math,'random')` → `render(...)` → `expect(spy).not.toHaveBeenCalled()`，**必须配一条阳性对照**（裸调那个抽取函数，证明 spy 有威力、不是断言没生效）。UIOverlay 这种大组件要 mock：lucide-react（**图标名列表内联在 factory 里**，避开 `vi.mock` 提升导致的 TDZ）、MiniMap、CosmeticsPanel、gameEngine、achievements、leaderboard；面板文字用 `container.querySelectorAll('h3')` 取。浏览器级回归就用 e2e spec **连采 N 次文字断言逐次一致**（`e2e/evolve-panel.spec.ts` 连采 15 次），改坏时它会把抖动内容打印出来。**三层都做了反向验证**（摘门闸 / 渲染期塞洗牌 → 组件测试抓 107 次调用 / 改回旧行为 → e2e 变红），才算证完。

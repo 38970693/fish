@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
-import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, SQUAD_CONFIG } from '../constants';
+import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, SQUAD_CONFIG, EVOLVE_OPTION_COUNT } from '../constants';
 import { getMapBoundaryRadius, gameEvents, isConcealed } from '../gameEngine';
 import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
@@ -757,32 +757,18 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
 
   if (status === GameStatus.EVOLVING) {
       const nextTier = player.config.tier + 1;
-      let options = Object.values(CREATURES).filter(c => c.tier === nextTier);
-
-      if (options.length > 3) {
-          const biomeCounts: Record<string, number> = {};
-          Object.entries(player.eatenHistory || {}).forEach(([type, count]) => {
-              const biome = CREATURES[type as CreatureType]?.nativeBiome;
-              if (biome) biomeCounts[biome] = (biomeCounts[biome] || 0) + (count as number);
-          });
-          
-          const sortedBiomes = Object.keys(biomeCounts).sort((a, b) => biomeCounts[b] - biomeCounts[a]);
-          const favoriteBiome = sortedBiomes[0] || player.config.nativeBiome;
-
-          let selectedOptions: any[] = [];
-          const getOptionByBiome = (biome: string, exclude: any[]) => options.find(o => o.nativeBiome === biome && !exclude.includes(o));
-          
-          let favOpt = getOptionByBiome(favoriteBiome, selectedOptions);
-          if (favOpt) selectedOptions.push(favOpt);
-          
-          let currentBiomeOpt = getOptionByBiome(player.currentBiome, selectedOptions);
-          if (currentBiomeOpt) selectedOptions.push(currentBiomeOpt);
-          
-          const remainingOptions = options.filter(o => !selectedOptions.includes(o)).sort(() => Math.random() - 0.5);
-          selectedOptions = [...selectedOptions, ...remainingOptions].slice(0, 3);
-          
-          options = selectedOptions;
-      }
+      // 候选方向是「进化触发那一刻」抽好、存进 state 的快照（systems/progression.ts 写入）。
+      // ⚠️ 千万别在这里现算：本组件每 100ms 随状态同步重渲染一次，内部洗牌会被反复重掷，
+      //    候选鱼每秒变脸 10 次 —— 2026-09-13 用户反馈「后面两个选项一直在变化」就是这个。
+      // 兜底：正常链路下 state 一定有值（EVOLVING 只由 progression 写入）。万一拿到旧 state 或
+      // 手工构造的 state，也不能给个空面板，于是退回「按注册表顺序取前 3 条」——确定性的，不会再抖。
+      const optionTypes: CreatureType[] = gameState.evolveOptions?.length
+          ? gameState.evolveOptions
+          : Object.values(CREATURES)
+              .filter((c) => c.tier === nextTier)
+              .slice(0, EVOLVE_OPTION_COUNT)
+              .map((c) => c.type as CreatureType);
+      const options = optionTypes.map((t) => CREATURES[t]).filter(Boolean);
 
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50">

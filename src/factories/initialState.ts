@@ -100,6 +100,7 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     labels: [],
     pondId,
     screenFlash: null,
+    evolveOptions: [],
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
     camera: { x: startX, y: startY, zoom: 0.8 },

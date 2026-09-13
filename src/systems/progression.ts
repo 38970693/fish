@@ -5,6 +5,7 @@
  */
 
 import { EVOLUTION_THRESHOLDS } from '../data/world';
+import { pickEvolveOptions } from '../data/creatures';
 import { recordRun } from './leaderboard';
 import { GameStatus } from '../types';
 import type { GameState, FrameContext } from '../types';
@@ -69,7 +70,22 @@ export const progressionSystem = (state: GameState, ctx: FrameContext): void => 
 
   /* ── 4. 进化检查 ── */
   const nextThreshold = EVOLUTION_THRESHOLDS.find((t) => t.tier === player.config.tier + 1);
-  if (nextThreshold && player.evolutionPoints >= nextThreshold.weight) {
+  // `status !== EVOLVING` 是幂等门闸：已经在进化界面里就别再抽一次 —— 否则系统被重复调用时
+  // 候选会被重新洗牌、'evolve' 事件也会重复发（成就重复计数）。有它，本次抽取才是「一局一次」。
+  if (
+    nextThreshold &&
+    player.evolutionPoints >= nextThreshold.weight &&
+    state.status !== GameStatus.EVOLVING
+  ) {
+    // ⚠️ 进化候选**只在这里抽一次**，存成快照给 UI 渲染。
+    //    候选要洗牌、还依赖当时的吃鱼历史，如果放 UI 渲染期现算，100ms 一次的状态同步
+    //    会让候选每秒变脸 10 次（2026-09-13 用户反馈「后面两个选项一直在变化」）。见 types.ts。
+    state.evolveOptions = pickEvolveOptions({
+      nextTier: player.config.tier + 1,
+      eatenHistory: player.eatenHistory,
+      currentBiome: player.currentBiome,
+      fallbackBiome: player.config.nativeBiome,
+    });
     state.status = GameStatus.EVOLVING;
     ctx.events.emit('evolve', { entity: player });
     return;

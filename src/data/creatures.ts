@@ -441,6 +441,70 @@ export const POND_SPAWN_POOLS: Record<PondId, Record<number, CreatureType[]>> =
 export const getSpawnPool = (pondId: string | null | undefined, tier: number): CreatureType[] =>
   POND_SPAWN_POOLS[(pondId ?? '') as PondId]?.[tier] ?? SPAWN_POOL_BY_TIER[tier] ?? [];
 
+/* ══════════════ 进化方向候选 ══════════════ */
+
+/** 进化界面一次给几个方向（UI 是三列网格） */
+export const EVOLVE_OPTION_COUNT = 3;
+
+export interface EvolvePickInput {
+  /** 目标 tier，= 玩家当前 tier + 1 */
+  nextTier: number;
+  /** 吃过的鱼：type → 次数。用来推「最常吃的生态区」 */
+  eatenHistory?: Record<string, number>;
+  /** 玩家当前所在生态区（会优先进候选） */
+  currentBiome?: string;
+  /** 吃历史为空时的兜底生态区（一般传 player.config.nativeBiome） */
+  fallbackBiome?: string;
+  /** 洗牌随机源：测试注入固定序列用，默认 Math.random */
+  rng?: () => number;
+}
+
+/**
+ * 抽下一次进化的候选方向。
+ *
+ * ⚠️ **只该在「进化触发的那一刻」调用一次**（见 `systems/progression.ts`：结果存进
+ * `GameState.evolveOptions`，UI 直接渲染这份快照）。
+ * **千万别放进 React 渲染期** —— 它内部要洗牌，而 UIOverlay 每 100ms 随状态同步重渲染一次，
+ * 于是每次重渲染都重掷一次，候选鱼会每秒变脸 10 次。
+ * （2026-09-13 用户反馈「选择进化方向，后面两个选项一直在变化」就是这个。）
+ *
+ * 选取规则（与旧的内联实现逐条对齐，候选顺序也一致）：
+ *   1. 取全体 `tier === nextTier` 的生物（注册表顺序，稳定）；
+ *   2. 数量 ≤ 3 → 全给，不洗牌；
+ *   3. 否则先塞「最常吃生态区」1 条 + 「当前生态区」1 条（可能取不到），其余洗牌补满 3 条。
+ */
+export const pickEvolveOptions = (input: EvolvePickInput): CreatureType[] => {
+  const { nextTier, eatenHistory, currentBiome, fallbackBiome, rng = Math.random } = input;
+  const pool = (Object.values(CREATURES) as CreatureConfig[]).filter((c) => c.tier === nextTier);
+  if (pool.length <= EVOLVE_OPTION_COUNT) return pool.map((c) => c.type as CreatureType);
+
+  // 最常吃的生态区（吃历史为空 → 兜底生态区 → 再兜底：不加推荐项）
+  const biomeCounts: Record<string, number> = {};
+  Object.entries(eatenHistory ?? {}).forEach(([type, count]) => {
+    const biome = CREATURES[type as CreatureType]?.nativeBiome;
+    if (biome) biomeCounts[biome] = (biomeCounts[biome] || 0) + (count as number);
+  });
+  const favoriteBiome =
+    Object.keys(biomeCounts).sort((a, b) => biomeCounts[b] - biomeCounts[a])[0] || fallbackBiome;
+
+  const picked: CreatureConfig[] = [];
+  for (const biome of [favoriteBiome, currentBiome]) {
+    if (!biome) continue;
+    const found = pool.find((c) => c.nativeBiome === biome && !picked.includes(c));
+    if (found) picked.push(found);
+  }
+
+  // Fisher-Yates（就地、均匀）。旧实现是 `sort(() => rng() - 0.5)` —— 用随机比较器
+  // 洗牌既不均匀也不稳定，这里顺手换成正确写法；对外语义（「其余随机补位」）不变。
+  const rest = pool.filter((c) => !picked.includes(c));
+  for (let i = rest.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+
+  return [...picked, ...rest].slice(0, EVOLVE_OPTION_COUNT).map((c) => c.type as CreatureType);
+};
+
 /**
  * 启动自检：把数据错误在开发期就骂出来，而不是让玩家遇到「按右键没反应」。
  * 返回问题列表，空数组 = 全部健康。

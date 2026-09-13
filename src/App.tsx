@@ -196,6 +196,8 @@ const App: React.FC = () => {
             player.health = newConfig.health;
             player.speed = newConfig.speed * 1.2;
             gameStateRef.current.status = GameStatus.PLAYING;
+            // 候选快照用完即清：下一次进化由 progression.ts 重新抽（不清也不会错，只是留着旧数据）
+            gameStateRef.current.evolveOptions = [];
             player.speechBubble = { text: "进化完成！", timer: 60, color: '#bef264' };
         }}
         onUpdateCosmetics={(cos) => { gameStateRef.current.player.cosmetics = cos; }}

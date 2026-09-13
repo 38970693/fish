@@ -7,7 +7,7 @@
  */
 
 import type { EventBus } from './core/EventBus';
-import type { CreatureConfig } from './data/creatures';
+import type { CreatureConfig, CreatureType } from './data/creatures';
 import type { PondId } from './data/ponds';
 import type { MoodId } from './data/moods';
 
@@ -437,6 +437,14 @@ export interface GameState {
    * 由 GameCanvas 按 timer 递减绘制。null / 缺省 = 不画。
    */
   screenFlash?: { timer: number; color: string } | null;
+  /**
+   * 本次进化方向的候选快照（进化触发那一刻抽一次，UI 直接渲染）。
+   *
+   * ⚠️ 存在的意义就是「冻结」：抽取要洗牌且依赖当时的吃鱼历史，如果让 UI 每次渲染现算，
+   * 100ms 一次的状态同步会让候选每秒变脸 10 次（2026-09-13 修复的 bug）。
+   * 由 `systems/progression.ts` 写入，`App.tsx` 的 onEvolve 清空。缺省 / 空数组 = 未在进化中。
+   */
+  evolveOptions?: CreatureType[];
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };
