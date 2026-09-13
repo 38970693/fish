@@ -384,11 +384,13 @@ export const drawShapeBack = (
     }
     case 'KRAKEN': {
       // 8 条粗壮触手：从头下半圈放射，锥形 + 末端卷
+      // ⚠️ 长度收紧（2026-09-13，用户报「射线满屏」）：1.66r → 1.04r，摆动 0.18r → 0.12r；
+      //    触手原先是「从圆心放射的射线」观感，r=120 时单只视觉跨度 ~700px。
       ctx.fillStyle = bodyFill;
       for (let i = 0; i < 8; i++) {
         const a = Math.PI * (0.55 + (i / 7) * 0.9); // 朝 -x 半区
-        const sway = Math.sin(t * 0.08 + i * 1.15) * r * 0.18;
-        const len = r * (1.1 + (i % 3) * 0.28);
+        const sway = Math.sin(t * 0.08 + i * 1.15) * r * 0.12;
+        const len = r * (0.72 + (i % 3) * 0.16);
         const dx = Math.cos(a);
         const dy = Math.sin(a);
         const tipX = dx * r * len + sway * dy;
