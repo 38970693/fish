@@ -44,12 +44,16 @@ export const BOOST_CONFIG = {
   /**
    * 加速冲刺的速度倍率（乘在常速之上，见 systems/playerControl.ts）。
    *
-   * 2026-09-13 用户反馈「游动速度太慢了，可以把加速提高一倍」→ 2.2 → **4.4**。
-   * 只动爆发段：常速（`player.speed`）与体力（MAX_ENERGY / DRAIN_RATE）都没变，
+   * 调整轨迹（2026-09-13 一天内两轮用户反馈，两次都只动这一个数）：
+   *   原值 **2.2** →「游动速度太慢了，可以把加速提高一倍」→ **4.4**（×2）
+   *              →「减少30%」→ **3.08**（4.4 × 0.7）
+   * 只动爆发段：常速（`player.speed`）与体力（MAX_ENERGY / DRAIN_RATE）**始终没动**，
    * 所以「冲刺更快」≠「能一直快」—— 满体力仍约 3.3 秒用光（100 / 0.5 帧）。
    * 回归 `src/__tests__/boost-speed.test.ts`（行为断言比 = 本常量，不写死数字）。
+   * ⚠️ 浏览器探针 `scripts/probe-boost-speed.mjs` **从本文件解析期望值**，改这里它自动跟上；
+   *    但探针里另有一条「需求底线」判据（`REQUIRED_MULT`）是**需求快照**，需求变了要手动同步。
    */
-  SPEED_MULTIPLIER: 4.4,
+  SPEED_MULTIPLIER: 3.08,
 };
 
 /** 新手保护 / 复活保护 */

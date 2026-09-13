@@ -1,14 +1,15 @@
 /**
  * 加速冲刺（Space）的速度倍率。
  *
- * 2026-09-13 用户反馈「游动速度太慢了，可以把加速提高一倍」→ `BOOST_CONFIG.SPEED_MULTIPLIER`
- * 2.2 → **4.4**。这条改动很容易「改错地方」：倍率只在 `systems/playerControl.ts` 里乘一次，
+ * 2026-09-13 两轮用户反馈都只动 `BOOST_CONFIG.SPEED_MULTIPLIER` 这一个数：
+ * 「游动速度太慢了，可以把加速提高一倍」→ 2.2 → **4.4**；随后「减少30%」→ **3.08**。
+ * 这条改动很容易「改错地方」：倍率只在 `systems/playerControl.ts` 里乘一次，
  * 常速（`player.speed`）和体力（`MAX_ENERGY` / `DRAIN_RATE`）都不该跟着动。所以用行为断言钉住：
  *   - 不按 Space：每帧位移 = `player.speed`（挑无速度加成的生态区）
  *   - 按住 Space：每帧位移 = `player.speed` × `SPEED_MULTIPLIER`
  *   - 体力为 0：按了也不加速（不能变成无限冲刺）
  *
- * ⚠️ 断言比的是**常量本身**而不是写死 4.4：以后调参不会假报错，但「冲刺必须明显快于常速」
+ * ⚠️ 断言比的是**常量本身**而不是写死 3.08：以后调参不会假报错，但「冲刺必须明显快于常速」
  * 这条不变量会守住。
  */
 import { describe, it, expect } from 'vitest';

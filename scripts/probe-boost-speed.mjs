@@ -1,9 +1,9 @@
 /**
- * 「加速冲刺倍率提高一倍」的浏览器端证据探针。
+ * 「加速冲刺倍率」的浏览器端证据探针（两轮调整：2.2 →×2→ 4.4 →−30%→ 3.08）。
  *
- * 背景：用户反馈「游动速度太慢了，可以把加速提高一倍」→ 只把**爆发段**倍率翻倍
- * （`BOOST_CONFIG.SPEED_MULTIPLIER` 2.2 → 4.4），常速（`player.speed`）与体力
- * （MAX_ENERGY / DRAIN_RATE）都刻意没动。
+ * 背景：用户先反馈「游动速度太慢了，可以把加速提高一倍」→ 只把**爆发段**倍率 2.2 → 4.4；
+ * 随后又要求「减少30%」→ 4.4 → **3.08**（4.4 × 0.7）。两次都只动这一个数：
+ * 常速（`player.speed`）与体力（MAX_ENERGY / DRAIN_RATE）**始终没动**。
  *
  * 为什么单测不够：单测直接造一个 GameState 调 `playerControlSystem`，证明的是
  * 「函数照着常量算」；真实的游戏循环里，`playerControl` 后面还跟着
@@ -11,12 +11,13 @@
  * 等一串系统，任何一个都可能动 `player.x/y`。所以必须回到浏览器里验证
  * 「按住空格，玩家**在世界上**确实跑这么快」。
  *
- * 判据（源码常量是唯一真值，本探针一个数字都不写死）：
+ * 判据（**测量期望值**全部从源码解析、探针里一个数字不写死；
+ *       唯一手工维护的数字是下面的 `REQUIRED_MULT`，它是需求快照不是不变量）：
  *   [1] 从 src/data/world.ts 的 BOOST_CONFIG 里解析出期望值
- *   [2] 实测「按住 Space 每帧位移 ÷ 松开 Space 每帧位移」== SPEED_MULTIPLIER
- *   [3] 该期望值必须 ≥ 4.4（用户诉求「提高一倍」= 原值 2.2 的两倍，这条是硬底线）
+ *   [2] 实测「按住 Space 每帧位移 ÷ 松开 Space 每帧位移」== SPEED_MULTIPLIER   ← 不变量①
+ *   [3] 源码常量必须 ≥ REQUIRED_MULT（防有人把常量改回旧值；底线随需求走）      ← 需求快照
  *   [4] 位移速度（px/s）的比 ≈ 每帧速度的比（自洽，防「看起来快其实有一步被吞」）
- *   [5] 两轮速度方差都极小（没有忽快忽慢 / 没有 0 步帧）
+ *   [5] 两轮速度方差都极小（没有忽快忽慢 / 没有 0 步帧）+ 冲刺 ≥ 2× 常速      ← 不变量②
  *   [6] 体力仍按 MAX_ENERGY / DRAIN_RATE 消耗、按 REGEN_RATE 回复
  *       → 满体力冲刺步数 == MAX_ENERGY / DRAIN_RATE（「冲刺更快」≠「能一直快」）
  *   [7] 全程没被边界夹（两轮终点离地图中心都还很远）
@@ -50,7 +51,7 @@ const URL = 'http://localhost:3000/';
 const W = 1280;
 const H = 800;
 const CENTER = { x: 3000, y: 3000 };
-/** 每轮采样帧数：90 帧 @60fps = 1.5s；4.4 倍速下走 784px，离 2000px 的边界还很远 */
+/** 每轮采样帧数：90 帧 @60fps = 1.5s；3.08 倍速下走 ~549px，离 2000px 的边界还很远 */
 const PHASE_FRAMES = 90;
 /** 「按住到耗光」上限：满体力理论 200 步，留 4.5 倍余量 */
 const MAX_HOLD_FRAMES = 900;
@@ -80,7 +81,26 @@ const EXPECT = {
   drain: pick('DRAIN_RATE'),
   regen: pick('REGEN_RATE'),
 };
-const MIN_MULT = 4.4; // 用户诉求「加速提高一倍」的底线：原 2.2 的两倍
+/**
+ * 「需求底线」——⚠️ 这**不是长期不变量，而是「当前用户诉求」的快照**，需求一变就得手工同步它。
+ * 调整轨迹：原值 2.2 →「游动速度太慢，加速提高一倍」→ 4.4 →「减少30%」→ **3.08**。
+ *
+ * 探针里真正的不变量只有两条（它们永不随需求变）：
+ *   ① 实测比 == 从源码解析出的常量   → 抓「世界没照常量算」
+ *   ② 冲刺 ≥ 2 × 常速                → 抓「加速退化成聊胜于无」
+ * 本条底线的作用是**第三件事**：抓「常量被人改回去了」。所以它必须跟着需求走 ——
+ * 需求变了它是**该红一次**的（提醒你「这是有意改的，去同步底线」），而不是永远绿。
+ * 这也是上一轮把它写成 4.4 时没想透的地方：它锁的是需求，不是行为。
+ *
+ * ⚠️ 它的语义是 **单向下限（>=）**，所以能力有边界：
+ *   - 能抓「常量被改得**比当前需求更低**」（如 3.08 → 2.2）；
+ *   - **抓不到「改得比需求更高」**（如 3.08 → 4.4 也算 >= 达标）——
+ *     因为「高了」在数值上不是回退。**精确值只能由 `world.ts` 注释 + 文档 + commit 追溯**，
+ *     想让探针锁死精确值就等于写死数字，每次调参都要改探针，那是更坏的设计。
+ */
+const REQUIRED_MULT = 3.08;
+/** 底线的来历（写进日志，改底线时同时改这句） */
+const REQUIRED_NOTE = '比原值 2.2 快 40%（2.2 →×2→ 4.4 →−30%→ 3.08）';
 log(`[0] 源码 BOOST_CONFIG：SPEED_MULTIPLIER=${EXPECT.mult} MAX_ENERGY=${EXPECT.maxEnergy} `
   + `DRAIN_RATE=${EXPECT.drain} REGEN_RATE=${EXPECT.regen}`);
 
@@ -265,7 +285,7 @@ const fullBoostErr = Math.abs(drainPhase.steps - EXPECT.maxEnergy / EXPECT.drain
 log('[7] 结果：');
 log(`   冲刺 / 常速（每帧速度比）  ${ratioStep.toFixed(4)}   ← 期望 ${EXPECT.mult}（差 ${(multErr * 100).toFixed(2)}%）`);
 log(`   冲刺 / 常速（px/s 比）     ${ratioSpeed.toFixed(4)}   ← 与上一行差 ${(ratioGap * 100).toFixed(2)}%`);
-log(`   上限校验                   期望倍率 ${EXPECT.mult} ${EXPECT.mult >= MIN_MULT ? '≥' : '<'} 底线 ${MIN_MULT}（原值 2.2 的两倍）`);
+log(`   需求底线校验               源码常量 ${EXPECT.mult} ${EXPECT.mult >= REQUIRED_MULT ? '≥' : '<'} 底线 ${REQUIRED_MULT}（${REQUIRED_NOTE}）`);
 log(`   速度稳定性                 松手 spread ${(base.spread * 100).toFixed(2)}% / 按住 spread ${(boost.spread * 100).toFixed(2)}%`);
 log(`   隐含步率                   松手 ${base.stepRate.toFixed(1)}Hz / 按住 ${boost.stepRate.toFixed(1)}Hz（理论 60Hz）`);
 log(`   冲刺态标记                 松手 active=${base.activeRatio} / 按住 active=${boost.activeRatio}`);
@@ -278,7 +298,7 @@ log(`[8] 页面错误: ${errors.length ? JSON.stringify(errors.slice(0, 6)) : '�
 
 const checks = [
   ['按住空格真的提速到源码常量', multErr < 0.02],
-  ['期望倍率达标（≥ 4.4，即比原来快一倍）', EXPECT.mult >= MIN_MULT],
+  [`需求底线（源码常量 ≥ ${REQUIRED_MULT}，${REQUIRED_NOTE}）`, EXPECT.mult >= REQUIRED_MULT],
   ['位移速度与每帧速度自洽', ratioGap < 0.03],
   ['冲刺确实明显快于常速（≥ 2×）', ratioStep >= 2],
   ['两轮速度都稳定（spread < 2%）', base.spread < 0.02 && boost.spread < 0.02],
