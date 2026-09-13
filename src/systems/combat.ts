@@ -17,6 +17,7 @@ import { scoreGain } from '../data/ponds';
 import { GameStatus } from '../types';
 import type { Entity, GameState, FrameContext, PlayerState, Particle } from '../types';
 import { dist, uuid, pick, clamp } from '../core/math';
+import { QuadTree } from '../utils/SpatialHash';
 import { recruitToSquad } from './squad';
 import { recordRun } from './leaderboard';
 import { isConcealed, CONCEAL_BITE_PROB_MULT } from './concealment';
@@ -372,13 +373,28 @@ const CREATURES_CLOWN = CreatureType.CLOWN_FISH;
 
 /**
  * 每帧碰撞检测。
- * 实体上限 180，用平方距离双重循环（约 1.6 万次比较/帧）足够快，
- * 且比 QuadTree 更少边界情况；玩家单独配对处理。
+ *
+ * 鱼 vs 鱼的宽相（2026-09-13 性能轮第二刀）：旧实现是平方距离双重循环
+ * （180 实体 ≈ 1.6 万次比较/帧，占逻辑耗时 ~70%）。现在每帧把 entities
+ * 重建进一棵 QuadTree（零分配，见 utils/SpatialHash.ts），每个实体只对
+ * 「与自己接触的候选」做精确判定 —— 候选一般是 0~3 个。
+ *
+ * ⚠️ 行为等价三保证（缺一就会改变「同帧谁吃谁」和 Math.random 取数顺序）：
+ *  1. 候选集合不变：树的叶子精检 `d² ≤ (r1+r2)²` 与旧门闸
+ *     `dist(a,b) > a.radius + b.radius → continue` 数学等价（半径非负）；
+ *  2. 处理顺序不变：查询结果按**原数组下标升序**排序，只处理 j > i ——
+ *     与旧双循环 (i, j) 的遍历序完全一致（自身 j === i 也被 j > i 挡掉）；
+ *  3. 树是快照但实体是引用：combat 不改 x/y，尸体清理在循环后替换数组
+ *     （树下一帧重建），咬后缩水改的 radius 通过 itemAt 回读实时值。
  */
+const combatTree = new QuadTree<Entity>();
+const combatBuf: number[] = [];
+const byIndexAsc = (a: number, b: number): number => a - b;
+
 export const combatSystem = (state: GameState, ctx: FrameContext): void => {
   const { player, entities } = state;
 
-  // 玩家 vs 鱼
+  // 玩家 vs 鱼（O(n) 线性，无需索引）
   for (const e of entities) {
     if (e.type === CREATURES_MASCOT) continue;
     if (dist(e, player) < e.radius + player.radius) {
@@ -388,13 +404,18 @@ export const combatSystem = (state: GameState, ctx: FrameContext): void => {
   }
 
   // 鱼 vs 鱼：让世界自己运转（重构前这一段完全缺失）
+  combatTree.rebuild(entities);
   for (let i = 0; i < entities.length; i += 1) {
     const a = entities[i];
     if (a.health <= 0) continue;
-    for (let j = i + 1; j < entities.length; j += 1) {
+    const count = combatTree.queryCircle(a.x, a.y, a.radius, combatBuf);
+    if (count === 0) continue;
+    combatBuf.sort(byIndexAsc);
+    for (let k = 0; k < count; k += 1) {
+      const j = combatBuf[k];
+      if (j <= i) continue;
       const b = entities[j];
       if (b.health <= 0) continue;
-      if (dist(a, b) > a.radius + b.radius) continue;
       processCollision(a, b, state, ctx);
       processCollision(b, a, state, ctx);
     }
