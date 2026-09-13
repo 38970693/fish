@@ -309,8 +309,8 @@ export const CREATURE_DATA = {
     desc: '海妖之歌，让敌人自相残杀。',
   },
   KRAKEN: {
-    name: '深海巨怪', tier: 4, radius: 180, color: '#7f1d1d',
-    speed: 0.9, health: 2000, damage: 80, weight: 1000,
+    name: '深海巨怪', tier: 4, radius: 120, color: '#7f1d1d',
+    speed: 0.9, health: 1400, damage: 60, weight: 700,
     behavior: 'BOSS', biome: 'ABYSS', skill: 'TENTACLE',
     shape: 'KRAKEN',
     desc: '触手绞杀，把整个鱼塘拉向深渊。',
