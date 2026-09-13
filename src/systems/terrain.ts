@@ -9,6 +9,7 @@ import { MAP_SHAPE_CONFIG } from '../data/world';
 import { BIOME_DATA, BiomeType } from '../data/biomes';
 import type { Obstacle } from '../types';
 import { clamp, normalizeAngle } from '../core/math';
+import { QuadTree } from '../utils/SpatialHash';
 
 const { BASE_RADIUS, PETAL_VARIANCE, CENTER_X, CENTER_Y } = MAP_SHAPE_CONFIG;
 
@@ -131,6 +132,47 @@ export const clampToMap = (entity: Mover, isBattleTest = false): void => {
 };
 
 /**
+ * 障碍物宽相位索引 —— 性能基线（scripts/probe-perf.mjs）量出来
+ * `resolveObstacles` 是逻辑层第二贵的一块（每帧 ~0.5ms / 29%）：
+ * 它对**每个**实体把**全部**障碍物扫两遍（180 × 57 × 2 ≈ 2 万次 `Math.hypot`），
+ * 而绝大多数障碍物根本不在那个实体旁边。
+ *
+ * 这个类用四叉树把「全部障碍物」缩成「附近那几个」，交给 `resolveObstacles` 精确判定。
+ * 关键约束是**行为必须与全量扫描一模一样**：
+ *   · 推挤有副作用（会改 x/y/angle），先被哪块石头推、结果就不一样
+ *     → `collect` 把命中下标**按原数组顺序**排好序（命中通常 0~3 个，排序忽略不计）
+ *   · 四叉树返回的是超集（圆相交判定用 `<=`，精确判定是 `<`）
+ *     → 多出来的那几个在 `resolveObstacles` 里的 `d >= minDist` 处自然跳过
+ */
+export class ObstacleIndex {
+  private tree = new QuadTree<Obstacle>();
+  /** 查询结果缓冲（存障碍物在数组里的下标，升序） */
+  private buf: number[] = [];
+  private source: readonly Obstacle[] = [];
+
+  /** 每帧重建。障碍物不移动，但重建只要几十微秒，换来「永远正确」 */
+  rebuild(obstacles: readonly Obstacle[]): void {
+    this.source = obstacles;
+    this.tree.rebuild(obstacles);
+  }
+
+  /**
+   * 收集可能与 (x, y, r) 相交的障碍物，按下标升序放进内部缓冲。
+   * @returns 个数，配合 `at(k)` 逐个取
+   */
+  collect(x: number, y: number, r: number): number {
+    this.buf.length = 0;
+    this.tree.queryCircle(x, y, r, this.buf);
+    if (this.buf.length > 1) this.buf.sort((a, b) => a - b);
+    return this.buf.length;
+  }
+
+  at(k: number): Obstacle {
+    return this.source[this.buf[k]];
+  }
+}
+
+/**
  * 障碍物推挤：把实体挤出障碍物范围，并让它**沿障碍物表面滑走**。
  *
  * 为什么不能只推位置：AI / 玩家每帧都会先把实体朝目标推进（`moveForward`），
@@ -153,10 +195,20 @@ export const clampToMap = (entity: Mover, isBattleTest = false): void => {
  *
  * 两遍处理：单遍在障碍物成对重叠时可能把鱼从一块挤进另一块，来回抵消等于卡死；
  * 第二遍把第一遍的二次穿透也推出去，夹缝就锁不住鱼了。
+ *
+ * @param index 可选的宽相位索引。**不传时行为与旧版完全一致（全量扫描）**，
+ *              既有单测一个都不用改；worldSystem 传索引换性能。
  */
-export const resolveObstacles = (entity: Mover, obstacles: readonly Obstacle[]): void => {
+export const resolveObstacles = (
+  entity: Mover,
+  obstacles: readonly Obstacle[],
+  index?: ObstacleIndex
+): void => {
   for (let pass = 0; pass < 2; pass += 1) {
-    for (const o of obstacles) {
+    // 第二遍要重新收集：第一遍把实体推走过，它身边的障碍物集合可能已经变了
+    const count = index ? index.collect(entity.x, entity.y, entity.radius) : obstacles.length;
+    for (let k = 0; k < count; k += 1) {
+      const o = index ? index.at(k) : obstacles[k];
       const dx = entity.x - o.x;
       const dy = entity.y - o.y;
       const d = Math.hypot(dx, dy);

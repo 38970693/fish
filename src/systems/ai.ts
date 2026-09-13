@@ -13,6 +13,9 @@ import { BIG_FISH_COUNTER_SKILLS } from '../data/schools';
 import type { SkillId } from '../data/skills';
 import type { Entity, GameState, FrameContext } from '../types';
 import { dist2, turnToward, num } from '../core/math';
+// 四叉树宽相位索引：性能基线（scripts/probe-perf.mjs）量出 findNearest 每帧把
+// 全部候选扫一到两遍（还每条鱼分配一个 [player, ...entities] 数组），是逻辑层第三贵的一块
+import { QuadTree } from '../utils/SpatialHash';
 import { getBiome } from './terrain';
 import { castSkill } from './skills';
 import { isConcealed, CONCEAL_REVEAL_RANGE_SQ } from './concealment';
@@ -80,9 +83,22 @@ const canPerceive = (seeker: Entity, target: Entity, distSq: number): boolean =>
  */
 const TARGET_HYSTERESIS_SQ = 1.25 * 1.25;
 
+/* ══════════ 本帧空间索引（每帧在 aiSystem 开头重建一次） ══════════ */
+/**
+ * 候选数组：**player 在前、entities 在后** —— 这个顺序就是旧版
+ * `[state.player, ...state.entities]` 的「原数组顺序」，必须原样保留：
+ * findNearest 的平局裁决按它来，顺序变了「谁被锁定」就可能变。
+ * 数组本身每帧复用（只清空重填），配合下面三样，整条查询路径零分配。
+ */
+const frameCandidates: Entity[] = [];
+const candidateTree = new QuadTree<Entity>();
+/** lockId → 实体。旧版是 candidates.find(o => o.id === lockId)（O(n)），现在 O(1)。 */
+const candidateById = new Map<string, Entity>();
+/** findNearest 的查询结果缓冲（存 frameCandidates 下标，复用） */
+const queryBuf: number[] = [];
+
 const findNearest = (
   origin: Entity,
-  candidates: readonly Entity[],
   predicate: (other: Entity) => boolean,
   rangeSq: number,
   /**
@@ -94,7 +110,20 @@ const findNearest = (
 ): Nearest => {
   let best: Entity | null = null;
   let bestSq = rangeSq;
-  for (const other of candidates) {
+  /**
+   * 平局裁决用：旧版按「候选数组顺序」先到先得（严格 <），四叉树返回顺序不定，
+   * 所以这里显式比下标 —— 下标就是 frameCandidates 里的位置，顺序与旧版一致。
+   * ⚠️ 初值必须是 -1：bestSq 的初值是 rangeSq，如果允许平局，
+   *    「恰好等于 rangeSq」的目标会被错误选中（旧版要求**严格**小于 rangeSq）。
+   */
+  let bestIdx = -1;
+
+  // 宽相位：先问四叉树「谁可能在附近」，再做原有的精确判定。
+  // queryCircle 给的是超集（圆相交判定用 <=），多出来的会被下面的 d < bestSq 过滤掉；
+  // 而「真的在 rangeSq 内」的目标一定在结果里 —— 所以最小值不会漏。
+  const found = candidateTree.queryCircle(origin.x, origin.y, Math.sqrt(rangeSq), queryBuf);
+  for (let k = 0; k < found; k += 1) {
+    const other = candidateTree.itemAt(queryBuf[k]);
     if (other === origin || other.id === origin.id) continue;
     if (other.health <= 0) continue;
     if (!predicate(other)) continue;
@@ -103,20 +132,19 @@ const findNearest = (
     //    收口一处，就不会出现「A 行为尊重隐蔽、B 行为照追」的半吊子状态。
     //    副作用（有意为之）：躲在水草里的大鱼，小鱼也看不见它 —— 天然的伏击。
     if (!ignoreConcealment && !canPerceive(origin, other, d)) continue;
-    if (d < bestSq) {
+    if (d < bestSq || (bestIdx >= 0 && d === bestSq && queryBuf[k] < bestIdx)) {
       bestSq = d;
       best = other;
+      bestIdx = queryBuf[k];
     }
   }
 
   // 锁定迟滞：上一帧锁的是谁，这帧就还是谁 —— 除非别人明显更近（见上方注释）。
   // 隐蔽仍然一票否决：原本锁定的目标一旦藏起来（且没有声呐），立刻改锁别人。
-  const locked = origin.lockId
-    ? candidates.find(
-        (o) => o.id === origin.lockId && o.id !== origin.id && o.health > 0 && predicate(o)
-      )
-    : undefined;
-  if (locked) {
+  // 旧版在这里 candidates.find(o => o.id === lockId ...)（O(n)），现在 O(1) 查表；
+  // 「同 id 取先出现那个」的语义由建表时的 first-wins 保持一致。
+  const locked = origin.lockId ? candidateById.get(origin.lockId) : undefined;
+  if (locked && locked.id !== origin.id && locked.health > 0 && predicate(locked)) {
     const lockedSq = dist2(origin, locked);
     const visible = ignoreConcealment || canPerceive(origin, locked, lockedSq);
     if (visible && lockedSq <= rangeSq && (!best || bestSq * TARGET_HYSTERESIS_SQ >= lockedSq)) {
@@ -210,11 +238,9 @@ const chaseTo = (entity: Entity, prey: Entity, state: GameState, agility: number
 /** 温顺：随机游荡，只有被逼近才躲 */
 const passiveBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
-  const candidates = state.entities;
   const threat = findNearest(
     entity,
-    candidates,
-    (other) => isEnemy(entity)(other) && other.level > entity.level,
+    (other) => other !== state.player && isEnemy(entity)(other) && other.level > entity.level,
     senseRangeSq(entity, 320)
   );
   if (threat.entity) {
@@ -228,10 +254,8 @@ const passiveBehavior: AIHandler = (entity, state) => {
 /** 胆小：持续逃离更大的目标 */
 const fleeBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
-  const candidates = [state.player, ...state.entities];
   const threat = findNearest(
     entity,
-    candidates,
     (other) => isEnemy(entity)(other) && other.level > entity.level,
     senseRangeSq(entity, 700)
   );
@@ -246,10 +270,8 @@ const fleeBehavior: AIHandler = (entity, state) => {
 /** 主动：追击比自己小的目标（含玩家） */
 const aggressiveBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
-  const candidates = [state.player, ...state.entities];
   const prey = findNearest(
     entity,
-    candidates,
     (other) => isEnemy(entity)(other) && other.level < entity.level,
     senseRangeSq(entity, 900)
   );
@@ -264,10 +286,8 @@ const aggressiveBehavior: AIHandler = (entity, state) => {
 /** 埋伏：静止漂浮，猎物进入范围才暴起 */
 const ambushBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
-  const candidates = [state.player, ...state.entities];
   const prey = findNearest(
     entity,
-    candidates,
     (other) => isEnemy(entity)(other) && other.level < entity.level,
     senseRangeSq(entity, GAME_MECHANICS.AMBUSH_DISTANCE)
   );
@@ -296,10 +316,8 @@ const ambushBehavior: AIHandler = (entity, state) => {
 /** 首领：大范围巡逻，见小就吃，转向稳但压迫感强 */
 const bossBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity) * 0.7;
-  const candidates = [state.player, ...state.entities];
   const prey = findNearest(
     entity,
-    candidates,
     (other) => isEnemy(entity)(other) && other.level < entity.level,
     senseRangeSq(entity, 1400)
   );
@@ -339,7 +357,6 @@ const HUNT_RANGE = 1000;
 const sleepyMood: AIHandler = (entity, state) => {
   const threat = findNearest(
     entity,
-    [state.player, ...state.entities],
     (other) => isEnemy(entity)(other) && other.level > entity.level,
     senseRangeSq(entity, 260)
   );
@@ -394,8 +411,7 @@ const sociableMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const mate = findNearest(
     entity,
-    state.entities,
-    (other) => other.type === entity.type,
+    (other) => other !== state.player && other.type === entity.type,
     senseRangeSq(entity, SOCIABLE_RANGE)
   );
   if (!mate.entity) {
@@ -423,7 +439,6 @@ const hungryMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const prey = findNearest(
     entity,
-    [state.player, ...state.entities],
     (other) => isEnemy(entity)(other) && other.level < entity.level,
     senseRangeSq(entity, HUNT_RANGE)
   );
@@ -440,7 +455,6 @@ const frenzyMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const foe = findNearest(
     entity,
-    [state.player, ...state.entities],
     (other) => isEnemy(entity)(other),
     senseRangeSq(entity, HUNT_RANGE)
   );
@@ -535,7 +549,6 @@ const tryCounterSkill = (entity: Entity, state: GameState, ctx: FrameContext): v
   //    如果也走隐蔽门闸，那隐蔽一旦生效，声呐这个反制技就永远触发不了（分支变成死代码）。
   const foe = findNearest(
     entity,
-    [state.player, ...state.entities],
     (other) => isEnemy(entity)(other) && other.radius < entity.radius,
     600 * 600,
     true
@@ -566,6 +579,30 @@ const showConfused = (entity: Entity): void => {
 };
 
 export const aiSystem = (state: GameState, ctx: FrameContext): void => {
+  /* ── 本帧空间索引：只建一次，下面所有 findNearest 共享 ──
+   * 顺序必须是 player 在前（旧版 [player, ...entities] 的原数组顺序），
+   * 否则平局裁决会变。全程零分配：数组 / 树 / Map / 结果缓冲都是模块级复用。 */
+  frameCandidates.length = 0;
+  frameCandidates.push(state.player);
+  for (const e of state.entities) frameCandidates.push(e);
+  candidateTree.rebuild(frameCandidates);
+  candidateById.clear();
+  for (const e of frameCandidates) {
+    if (!candidateById.has(e.id)) candidateById.set(e.id, e); // first-wins，与 .find 一致
+  }
+
+  /* ── 诱惑源：全场只可能有一个。旧版在循环里对每条鱼 find 一遍（O(n²)），
+   *    提到循环外只找一次。语义照旧：玩家优先，且**不看玩家血量**（与旧版一致）。 */
+  let lurer: Entity | null = state.player.lureActive ? state.player : null;
+  if (!lurer) {
+    for (const e of state.entities) {
+      if (e.lureActive && e.health > 0) {
+        lurer = e;
+        break;
+      }
+    }
+  }
+
   for (const entity of state.entities) {
     tickTimers(entity);
 
@@ -585,9 +622,6 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
     // 优先级 1：谁开着「诱惑」（变肉块），附近比自己小的鱼都会被香味骗过去。
     // 比自己大的鱼不受骗 —— 它们没兴趣，肉块对它们只是可疑物。
     // （灯笼鱼玩家注意：大鱼不会来，但来的小鱼就是送上门的食物）
-    const lurer = state.player.lureActive
-      ? state.player
-      : state.entities.find((e) => e.lureActive && e.health > 0);
     if (lurer && entity.radius < lurer.radius && dist2(entity, lurer) < LURE_RANGE_SQ) {
       const agility = getAgility(entity);
       chaseTo(entity, lurer, state, agility, 1.5);
@@ -613,7 +647,6 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
       const agility = getAgility(entity) * COMBAT_CONFIG.ANGER_AGILITY_MULT;
       const foe = findNearest(
         entity,
-        [state.player, ...state.entities],
         (other) => isEnemy(entity)(other),
         900 * 900
       );

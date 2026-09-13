@@ -20,7 +20,7 @@ import { getPond, otherPonds, DEFAULT_POND, POND_DATA, scoreGain, type PondId } 
 import { CreatureType } from '../data/creatures';
 import { DEFAULT_COSMETICS, GameStatus, type Building, type GameState, type FrameContext, type Obstacle, type Portal } from '../types';
 import { uuid, dist, pick } from '../core/math';
-import { getBiome, getRandomPosInBiome, isPositionValid, clampToMap, resolveObstacles, MAP_CENTER } from './terrain';
+import { getBiome, getRandomPosInBiome, isPositionValid, clampToMap, resolveObstacles, MAP_CENTER, ObstacleIndex } from './terrain';
 import { createParticle } from './combat';
 import { spawnSystem, createEntity } from './spawn';
 
@@ -336,6 +336,17 @@ export const __resetTeleportLock = (): void => {
   teleportLockUntilFrame = -1;
 };
 
+/**
+ * 障碍物宽相位索引（模块级复用，避免每帧 new）。
+ * ⚠️ 测试需要隔离状态时调 `__resetObstacleIndex()` 重建 —— 和 teleportLock 一个道理。
+ */
+let obstacleIndex = new ObstacleIndex();
+
+/** 测试/探针用：把模块级可变状态恢复到初始（见 teleportLockUntilFrame 的先例） */
+export const __resetObstacleIndex = (): void => {
+  obstacleIndex = new ObstacleIndex();
+};
+
 export const worldSystem = (state: GameState, ctx: FrameContext): void => {
   const player = state.player;
 
@@ -438,11 +449,16 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
   const isBattleTest = state.status === 'BATTLE_TEST';
   const solidObstacles = obstacles.filter((o) => o.type !== 'SEAWEED');
 
-  if (solidObstacles.length) resolveObstacles(player, solidObstacles);
+  // 障碍物宽相位索引（四叉树）：把「每个实体 × 全部障碍 × 2 遍」的盲扫
+  // 缩成「每个实体 × 附近那几个」。性能基线量出这块占逻辑层 ~29%（~0.5ms/帧）。
+  // 每帧重建（几十微秒）换来「树永远和本帧一致」，行为与全量扫描完全一致（见 ObstacleIndex）。
+  obstacleIndex.rebuild(solidObstacles);
+
+  if (solidObstacles.length) resolveObstacles(player, solidObstacles, obstacleIndex);
   clampToMap(player, isBattleTest);
 
   for (const e of state.entities) {
-    if (solidObstacles.length) resolveObstacles(e, solidObstacles);
+    if (solidObstacles.length) resolveObstacles(e, solidObstacles, obstacleIndex);
     clampToMap(e, isBattleTest);
   }
 

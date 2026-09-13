@@ -1087,6 +1087,22 @@ const seededNoise = (seed: string, i: number): number => {
     return ((Math.abs(h) + i * 2654435761) % 1000) / 1000;
 };
 
+/**
+ * 岩石多边形的 9 个半径系数：只跟 obstacle.id 有关，与时间无关。
+ * 原来每帧对每块可见岩石做 9 次 `seededNoise`（字符串逐字符哈希）—— 48 块 × 9 = 432 次/帧，
+ * 纯属重复劳动。按 id 缓存后每块岩石一生只算一次。
+ */
+const ROCK_SHAPE_CACHE = new Map<string, number[]>();
+const rockShapeFactors = (id: string): number[] => {
+  let factors = ROCK_SHAPE_CACHE.get(id);
+  if (!factors) {
+    factors = [];
+    for (let i = 0; i < 9; i += 1) factors.push(0.75 + seededNoise(id, i) * 0.35);
+    ROCK_SHAPE_CACHE.set(id, factors);
+  }
+  return factors;
+};
+
 const drawObstacle = (ctx: CanvasRenderingContext2D, o: Obstacle) => {
     const palettes = {
         ROCK: { fill: '#475569', stroke: '#334155' },
@@ -1125,9 +1141,10 @@ const drawObstacle = (ctx: CanvasRenderingContext2D, o: Obstacle) => {
         // 岩石：不规则多边形
         ctx.beginPath();
         const points = 9;
+        const factors = rockShapeFactors(o.id);
         for (let i = 0; i < points; i += 1) {
             const a = (i / points) * Math.PI * 2;
-            const r = o.radius * (0.75 + seededNoise(o.id, i) * 0.35);
+            const r = o.radius * factors[i];
             const x = Math.cos(a) * r;
             const y = Math.sin(a) * r;
             if (i === 0) ctx.moveTo(x, y);
@@ -1468,10 +1485,13 @@ const drawAmbushIndicator = (ctx: CanvasRenderingContext2D, entity: Entity, play
 // 传送门绘制函数
 
 // 视口裁剪辅助函数
-const isOnScreen = (entity: Entity, camera: { x: number; y: number; zoom: number }, canvasWidth: number, canvasHeight: number): boolean => {
-  const screenX = (entity.x - camera.x) * camera.zoom + canvasWidth / 2;
-  const screenY = (entity.y - camera.y) * camera.zoom + canvasHeight / 2;
-  const visibleRadius = Math.max(entity.radius, 50) * camera.zoom + 100; // 增加缓冲
+/** 只要带圆心 + 半径就能裁剪：Entity / Obstacle / Building / Portal / Treasure / PowerUp 都满足 */
+type SpatialPoint = { x: number; y: number; radius: number };
+
+const isOnScreen = (p: SpatialPoint, camera: { x: number; y: number; zoom: number }, canvasWidth: number, canvasHeight: number): boolean => {
+  const screenX = (p.x - camera.x) * camera.zoom + canvasWidth / 2;
+  const screenY = (p.y - camera.y) * camera.zoom + canvasHeight / 2;
+  const visibleRadius = Math.max(p.radius, 50) * camera.zoom + 100; // 增加缓冲
   return (
     screenX + visibleRadius > 0 &&
     screenX - visibleRadius < canvasWidth &&
@@ -1479,6 +1499,38 @@ const isOnScreen = (entity: Entity, camera: { x: number; y: number; zoom: number
     screenY - visibleRadius < canvasHeight
   );
 };
+
+/**
+ * 花瓣边界的静态形状缓存（5 层）。形状只跟层号有关：每层 = 地图半径公式 + layer * 60。
+ * 原来每帧重算 630 个点的 sin/cos 并重建路径；现在只在**第一次真正渲染**时算一次。
+ * 数组顺序 = 原来的绘制顺序（第 5 层最先画，最外层在最底下）。
+ *
+ * ⚠️ 刻意做成「首次调用时构建」而不是模块加载时：单测（jsdom）会 import 这个文件，
+ *    而 jsdom 没有 Path2D —— 模块加载即构建会让两个渲染测试套件在 import 阶段就崩。
+ */
+let boundaryLayers: { layer: number; path: Path2D }[] | null = null;
+const getBoundaryLayers = (): { layer: number; path: Path2D }[] => {
+  if (boundaryLayers) return boundaryLayers;
+  const layers: { layer: number; path: Path2D }[] = [];
+  for (let layer = 5; layer >= 1; layer -= 1) {
+    const path = new Path2D();
+    for (let a = 0; a <= Math.PI * 2; a += 0.05) {
+      const r = getMapBoundaryRadius(a) + layer * 60;
+      const x = MAP_SHAPE_CONFIG.CENTER_X + Math.cos(a) * r;
+      const y = MAP_SHAPE_CONFIG.CENTER_Y + Math.sin(a) * r;
+      if (a === 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    }
+    path.closePath();
+    layers.push({ layer, path });
+  }
+  boundaryLayers = layers;
+  return layers;
+};
+
+/** 最外层边界的半径上界（含花瓣起伏）：做「边界是否整体在屏幕外」的保守判定 */
+const BOUNDARY_MAX_RADIUS =
+  MAP_SHAPE_CONFIG.BASE_RADIUS + MAP_SHAPE_CONFIG.PETAL_VARIANCE + 5 * 60;
 
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouseDown, onMouseUp }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1489,7 +1541,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
     window.addEventListener('resize', resize); resize();
     let animationFrameId: number;
 
-    const render = () => {
+    /**
+     * 只画一帧，**不排下一帧**。
+     *
+     * 拆出来是为了让性能探针（scripts/probe-perf.mjs）能在一次 evaluate 里
+     * 同步连画 N 帧、量出「纯渲染耗时」：rAF 的**间隔**会被 vsync / 合成器节奏污染
+     * （实测同一场景 p50 8.9ms 而 p95 54ms —— 前者接近真实工作量，后者大半是合成器抖动），
+     * 同步连画没有这个干扰，是判断渲染优化有没有用的唯一可信信号。
+     * 运行时行为零变化：`render` 还是「画一帧 + 排下一帧」。
+     */
+    const drawFrame = () => {
         const { player, entities, particles, camera, status } = gameState;
         const visualTime = performance.now() / 16; 
         ctx.setTransform(1, 0, 0, 1, 0, 0); 
@@ -1505,24 +1566,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // 绘制边界缓冲区域（柔和的渐变边缘）
         if (status !== GameStatus.BATTLE_TEST) {
-            const boundaryPulse = Math.sin(visualTime * 0.05) * 0.1 + 0.9;
-            for (let layer = 5; layer >= 1; layer--) {
-                const layerAlpha = (0.05 + Math.sin(visualTime * 0.03 + layer) * 0.02) * boundaryPulse;
-                const layerRadius = MAP_SHAPE_CONFIG.BASE_RADIUS + MAP_SHAPE_CONFIG.PETAL_VARIANCE * 0.5 + layer * 60;
-                ctx.beginPath();
-                ctx.strokeStyle = `rgba(59, 130, 246, ${layerAlpha})`;
-                ctx.lineWidth = 40 - layer * 6;
-                ctx.setLineDash([]);
-                // 绘制花瓣形边界
-                for (let a = 0; a <= Math.PI * 2; a += 0.05) {
-                    const r = getMapBoundaryRadius(a) + layer * 60;
-                    const x = MAP_SHAPE_CONFIG.CENTER_X + Math.cos(a) * r;
-                    const y = MAP_SHAPE_CONFIG.CENTER_Y + Math.sin(a) * r;
-                    if (a === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
+            // 花瓣边界是**静态几何**（只有透明度在呼吸），却原来每帧用 5 层 × 126 段
+            // 重描一遍（630 次 lineTo + 1260 次 sin/cos + 5 次宽描边光栅化）。
+            // 形状只跟层号有关 → 模块级缓存成 5 个 Path2D，每帧只剩 5 次 stroke(path)；
+            // 玩家在地图中部时整个边界都在屏幕外，连这 5 次也直接跳过。
+            const camDist = Math.hypot(camera.x - MAP_SHAPE_CONFIG.CENTER_X, camera.y - MAP_SHAPE_CONFIG.CENTER_Y);
+            const screenRadius = Math.hypot(canvas.width, canvas.height) / 2 / camera.zoom;
+            if (camDist - BOUNDARY_MAX_RADIUS <= screenRadius) {
+                const boundaryPulse = Math.sin(visualTime * 0.05) * 0.1 + 0.9;
+                for (const { layer, path } of getBoundaryLayers()) {
+                    const layerAlpha = (0.05 + Math.sin(visualTime * 0.03 + layer) * 0.02) * boundaryPulse;
+                    ctx.strokeStyle = `rgba(59, 130, 246, ${layerAlpha})`;
+                    ctx.lineWidth = 40 - layer * 6;
+                    ctx.setLineDash([]);
+                    ctx.stroke(path);
                 }
-                ctx.closePath();
-                ctx.stroke();
             }
         }
 
@@ -1536,13 +1594,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         // 绘制地形：障碍物与建筑（画在鱼之前，避免遮挡生物）
         // 只画视野附近，80 个障碍物全画没有意义
         gameState.obstacles.forEach(o => {
-            if (Math.abs(o.x - player.x) > 1800 || Math.abs(o.y - player.y) > 1400) return;
+            if (!isOnScreen(o, camera, canvas.width, canvas.height)) return;
             drawObstacle(ctx, o);
         });
-        gameState.buildings.forEach(b => drawBuilding(ctx, b, gameState.time));
+        gameState.buildings.forEach(b => {
+            if (!isOnScreen(b, camera, canvas.width, canvas.height)) return;
+            drawBuilding(ctx, b, gameState.time);
+        });
 
         // 绘制喷泉
         gameState.fountains.forEach(f => {
+            if (!isOnScreen(f, camera, canvas.width, canvas.height)) return;
             ctx.save();
             ctx.translate(f.x, f.y);
             ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; // Light blue water
@@ -1573,6 +1635,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // ==================== 绘制宝藏（增强版） ====================
         gameState.treasures.forEach(treasure => {
+            if (!isOnScreen(treasure, camera, canvas.width, canvas.height)) return;
             ctx.save();
             ctx.translate(treasure.x, treasure.y);
 
@@ -1697,6 +1760,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // 绘制漂流瓶等道具
         gameState.powerUps.forEach(p => {
+            if (!isOnScreen(p, camera, canvas.width, canvas.height)) return;
             ctx.save();
             ctx.translate(p.x, p.y);
             if (p.type === 'BOTTLE') {
@@ -1769,6 +1833,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         });
 
         particles.forEach(p => {
+            if (!isOnScreen({ x: p.x, y: p.y, radius: p.size }, camera, canvas.width, canvas.height)) return;
             ctx.globalAlpha = p.life;
             if (p.shape === 'COOKIE') {
                 drawCookie(ctx, p.x, p.y, p.size, p.spin ?? 0);
@@ -1792,6 +1857,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // 绘制标签（如"逆转！"气泡）
         gameState.labels.forEach(label => {
+            if (!isOnScreen({ x: label.x, y: label.y, radius: 90 }, camera, canvas.width, canvas.height)) return;
             ctx.save();
             ctx.translate(label.x, label.y);
             
@@ -1935,7 +2001,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         visibleEntities.forEach(drawMoodBadge);
 
         // 绘制传送门（最上层）
-        gameState.portals.forEach(portal => drawPortal(ctx, portal, visualTime));
+        gameState.portals.forEach(portal => {
+            if (!isOnScreen(portal, camera, canvas.width, canvas.height)) return;
+            drawPortal(ctx, portal, visualTime);
+        });
 
         // 塘际传送过场闪屏（「多鱼塘」阶段 2a）：全屏染一次目标塘的颜色
         const flash = gameState.screenFlash;
@@ -1945,10 +2014,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
+    };
+
+    const render = () => {
+        drawFrame();
         animationFrameId = requestAnimationFrame(render);
     };
+
+    // 性能探针入口（仅 DEV）：同步连画一帧，用来把渲染成本从 rAF 间隔里摘出来
+    if (import.meta.env.DEV) {
+        (window as unknown as Record<string, unknown>).__FISH_DRAW_FRAME__ = drawFrame;
+    }
+
     render();
-    return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(animationFrameId); };
+    return () => {
+        window.removeEventListener('resize', resize);
+        cancelAnimationFrame(animationFrameId);
+        if (import.meta.env.DEV) {
+            delete (window as unknown as Record<string, unknown>).__FISH_DRAW_FRAME__;
+        }
+    };
   }, [gameState]);
 
   return <canvas ref={canvasRef} onMouseMove={(e) => onMouseMove(e.clientX, e.clientY)} onMouseDown={onMouseDown} onMouseUp={onMouseUp} />;

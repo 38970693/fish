@@ -2,9 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
-import { GameState, GameStatus, CreatureType } from './types';
-import { CREATURES, MAP_SHAPE_CONFIG, PROTECTION_CONFIG } from './constants';
+import { GameState, GameStatus, CreatureType, DEFAULT_COSMETICS } from './types';
+import { CREATURES, CREATURE_DATA, MAP_SHAPE_CONFIG, PROTECTION_CONFIG } from './constants';
 import { updateGame, manualSquadSwitch, createEntity, getSquadMembers } from './gameEngine';
+// 性能剖析挂钩：只有 DEV 下的 __FISH_DEBUG__.profile() 会用到（见文件末尾的调试钩子）
+import { setProfileSink } from './systems';
 import { createInitialState } from './factories/initialState';
 import { subscribeAudio, initAudio, toggleMute, isMuted } from './audio';
 import { subscribeAchievements } from './systems/achievements';
@@ -101,6 +103,9 @@ const App: React.FC = () => {
     if (!import.meta.env.DEV) return;
     (window as unknown as Record<string, unknown>).__FISH_DEBUG__ = {
       state: () => gameStateRef.current,
+      // 物种规格取值器：性能探针用固定物种钉工作负载（见 scripts/probe-perf.mjs buildScene）
+      spec: (id: string) => (CREATURE_DATA as Record<string, { radius: number } | undefined>)[id],
+      defaultCosmetics: () => ({ ...DEFAULT_COSMETICS }),
       squad: () => ({
         members: getSquadMembers(gameStateRef.current).map((e) => ({
           id: e.id,
@@ -125,6 +130,70 @@ const App: React.FC = () => {
           x: Math.round(p.x),
           y: Math.round(p.y),
         };
+      },
+      /**
+       * 当前世界规模快照 —— 性能对比的**前置条件**。
+       *
+       * 「改造后快了 30%」这种话只有在两次运行的 workload 一样时才成立。
+       * 实体会自然繁殖 / 死亡，粒子和标签每帧都在回收，所以探针必须在
+       * 改造前 / 改造后各拍一次这个快照，数字对不上就说明对比无效。
+       */
+      counts: () => {
+        const s = gameStateRef.current;
+        let activeAI = 0;
+        for (const e of s.entities) {
+          const dx = e.x - s.player.x;
+          const dy = e.y - s.player.y;
+          if (dx * dx + dy * dy <= 2600 * 2600) activeAI += 1;
+        }
+        return {
+          entities: s.entities.length,
+          activeAI,
+          obstacles: s.obstacles.length,
+          buildings: s.buildings.length,
+          portals: s.portals.length,
+          fountains: s.fountains.length,
+          treasures: s.treasures.length,
+          powerUps: s.powerUps.length,
+          hazards: s.hazards.length,
+          particles: s.particles.length,
+          labels: s.labels.length,
+          status: s.status,
+        };
+      },
+      /**
+       * 逻辑层性能剖析：同步跑 steps 帧 `updateGame`，把耗时**按系统**拆开返回。
+       *
+       * 和「量 rAF 帧耗时」是两件事：rAF 帧耗时 = 逻辑 + 渲染 + 浏览器合成，
+       * 拆不开就不知道该动哪一边。这个函数只量逻辑那一半，且是同步连跑
+       * （不掺渲染、不受刷新率影响），是判断「四叉树到底有没有用」的唯一可信信号。
+       *
+       * 注意：它会真的推进世界 steps 帧（时间和位置都会往前走），
+       * 所以要么接受这个副作用，要么跑完重新摆场景 —— 探针里两者都做了。
+       */
+      profile: (steps = 60) => {
+        const totals: Record<string, number> = {};
+        setProfileSink((name, ms) => {
+          totals[name] = (totals[name] ?? 0) + ms;
+        });
+        const t0 = performance.now();
+        for (let i = 0; i < steps; i += 1) {
+          gameStateRef.current = updateGame(
+            gameStateRef.current, mouseRef.current, keysRef.current.space,
+            isMouseDownRef.current, isRightMouseDownRef.current,
+            window.innerWidth, window.innerHeight, keysRef.current.q, keysRef.current.e
+          );
+        }
+        const totalMs = performance.now() - t0;
+        setProfileSink(null);
+        const systems = Object.entries(totals)
+          .map(([name, ms]) => ({
+            name,
+            msPerFrame: ms / steps,
+            share: totalMs > 0 ? ms / totalMs : 0,
+          }))
+          .sort((a, b) => b.msPerFrame - a.msPerFrame);
+        return { steps, totalMs, msPerFrame: totalMs / steps, systems };
       },
     };
     return () => {

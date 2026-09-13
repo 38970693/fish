@@ -75,10 +75,39 @@ export function registerSystem(
   else SYSTEMS.splice(Math.max(0, at), 0, entry);
 }
 
+/**
+ * 开发期性能剖析挂钩 —— 只有 e2e 探针（scripts/probe-perf.mjs）会装上它。
+ *
+ * 为什么放在这里：性能优化最难的一步不是「改代码」而是「知道该改谁」。
+ * 以前只能看到「有点卡」，看不出卡在 ai 还是 world。这个钩子把一帧的**逻辑耗时
+ * 按系统拆开**，于是「该优化谁」变成一个可测量的问题。
+ *
+ * 生产构建里没人调用 setProfileSink，`profiler.sink` 恒为 null，
+ * 走的是下面第一条零额外开销的分支（一次真值判断，V8 会稳定预测）。
+ *
+ * ⚠️ 用对象包一层而不是 `export let`：ESM 的 live binding 在跨模块改写时
+ *    容易让人误判「改了没生效」，包成对象后「谁都能看到同一个 sink」是显然的。
+ */
+const profiler: { sink: ((name: string, ms: number) => void) | null } = { sink: null };
+
+/** 装上 / 卸下剖析回调（传 null 卸载）。仅为探针存在，不要在生产代码里调用。 */
+export function setProfileSink(sink: ((name: string, ms: number) => void) | null): void {
+  profiler.sink = sink;
+}
+
 /** 顺序执行所有系统 */
 export function runSystems(state: GameState, ctx: FrameContext): void {
+  const sink = profiler.sink;
+  if (!sink) {
+    for (const system of SYSTEMS) {
+      system.fn(state, ctx);
+    }
+    return;
+  }
   for (const system of SYSTEMS) {
+    const t0 = performance.now();
     system.fn(state, ctx);
+    sink(system.name, performance.now() - t0);
   }
 }
 
