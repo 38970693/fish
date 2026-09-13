@@ -383,6 +383,9 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
     if (!handler) continue;
     const triggered = handler(state, ctx, b);
     if (triggered === false) continue; // 提示帧不吃冷却，否则按 E 会长时间无效
+    // 真触发才发埋点（供成就统计）。刻意不复用 'building'：那个已被 audio 订阅，
+    // 再发一次会让一次触发播两遍音效
+    ctx.events.emit('buildingUse', { type: b.type });
     b.cooldown = BUILDING_CONFIGS[b.type as keyof typeof BUILDING_CONFIGS]?.cooldown ?? 600;
     for (let i = 0; i < 15; i += 1) {
       state.particles.push(createParticle(b.x, b.y, BUILDING_DATA[b.type as BuildingType]?.color ?? '#fff'));

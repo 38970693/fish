@@ -5,7 +5,8 @@
  *  - `subscribeAchievements()`：订阅 gameEvents 做**统计**（吃鱼/背刺/升级/进化…），
  *    整个项目只调用一次（App.tsx 模块级，和 subscribeAudio 并排）。
  *  - `achievementsSystem`：注册进系统表，每帧做两件事 ——
- *      1) 从 GameState 差分出没有事件覆盖的统计（收编数 / 夺舍数，重开后归零要能兜住）
+ *      1) 从 GameState 差分出没有事件覆盖的统计（收编数 / 夺舍数 / 当前所在塘，
+ *         重开后归零要能兜住）
  *      2) 脏检查 → 解锁 → 发 'achievement' 事件（UI 弹 toast）+ 玩家头顶气泡
  *  - 进度与解锁存 localStorage，跨局累计。
  *
@@ -16,6 +17,7 @@
 import { gameEvents } from '../gameEngine';
 import { EventBus } from '../core/EventBus';
 import { ACHIEVEMENTS, type AchievementDef, type AchievementStatKey } from '../data/achievements';
+import { POND_BUILDING_TYPES } from '../data/buildings';
 import type { GameEvents, GameState, FrameContext } from '../types';
 
 /* ══════════════ 统计 ══════════════ */
@@ -32,6 +34,19 @@ interface AchievementStats {
   recruits: number;
   possessions: number;
   coins: number;
+  /** 到访过的鱼塘（集合，取 size 参与比较） */
+  ponds: Record<string, true>;
+  /** 各塘图鉴：已吃到过的特产鱼**种**数（同一种吃十次也只算一种） */
+  dexClear: number;
+  dexCoral: number;
+  dexAbyss: number;
+  /** 触发过的塘特产建筑种数（许愿池 / 珍珠场 / 沉船） */
+  pondBuildings: number;
+  /** 许愿池累计触发次数（不复位的计数，所以单独一个键） */
+  wishingWell: number;
+  /** 内部去重集合：吃过的特产鱼 / 触发过的建筑，不直接参与比较 */
+  dexSeen: Record<string, true>;
+  buildingsSeen: Record<string, true>;
 }
 
 const emptyStats = (): AchievementStats => ({
@@ -45,6 +60,14 @@ const emptyStats = (): AchievementStats => ({
   recruits: 0,
   possessions: 0,
   coins: 0,
+  ponds: {},
+  dexClear: 0,
+  dexCoral: 0,
+  dexAbyss: 0,
+  pondBuildings: 0,
+  wishingWell: 0,
+  dexSeen: {},
+  buildingsSeen: {},
 });
 
 /* ══════════════ 持久化 ══════════════ */
@@ -109,6 +132,16 @@ export const subscribeAchievements = (bus: EventBus<GameEvents> = gameEvents): v
     stats.eaten += 1;
     // 浮游生物这类一口一个的也算吃，但背刺必须是对真鱼绕后
     if (isBackAttack && victim.config.tier >= 1) stats.backstabs += 1;
+
+    // 塘图鉴：只有带 ponds 的才是特产鱼，且**首次**吃到才计数 ——
+    // 否则蹲在深渊刷十只水母就能凑满七格，图鉴就成了刷子成就
+    const ponds = victim.config.ponds;
+    if (ponds && !stats.dexSeen[victim.type]) {
+      stats.dexSeen[victim.type] = true;
+      if (ponds.includes('CLEAR')) stats.dexClear += 1;
+      if (ponds.includes('CORAL')) stats.dexCoral += 1;
+      if (ponds.includes('ABYSS')) stats.dexAbyss += 1;
+    }
     statsDirty = true;
   });
   on('levelup', ({ entity, level }) => {
@@ -142,6 +175,20 @@ export const subscribeAchievements = (bus: EventBus<GameEvents> = gameEvents): v
     stats.coins += 1;
     statsDirty = true;
   });
+  on('buildingUse', ({ type }) => {
+    // 许愿池是「累计次数」，不去重
+    if (type === 'WISHING_WELL') {
+      stats.wishingWell += 1;
+      statsDirty = true;
+    }
+    // 特产建筑打卡：同一座刷冷却再触发不重复计数
+    if (POND_BUILDING_TYPES.includes(type as (typeof POND_BUILDING_TYPES)[number]) &&
+        !stats.buildingsSeen[type]) {
+      stats.buildingsSeen[type] = true;
+      stats.pondBuildings += 1;
+      statsDirty = true;
+    }
+  });
   on('death', ({ victim }) => {
     // 预留：死亡类成就目前由夺舍/结算体现，先记着不占成就
     if (victim.id !== 'player') return;
@@ -152,19 +199,24 @@ export const subscribeAchievements = (bus: EventBus<GameEvents> = gameEvents): v
 /* ══════════════ 每帧系统 ══════════════ */
 
 /** 上一帧见到的 run 级计数（重开会归零，差分要能兜住负数） */
-let lastSeen = { recruits: 0, possessions: 0 };
+let lastSeen = { recruits: 0, possessions: 0, pond: '' };
 
-/** 某个统计键的当前值（biomes 取集合大小） */
-const statValue = (key: AchievementStatKey): number =>
-  key === 'biomes' ? Object.keys(stats.biomes).length : (stats[key] as number);
+/** 某个统计键的当前值（biomes / ponds 取集合大小） */
+const statValue = (key: AchievementStatKey): number => {
+  if (key === 'biomes') return Object.keys(stats.biomes).length;
+  if (key === 'ponds') return Object.keys(stats.ponds).length;
+  return stats[key] as number;
+};
 
 export const achievementsSystem = (state: GameState, ctx: FrameContext): void => {
-  // ── 差分统计：收编 / 夺舍没有专属事件，用 state.squad 的计数差分（重开归零 clamp 到 0）──
+  // ── 差分统计：收编 / 夺舍 / 当前塘没有专属事件，用 state 差分
+  //    （重开归零 clamp 到 0）──
   const dRecruits = state.squad.recruitedTotal - lastSeen.recruits;
   const dPossess = state.squad.possessCount - lastSeen.possessions;
   lastSeen = {
     recruits: state.squad.recruitedTotal,
     possessions: state.squad.possessCount,
+    pond: state.pondId,
   };
   if (dRecruits > 0) {
     stats.recruits += dRecruits;
@@ -172,6 +224,12 @@ export const achievementsSystem = (state: GameState, ctx: FrameContext): void =>
   }
   if (dPossess > 0) {
     stats.possessions += dPossess;
+    statsDirty = true;
+  }
+  // 「到访」没有事件可用（换塘走的是 pondTravel，它不是事件驱动），
+  // 只能每帧看 state.pondId —— 开局所在的塘也会算进去，这本来就该算
+  if (!stats.ponds[state.pondId]) {
+    stats.ponds[state.pondId] = true;
     statsDirty = true;
   }
 
@@ -239,7 +297,7 @@ export const __resetAchievementsForTest = (): void => {
   unlocked = {};
   statsDirty = false;
   frameSinceSave = 0;
-  lastSeen = { recruits: 0, possessions: 0 };
+  lastSeen = { recruits: 0, possessions: 0, pond: '' };
   subscribed = false;
   try {
     localStorage.removeItem(STORAGE_KEY);

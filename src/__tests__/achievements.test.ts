@@ -201,13 +201,13 @@ describe('成就 · 解锁与持久化', () => {
   });
 
   it('定义里每条成就的 stat 键都合法（数据自检）', () => {
-    const legalKeys = ['eaten', 'backstabs', 'maxLevel', 'evolutions', 'reversals', 'treasures', 'biomes', 'recruits', 'possessions', 'coins'];
+    const legalKeys = ['eaten', 'backstabs', 'maxLevel', 'evolutions', 'reversals', 'treasures', 'biomes', 'recruits', 'possessions', 'coins', 'ponds', 'dexClear', 'dexCoral', 'dexAbyss', 'pondBuildings', 'wishingWell'];
     for (const def of getAchievementView()) {
       expect(legalKeys).toContain(def.stat);
       expect(def.goal).toBeGreaterThan(0);
       expect(def.icon.length).toBeGreaterThan(0);
     }
-    expect(getAchievementView().length).toBeGreaterThanOrEqual(13);
+    expect(getAchievementView().length).toBeGreaterThanOrEqual(19);
   });
 
   it('coin 事件计入「守财奴」进度，够 20 枚解锁', () => {
@@ -238,5 +238,109 @@ describe('成就 · 解锁与持久化', () => {
     expect(view('coin20').progress).toBeGreaterThanOrEqual(1);
     // 拾取后 radius 置 0 → 被过滤掉
     expect(state.powerUps.find((p) => p.id === 'c1')).toBeUndefined();
+  });
+});
+
+describe('成就 · 多鱼塘（阶段 3a 特产的变现）', () => {
+  it('图鉴目标由塘特产种数推导，不是写死的数字', () => {
+    // 清水塘 2 种（小丑鱼 / 锦鲤）、珊瑚塘 3 种、深渊塘 7 种
+    expect(view('dex-clear').goal).toBe(2);
+    expect(view('dex-coral').goal).toBe(3);
+    expect(view('dex-abyss').goal).toBe(7);
+  });
+
+  it('吃遍清水塘两种特产 → 解锁「清水图鉴」', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+
+    for (const t of [CreatureType.CLOWN_FISH, CreatureType.KOI]) {
+      bus.emit('eat', {
+        attacker: state.player, victim: createEntity(t, 100, 100), isBackAttack: false, x: 0, y: 0,
+      });
+    }
+    achievementsSystem(state, ctx);
+
+    expect(view('dex-clear').unlocked).toBe(true);
+  });
+
+  it('图鉴去重：同一种特产鱼吃五次也只算一种（不然蹲着刷就能满）', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+
+    for (let i = 0; i < 5; i += 1) {
+      bus.emit('eat', {
+        attacker: state.player,
+        victim: createEntity(CreatureType.CLOWN_FISH, 100, 100),
+        isBackAttack: false, x: 0, y: 0,
+      });
+    }
+    achievementsSystem(state, ctx);
+
+    expect(view('dex-clear').progress).toBe(1);
+    expect(view('dex-clear').unlocked).toBe(false);
+  });
+
+  it('非特产鱼不进图鉴（剑鱼没有 ponds 字段）', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+
+    bus.emit('eat', {
+      attacker: state.player,
+      victim: createEntity(CreatureType.SWORD_FISH, 100, 100),
+      isBackAttack: false, x: 0, y: 0,
+    });
+    achievementsSystem(state, ctx);
+
+    expect(view('dex-abyss').progress).toBe(0);
+    expect(view('dex-clear').progress).toBe(0);
+  });
+
+  it('到访鱼塘按 state.pondId 差分：三塘走遍解锁「三塘旅人」', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+
+    achievementsSystem(state, ctx); // 开局所在的清水塘也算到访
+    expect(view('pond-traveler').progress).toBe(1);
+
+    state.pondId = 'CORAL' as typeof state.pondId;
+    achievementsSystem(state, ctx);
+    expect(view('pond-traveler').progress).toBe(2);
+
+    state.pondId = 'ABYSS' as typeof state.pondId;
+    achievementsSystem(state, ctx);
+    expect(view('pond-traveler').progress).toBe(3);
+    expect(view('pond-traveler').unlocked).toBe(true);
+  });
+
+  it('三座特产建筑各触发一次 → 解锁「探宝者」；同一座冷却转好再来不重复计数', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+
+    bus.emit('buildingUse', { type: 'WISHING_WELL' });
+    bus.emit('buildingUse', { type: 'WISHING_WELL' }); // 冷却转好又来一次
+    bus.emit('buildingUse', { type: 'PEARL_FARM' });
+    achievementsSystem(state, ctx);
+    expect(view('pond-explorer').progress).toBe(2);
+    expect(view('pond-explorer').unlocked).toBe(false);
+
+    bus.emit('buildingUse', { type: 'SHIPWRECK' });
+    achievementsSystem(state, ctx);
+    expect(view('pond-explorer').unlocked).toBe(true);
+  });
+
+  it('许愿池累计 5 次 → 解锁「许愿成真」（按次数算，不去重）', () => {
+    const { bus, ctx } = makeCtx();
+    subscribeAchievements(bus);
+    const state = makeState();
+
+    for (let i = 0; i < 5; i += 1) bus.emit('buildingUse', { type: 'WISHING_WELL' });
+    achievementsSystem(state, ctx);
+
+    expect(view('wish-come-true').unlocked).toBe(true);
   });
 });

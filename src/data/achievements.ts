@@ -6,9 +6,15 @@
  *  - 跨局累计：进度存 localStorage，换鱼、重开不清零。
  *  - 文案按玩家视角写，包括那个「被小鱼反杀」的搞笑成就 —— 逆转是玩家的高光时刻，
  *    反过来被逆杀就是耻辱柱，值得一枚成就。
+ *
+ * 「多鱼塘」后续：图鉴类成就的目标不写死数字，而是从 `getPondSpecialties()` 推导 ——
+ * 以后往某塘加特产鱼，成就目标自动跟上（见 dexGoal）。
  */
 
-/** 成就统计键。biomes 是集合，取值时用 size，其余全是数字 */
+import type { PondId } from './ponds';
+import { getPondSpecialties } from './pondEvents';
+
+/** 成就统计键。ponds 是集合（取值时用 size），其余全是数字 */
 export type AchievementStatKey =
   | 'eaten'
   | 'backstabs'
@@ -19,7 +25,13 @@ export type AchievementStatKey =
   | 'biomes'
   | 'recruits'
   | 'possessions'
-  | 'coins';
+  | 'coins'
+  | 'ponds'
+  | 'dexClear'
+  | 'dexCoral'
+  | 'dexAbyss'
+  | 'pondBuildings'
+  | 'wishingWell';
 
 export interface AchievementDef {
   id: string;
@@ -30,6 +42,9 @@ export interface AchievementDef {
   goal: number;
   stat: AchievementStatKey;
 }
+
+/** 图鉴成就的目标 = 该塘特产鱼种数；至少 1（新塘还没配特产时不至于出现 goal=0 的永动机） */
+const dexGoal = (pond: PondId): number => Math.max(1, getPondSpecialties(pond).fish.length);
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   {
@@ -135,5 +150,56 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     icon: '🪙',
     goal: 20,
     stat: 'coins',
+  },
+
+  /* ─────────── 多鱼塘（阶段 3a 特产的变现） ─────────── */
+
+  {
+    id: 'pond-traveler',
+    name: '三塘旅人',
+    desc: '三座鱼塘各逛一遍',
+    icon: '🧭',
+    goal: 3,
+    stat: 'ponds',
+  },
+  {
+    id: 'dex-clear',
+    name: '清水图鉴',
+    desc: `吃遍清水塘的 ${dexGoal('CLEAR')} 种特产鱼`,
+    icon: '📗',
+    goal: dexGoal('CLEAR'),
+    stat: 'dexClear',
+  },
+  {
+    id: 'dex-coral',
+    name: '珊瑚图鉴',
+    desc: `吃遍珊瑚塘的 ${dexGoal('CORAL')} 种特产鱼`,
+    icon: '📙',
+    goal: dexGoal('CORAL'),
+    stat: 'dexCoral',
+  },
+  {
+    id: 'dex-abyss',
+    name: '深渊图鉴',
+    desc: `吃遍深渊塘的 ${dexGoal('ABYSS')} 种特产鱼`,
+    icon: '📕',
+    goal: dexGoal('ABYSS'),
+    stat: 'dexAbyss',
+  },
+  {
+    id: 'pond-explorer',
+    name: '探宝者',
+    desc: '三座特产建筑各触发一次',
+    icon: '🏛️',
+    goal: 3,
+    stat: 'pondBuildings',
+  },
+  {
+    id: 'wish-come-true',
+    name: '许愿成真',
+    desc: '许愿池累计触发 5 次',
+    icon: '🕯️',
+    goal: 5,
+    stat: 'wishingWell',
   },
 ];

@@ -47,3 +47,11 @@ export const BUILDING_SPAWN_RULES: BuildingSpawnRule[] = [
   { type: 'PEARL_FARM', biome: 'REEF', count: 1, pond: 'CORAL' },
   { type: 'SHIPWRECK', biome: 'ABYSS', count: 1, pond: 'ABYSS' },
 ];
+
+/**
+ * 塘特产建筑（= 生成规则里带 `pond` 限定的那几座）—— 成就「探宝者」按这个集合计数。
+ * 从规则推导而不是手写清单：以后加特产建筑，成就自动跟上。
+ */
+export const POND_BUILDING_TYPES: readonly BuildingType[] = BUILDING_SPAWN_RULES
+  .filter((r) => !!r.pond)
+  .map((r) => r.type);

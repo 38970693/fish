@@ -379,6 +379,12 @@ export interface GameEvents {
   pickup: { x: number; y: number; label: string; color: string };
   biome: { from: string; to: string };
   building: { x: number; y: number; label: string; color: string };
+  /**
+   * 建筑被**真正触发**（world 的建筑统一派发点发出，只发给真触发、不发提示帧）。
+   * 与 `building` 分开是刻意的：`building` 承担着 toast 与音效（audio 已订阅），
+   * 复用它会让一次触发播两遍音效。
+   */
+  buildingUse: { type: string };
   particle: { x: number; y: number; color: string; count: number };
   /** 成就解锁（achievementsSystem 发出，UI 弹 toast） */
   achievement: { id: string; name: string; desc: string; icon: string };
