@@ -12,9 +12,11 @@
  *   · `isOverlapping` —— 双方已经重叠时不再追方位角，保持朝向直冲出去
  *   · `TARGET_HYSTERESIS_SQ` —— 锁定迟滞，新目标要近 1.25 倍才换
  *
- * 判据用**转弯半径**（路程 ÷ 角扫掠）而不是「转了几圈」：绕大圈游动的鱼
- * 转再多圈也正常，只有「转了很多圈却几乎没挪窝」才是 bug。
- * 修复前最坏 90.9 圈 / 半径 0.79px，修复后最坏 6.4 圈 / 半径 49.7px。
+ * 判据用**转弯半径**（路程 ÷ 角扫掠）**加上**「几乎没挪窝」（净位移 ÷ 路程）：
+ * 绕大圈游动的鱼转再多圈也正常，只有「转了很多圈却几乎没挪窝」才是 bug。
+ * 真 bug 实测 90.9 圈 / 半径 0.79px / 净位移 ≈1.6px；修复后同场景 6.4 圈 / 49.7px。
+ *
+ * ⚠️ 两个条件缺一不可，只看转弯半径会在随机流上误报（见 `MAX_NET_DRIFT_RATIO`）。
  */
 
 import { describe, it, expect } from 'vitest';
@@ -70,6 +72,8 @@ interface Track {
   type: string;
   sweep: number;
   path: number;
+  startX: number;
+  startY: number;
   lastX: number;
   lastY: number;
   lastAngle: number;
@@ -77,9 +81,26 @@ interface Track {
 
 /**
  * 转弯半径下限（px）：比这还小，就说明鱼在原地磨蹭而不是在游动。
- * 修好之后实测最小半径 49.7px，取 12 是为了留出余量又不至于放过真 bug。
+ * 真 bug 实测 0.79px，取 12 是为了留出余量又不至于放过真 bug。
  */
 const MIN_SANE_RADIUS = 12;
+
+/**
+ * 「几乎没挪窝」的比例上限：净位移 < 路程 × 该系数，才算原地打转。
+ *
+ * ⚠️ 这个条件**必须**有，不是保险起见。只用转弯半径会在随机流上误报：
+ * 2026-09-13 换种子做阴性对照（8 个种子），**8 个里有 4 个**报出
+ * 「PLANKTON 转 2.8~4.9 圈、半径 7.4~11.9px」—— 但磷虾 speed 只有 0.33、
+ * 半径 6px，`wander` 每 90 帧随机转 ±0.3 rad，本来就该绕小弧线慢慢漂，
+ * 这是正常姿态。这些「误报」的净位移都在 47~128px（净/路程 ≥ 0.22）——
+ * 它们在走，只是走得慢。真 bug 是**原地**打转：90.9 圈 / 半径 0.79px /
+ * 净位移 ≈1.6px，净/路程 ≈ 0.004。
+ *
+ * 取 0.1：对真 bug 有 ~25 倍余量，对漂游磷虾留 2.2 倍余量。
+ * （顺带一提：本测试注释一直写着「转了很多圈**却几乎没挪窝**才是 bug」，
+ *   而过滤条件只实现了前半句 —— 这里把后半句补齐。）
+ */
+const MAX_NET_DRIFT_RATIO = 0.1;
 
 describe('鱼不会原地转圈', () => {
   it('混合鱼群连跑 600 帧：没有鱼在小半径上磨蹭', () => {
@@ -114,7 +135,16 @@ describe('鱼不会原地转圈', () => {
         for (const e of state.entities) {
           let t = tracks.get(e.id);
           if (!t) {
-            t = { type: e.type, sweep: 0, path: 0, lastX: e.x, lastY: e.y, lastAngle: e.angle };
+            t = {
+              type: e.type,
+              sweep: 0,
+              path: 0,
+              startX: e.x,
+              startY: e.y,
+              lastX: e.x,
+              lastY: e.y,
+              lastAngle: e.angle,
+            };
             tracks.set(e.id, t);
           }
           t.sweep += Math.abs(deltaAngle(e.angle, t.lastAngle));
@@ -128,11 +158,22 @@ describe('鱼不会原地转圈', () => {
       // 场景有效性：真的跑起来了一池鱼，否则下面的断言是空过
       expect(tracks.size).toBeGreaterThan(30);
 
+      const netDrift = (t: Track): number => Math.hypot(t.lastX - t.startX, t.lastY - t.startY);
+
       return [...tracks.values()]
-        .filter((t) => t.sweep >= Math.PI * 4 && t.path > 200 && t.path / t.sweep < MIN_SANE_RADIUS)
+        .filter(
+          (t) =>
+            t.sweep >= Math.PI * 4 &&
+            t.path > 200 &&
+            t.path / t.sweep < MIN_SANE_RADIUS &&
+            // 真的「没挪窝」：净位移远小于路程（漂游的磷虾会被这一条挡掉）
+            netDrift(t) < t.path * MAX_NET_DRIFT_RATIO
+        )
         .map(
           (t) =>
-            `${t.type} 转${(t.sweep / (Math.PI * 2)).toFixed(1)}圈 半径${(t.path / t.sweep).toFixed(1)}px`
+            `${t.type} 转${(t.sweep / (Math.PI * 2)).toFixed(1)}圈 ` +
+            `半径${(t.path / t.sweep).toFixed(1)}px ` +
+            `净位移${netDrift(t).toFixed(0)}px/路程${t.path.toFixed(0)}px`
         );
     });
 
