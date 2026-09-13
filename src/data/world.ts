@@ -41,7 +41,15 @@ export const BOOST_CONFIG = {
   MAX_ENERGY: 100,
   DRAIN_RATE: 0.5,
   REGEN_RATE: 0.3,
-  SPEED_MULTIPLIER: 2.2,
+  /**
+   * 加速冲刺的速度倍率（乘在常速之上，见 systems/playerControl.ts）。
+   *
+   * 2026-09-13 用户反馈「游动速度太慢了，可以把加速提高一倍」→ 2.2 → **4.4**。
+   * 只动爆发段：常速（`player.speed`）与体力（MAX_ENERGY / DRAIN_RATE）都没变，
+   * 所以「冲刺更快」≠「能一直快」—— 满体力仍约 3.3 秒用光（100 / 0.5 帧）。
+   * 回归 `src/__tests__/boost-speed.test.ts`（行为断言比 = 本常量，不写死数字）。
+   */
+  SPEED_MULTIPLIER: 4.4,
 };
 
 /** 新手保护 / 复活保护 */
