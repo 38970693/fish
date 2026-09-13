@@ -6,7 +6,12 @@
  */
 
 export const WORLD_SIZE = 6000;
-export const MAX_ENTITIES = 180;
+/**
+ * 实体上限。180 → 300（2026-09-13，用户要求）：宽相三刀（AI 邻居 / 障碍推挤 /
+ * combat 捕食全走 QuadTree）后逻辑 0.575ms@180，300 实体按 O(n log n) 估算 ~1ms，
+ * 仍在 16.7ms 帧预算内 —— 提额前用 scripts/probe-perf.mjs 实测过。
+ */
+export const MAX_ENTITIES = 300;
 export const MAX_OBSTACLES = 80;
 export const MAX_POWERUPS = 40;
 

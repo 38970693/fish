@@ -1,0 +1,583 @@
+{
+  "label": "e300",
+  "at": "2026-09-13T14:18:53.876Z",
+  "config": {
+    "rounds": 3,
+    "frames": 180,
+    "profileSteps": 180,
+    "warmupSteps": 2400,
+    "viewport": [
+      1280,
+      800
+    ]
+  },
+  "warmup": {
+    "ms": 3069.3000000044703,
+    "counts": {
+      "entities": 300,
+      "activeAI": 31,
+      "obstacles": 48,
+      "buildings": 6,
+      "portals": 6,
+      "fountains": 2,
+      "treasures": 3,
+      "powerUps": 37,
+      "hazards": 0,
+      "particles": 20,
+      "labels": 13,
+      "status": "PLAYING"
+    }
+  },
+  "scenes": {
+    "cluster": {
+      "countsAtStart": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 48,
+        "buildings": 6,
+        "portals": 6,
+        "fountains": 0,
+        "treasures": 3,
+        "powerUps": 15,
+        "hazards": 0,
+        "particles": 400,
+        "labels": 12,
+        "status": "PLAYING"
+      },
+      "countsAtEnd": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 48,
+        "buildings": 6,
+        "portals": 6,
+        "fountains": 0,
+        "treasures": 4,
+        "powerUps": 16,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 12,
+        "status": "PLAYING"
+      },
+      "logicMsPerFrame": 0.7753703703758893,
+      "logicBySystem": [
+        {
+          "name": "ai",
+          "msPerFrame": 0.27648148153115204
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.2600000000662274
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.19796296279463504
+        },
+        {
+          "name": "concealment",
+          "msPerFrame": 0.02388888892752153
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.005185185221058351
+        },
+        {
+          "name": "progression",
+          "msPerFrame": 0.0016666666501098208
+        },
+        {
+          "name": "items",
+          "msPerFrame": 0.0014814814897599043
+        },
+        {
+          "name": "events",
+          "msPerFrame": 0.001296296274220502
+        },
+        {
+          "name": "achievements",
+          "msPerFrame": 0.0007407407379812664
+        },
+        {
+          "name": "skills",
+          "msPerFrame": 0.000555555550036607
+        },
+        {
+          "name": "playerControl",
+          "msPerFrame": 0.0005555555362392354
+        },
+        {
+          "name": "pondEvent",
+          "msPerFrame": 0.00037037037588931893
+        },
+        {
+          "name": "spawn",
+          "msPerFrame": 0
+        }
+      ],
+      "frameMs": {
+        "p50": 5.299999999999272,
+        "p95": 35.79999999999927,
+        "p99": 42.100000000000364,
+        "max": 53.600000000000364,
+        "mean": 10.349074074074078,
+        "fps": 188.67924528304476,
+        "samples": 540
+      },
+      "renderMs": {
+        "p50": 19.700000002980232,
+        "p95": 21.400000005960464,
+        "p99": 22.099999994039536,
+        "mean": 19.846111111053162,
+        "samples": 180
+      },
+      "heap": {
+        "startMB": 32.501115798950195,
+        "endMB": 32.501115798950195,
+        "minMB": 32.501115798950195,
+        "maxMB": 32.501115798950195,
+        "gcEvents": 0,
+        "maxDropMB": 0,
+        "samples": 180,
+        "usable": false
+      },
+      "drawCalls": {
+        "frames": 181,
+        "raw": {
+          "frames": 181,
+          "fill": 300240,
+          "stroke": 68583,
+          "fillRect": 1267,
+          "drawImage": 0,
+          "fillText": 8894,
+          "measureText": 2057,
+          "save": 137893,
+          "restore": 137893,
+          "beginPath": 318497,
+          "arc": 303527,
+          "lineTo": 83753,
+          "quadraticCurveTo": 5912,
+          "ellipse": 3844,
+          "rect": 0,
+          "roundRect": 2641,
+          "clip": 0,
+          "setLineDash": 5973,
+          "linearGradient": 4025,
+          "radialGradient": 8231,
+          "shadowBlurSets": 9733,
+          "shadowedDraws": 31007
+        },
+        "perFrame": {
+          "fill": 1658.7845303867402,
+          "stroke": 378.91160220994476,
+          "fillRect": 7,
+          "drawImage": 0,
+          "fillText": 49.13812154696133,
+          "measureText": 11.3646408839779,
+          "save": 761.8397790055249,
+          "restore": 761.8397790055249,
+          "beginPath": 1759.6519337016575,
+          "arc": 1676.9447513812154,
+          "lineTo": 462.72375690607737,
+          "quadraticCurveTo": 32.66298342541437,
+          "ellipse": 21.23756906077348,
+          "rect": 0,
+          "roundRect": 14.591160220994475,
+          "clip": 0,
+          "setLineDash": 33,
+          "linearGradient": 22.23756906077348,
+          "radialGradient": 45.47513812154696,
+          "shadowBlurSets": 53.773480662983424,
+          "shadowedDraws": 171.30939226519337
+        }
+      },
+      "attribution": {
+        "full": {
+          "p50": 19.799999997019768,
+          "mean": 19.780000000136592,
+          "p95": 21.200000002980232
+        },
+        "noShadow": {
+          "p50": 12.899999998509884,
+          "mean": 12.970000000049671,
+          "p95": 14.100000001490116
+        },
+        "noEntities": {
+          "p50": 16.600000001490116,
+          "mean": 16.773333333308496,
+          "p95": 18.299999997019768
+        },
+        "noParticlesLabels": {
+          "p50": 14.5,
+          "mean": 14.580833333358168,
+          "p95": 16
+        }
+      }
+    },
+    "edge": {
+      "countsAtStart": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 48,
+        "buildings": 6,
+        "portals": 6,
+        "fountains": 0,
+        "treasures": 3,
+        "powerUps": 15,
+        "hazards": 0,
+        "particles": 400,
+        "labels": 12,
+        "status": "PLAYING"
+      },
+      "countsAtEnd": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 48,
+        "buildings": 6,
+        "portals": 6,
+        "fountains": 0,
+        "treasures": 3,
+        "powerUps": 15,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 12,
+        "status": "PLAYING"
+      },
+      "logicMsPerFrame": 0.942037037042556,
+      "logicBySystem": [
+        {
+          "name": "combat",
+          "msPerFrame": 0.3935185185323159
+        },
+        {
+          "name": "ai",
+          "msPerFrame": 0.29518518516862835
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.2094444444196092
+        },
+        {
+          "name": "concealment",
+          "msPerFrame": 0.023703703684387387
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.006481481509076225
+        },
+        {
+          "name": "progression",
+          "msPerFrame": 0.0016666666777045637
+        },
+        {
+          "name": "items",
+          "msPerFrame": 0.0014814814759625328
+        },
+        {
+          "name": "events",
+          "msPerFrame": 0.0012962962880178734
+        },
+        {
+          "name": "playerControl",
+          "msPerFrame": 0.000925925898331183
+        },
+        {
+          "name": "skills",
+          "msPerFrame": 0.0007407407517786379
+        },
+        {
+          "name": "achievements",
+          "msPerFrame": 0.0007407407517786379
+        },
+        {
+          "name": "spawn",
+          "msPerFrame": 0.0005555555638339784
+        },
+        {
+          "name": "pondEvent",
+          "msPerFrame": 0.000555555550036607
+        }
+      ],
+      "frameMs": {
+        "p50": 22.5,
+        "p95": 27.60000000000582,
+        "p99": 30.39999999999418,
+        "max": 37.70000000000073,
+        "mean": 22.728888888888886,
+        "fps": 44.44444444444444,
+        "samples": 540
+      },
+      "renderMs": {
+        "p50": 20.899999998509884,
+        "p95": 22.600000001490116,
+        "p99": 25.299999997019768,
+        "mean": 21.047222222263613,
+        "samples": 180
+      },
+      "heap": {
+        "startMB": 41.71951484680176,
+        "endMB": 41.71951484680176,
+        "minMB": 41.71951484680176,
+        "maxMB": 41.71951484680176,
+        "gcEvents": 0,
+        "maxDropMB": 0,
+        "samples": 180,
+        "usable": false
+      },
+      "drawCalls": {
+        "frames": 181,
+        "raw": {
+          "frames": 181,
+          "fill": 309426,
+          "stroke": 69992,
+          "fillRect": 1497,
+          "drawImage": 0,
+          "fillText": 8385,
+          "measureText": 2002,
+          "save": 143696,
+          "restore": 143696,
+          "beginPath": 327597,
+          "arc": 312653,
+          "lineTo": 83503,
+          "quadraticCurveTo": 5944,
+          "ellipse": 3832,
+          "rect": 0,
+          "roundRect": 2660,
+          "clip": 0,
+          "setLineDash": 5973,
+          "linearGradient": 4013,
+          "radialGradient": 8207,
+          "shadowBlurSets": 9683,
+          "shadowedDraws": 30878
+        },
+        "perFrame": {
+          "fill": 1709.53591160221,
+          "stroke": 386.69613259668506,
+          "fillRect": 8.2707182320442,
+          "drawImage": 0,
+          "fillText": 46.32596685082873,
+          "measureText": 11.060773480662984,
+          "save": 793.9005524861878,
+          "restore": 793.9005524861878,
+          "beginPath": 1809.9281767955802,
+          "arc": 1727.364640883978,
+          "lineTo": 461.3425414364641,
+          "quadraticCurveTo": 32.83977900552486,
+          "ellipse": 21.171270718232044,
+          "rect": 0,
+          "roundRect": 14.696132596685082,
+          "clip": 0,
+          "setLineDash": 33,
+          "linearGradient": 22.171270718232044,
+          "radialGradient": 45.34254143646409,
+          "shadowBlurSets": 53.49723756906077,
+          "shadowedDraws": 170.59668508287294
+        }
+      },
+      "attribution": {
+        "full": {
+          "p50": 21.100000001490116,
+          "mean": 21.312500000062087,
+          "p95": 23
+        },
+        "noShadow": {
+          "p50": 14.799999997019768,
+          "mean": 14.822500000086924,
+          "p95": 15.700000002980232
+        },
+        "noEntities": {
+          "p50": 16.5,
+          "mean": 16.671666666616996,
+          "p95": 18.100000001490116
+        },
+        "noParticlesLabels": {
+          "p50": 15.799999997019768,
+          "mean": 16.00250000003725,
+          "p95": 17.599999994039536
+        }
+      }
+    },
+    "far": {
+      "countsAtStart": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 48,
+        "buildings": 6,
+        "portals": 6,
+        "fountains": 0,
+        "treasures": 3,
+        "powerUps": 15,
+        "hazards": 0,
+        "particles": 400,
+        "labels": 12,
+        "status": "PLAYING"
+      },
+      "countsAtEnd": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 48,
+        "buildings": 6,
+        "portals": 6,
+        "fountains": 0,
+        "treasures": 3,
+        "powerUps": 15,
+        "hazards": 1,
+        "particles": 24,
+        "labels": 12,
+        "status": "PLAYING"
+      },
+      "logicMsPerFrame": 0.7894444444389256,
+      "logicBySystem": [
+        {
+          "name": "ai",
+          "msPerFrame": 0.284074073974733
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.2698148148341311
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.1968518519153198
+        },
+        {
+          "name": "concealment",
+          "msPerFrame": 0.022592592611908914
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.00537037031242141
+        },
+        {
+          "name": "items",
+          "msPerFrame": 0.002222222200146428
+        },
+        {
+          "name": "events",
+          "msPerFrame": 0.0016666666777045637
+        },
+        {
+          "name": "achievements",
+          "msPerFrame": 0.0011111111138705854
+        },
+        {
+          "name": "playerControl",
+          "msPerFrame": 0.000925925925925926
+        },
+        {
+          "name": "progression",
+          "msPerFrame": 0.0007407407517786379
+        },
+        {
+          "name": "pondEvent",
+          "msPerFrame": 0.00037037037588931893
+        },
+        {
+          "name": "skills",
+          "msPerFrame": 0.00018518518794465947
+        },
+        {
+          "name": "spawn",
+          "msPerFrame": 0
+        }
+      ],
+      "frameMs": {
+        "p50": 6.400000000001455,
+        "p95": 10.19999999999709,
+        "p99": 12.69999999999709,
+        "max": 14.5,
+        "mean": 6.75166666666667,
+        "fps": 156.24999999996447,
+        "samples": 540
+      },
+      "renderMs": {
+        "p50": 4.700000002980232,
+        "p95": 5.4000000059604645,
+        "p99": 5.899999998509884,
+        "mean": 4.791666666625274,
+        "samples": 180
+      },
+      "heap": {
+        "startMB": 49.24500846862793,
+        "endMB": 49.24500846862793,
+        "minMB": 49.24500846862793,
+        "maxMB": 49.24500846862793,
+        "gcEvents": 0,
+        "maxDropMB": 0,
+        "samples": 180,
+        "usable": false
+      },
+      "drawCalls": {
+        "frames": 181,
+        "raw": {
+          "frames": 181,
+          "fill": 75217,
+          "stroke": 18265,
+          "fillRect": 181,
+          "drawImage": 0,
+          "fillText": 499,
+          "measureText": 137,
+          "save": 34475,
+          "restore": 34475,
+          "beginPath": 81327,
+          "arc": 74332,
+          "lineTo": 35570,
+          "quadraticCurveTo": 5792,
+          "ellipse": 1448,
+          "rect": 0,
+          "roundRect": 274,
+          "clip": 0,
+          "setLineDash": 1629,
+          "linearGradient": 1629,
+          "radialGradient": 2896,
+          "shadowBlurSets": 2534,
+          "shadowedDraws": 9050
+        },
+        "perFrame": {
+          "fill": 415.56353591160223,
+          "stroke": 100.91160220994475,
+          "fillRect": 1,
+          "drawImage": 0,
+          "fillText": 2.7569060773480665,
+          "measureText": 0.7569060773480663,
+          "save": 190.4696132596685,
+          "restore": 190.4696132596685,
+          "beginPath": 449.3204419889503,
+          "arc": 410.6740331491713,
+          "lineTo": 196.51933701657458,
+          "quadraticCurveTo": 32,
+          "ellipse": 8,
+          "rect": 0,
+          "roundRect": 1.5138121546961325,
+          "clip": 0,
+          "setLineDash": 9,
+          "linearGradient": 9,
+          "radialGradient": 16,
+          "shadowBlurSets": 14,
+          "shadowedDraws": 50
+        }
+      },
+      "attribution": {
+        "full": {
+          "p50": 4.899999998509884,
+          "mean": 4.877499999975165,
+          "p95": 5.399999998509884
+        },
+        "noShadow": {
+          "p50": 4.299999997019768,
+          "mean": 4.335833333308498,
+          "p95": 4.799999997019768
+        },
+        "noEntities": {
+          "p50": 3.100000001490116,
+          "mean": 3.162500000062088,
+          "p95": 3.5
+        },
+        "noParticlesLabels": {
+          "p50": 4.899999998509884,
+          "mean": 4.875833333283663,
+          "p95": 5.299999997019768
+        }
+      }
+    }
+  },
+  "errors": []
+}

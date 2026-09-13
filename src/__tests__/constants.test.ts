@@ -19,7 +19,8 @@ describe('Constants - World Configuration', () => {
 
   it('should have valid MAX_ENTITIES', () => {
     expect(MAX_ENTITIES).toBeGreaterThan(0);
-    expect(MAX_ENTITIES).toBeLessThanOrEqual(200);
+    // 2026-09-13 宽相三刀后提额：180 → 300（实测逻辑 ~1ms@300，见 data/world.ts 注释）
+    expect(MAX_ENTITIES).toBeLessThanOrEqual(300);
   });
 });
 
