@@ -1417,6 +1417,24 @@ const hexToRgb = (hex: string): string => {
         : '255, 255, 255';
 };
 
+/**
+ * 大肉块（诱惑生效中）：玩家技能与 AI 灯笼鱼共用。
+ * 「变成大肉块骗小鱼」的伪装要成立，肉块形态就不能只属于玩家 ——
+ * AI 灯笼鱼开着诱饵时也得真的是一块肉，而不是一条发着灯的鮟鱇。
+ */
+const drawMeatBlock = (ctx: CanvasRenderingContext2D, e: Entity): void => {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.fillStyle = '#ef4444'; // Red meat
+    ctx.beginPath();
+    ctx.ellipse(0, 0, e.radius * 1.5, e.radius, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fca5a5'; // Fat marbling
+    ctx.beginPath(); ctx.ellipse(-e.radius*0.5, 0, e.radius*0.8, e.radius*0.2, Math.PI/4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(e.radius*0.3, e.radius*0.2, e.radius*0.6, e.radius*0.15, -Math.PI/6, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+};
+
 // 偷袭提示绘制函数
 const drawAmbushIndicator = (ctx: CanvasRenderingContext2D, entity: Entity, playerX: number, playerY: number, playerLevel: number, visualTime: number) => {
     if (entity.level <= playerLevel) return; // Only show on fish larger than player
@@ -1899,7 +1917,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         // 视口裁剪：只渲染可见的实体
         const visibleEntities = entities.filter(e => isOnScreen(e, camera, canvas.width, canvas.height));
 
-        visibleEntities.forEach(e => drawCuteFish(ctx, e, visualTime, false));
+        // 诱饵开着的鱼（灯笼鱼埋伏）画成「大肉块」—— 伪装的意义就是让小鱼认不出来
+        visibleEntities.forEach(e => {
+            if (e.lureActive) drawMeatBlock(ctx, e);
+            else drawCuteFish(ctx, e, visualTime, false);
+        });
 
         // 战队成员标记：青色虚线环 + 头顶「己」字，跟野怪一眼分开
         visibleEntities.forEach(e => {
@@ -1926,16 +1948,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // 诱惑技能生效中：玩家画成一块大肉（武器机甲已随武器系统移除）
         if (player.lureActive) {
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            ctx.fillStyle = '#ef4444'; // Red meat
-            ctx.beginPath();
-            ctx.ellipse(0, 0, player.radius * 1.5, player.radius, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fca5a5'; // Fat marbling
-            ctx.beginPath(); ctx.ellipse(-player.radius*0.5, 0, player.radius*0.8, player.radius*0.2, Math.PI/4, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(player.radius*0.3, player.radius*0.2, player.radius*0.6, player.radius*0.15, -Math.PI/6, 0, Math.PI*2); ctx.fill();
-            ctx.restore();
+            drawMeatBlock(ctx, player);
         } else {
             drawCuteFish(ctx, player, visualTime, true);
         }

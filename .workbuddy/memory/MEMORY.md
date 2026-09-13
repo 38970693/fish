@@ -15,6 +15,7 @@
 - 生物形状：creatureShapes 20 形 + fishShapes 三件套；复用形状换色=新物种；测试造实体必须显式传 shape id。
 - 隐蔽：canPerceive 是锁定唯一收口（CONCEAL_REVEAL_RANGE=80，不能 <67）；combat 命中**所有加成后、掷骰前**乘 CONCEAL_BITE_PROB_MULT=0.2（放地板值 max(eatProb,0.5) 前会被覆盖）。隐身←声呐反制，草丛←只能贴脸破。
 - 击杀等级门闸：COMBAT_CONFIG.KILL_LEVEL_GATE + combat.ts isUnkillable —— victim.level > attacker.level 杀不死：伤害/缩水/猛回头照常、血量保底 1、吞噬失效（背刺重击同兜底）。AI 等级=tier+1、玩家=体重/10+1；BOSS 通关需玩家升到同级（p0 钉 level20 天然放行）；逆转（小鱼磨死大鱼）保留但仅限同级。
+- 埋伏鱼威胁逃跑：ambushBehavior 顶部先查「半径>自己的敌人」→ 收饵+lureActive=false+fleeFrom（优先级 威胁>猎物>待机）。lureActive 实体渲染走 drawMeatBlock（玩家/AI 共用肉块形态）。⚠️ **aiSystem 有 AI LOD：离玩家 >2600（AI_ACTIVE_RANGE）不模拟 —— aiSystem 单测摆位玩家必须在 2600 内、感知圈外**。
 - 心境：数值型只改倍率（CALM 全 1=旧行为）；测试钉 moodId:'CALM' 防随机 flake；追/退边界必须有停泊带（CURIOUS_PARK=380、SOCIABLE_KEEP=135）。
 - 转圈第二味药：重叠时 isOverlapping 不追方位角直冲（判定只用半径和）+ TARGET_HYSTERESIS_SQ=1.25²（存 Entity.lockId，别用 targetId）。
 - 约束两通路统一：resolveObstacles 与 clampToMap 共用 alignToSurface（推表面+限速掰切向 0.35rad/帧）；缓入区只减速不夺方向盘；静止实体只推位置。

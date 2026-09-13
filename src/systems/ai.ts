@@ -286,6 +286,23 @@ const aggressiveBehavior: AIHandler = (entity, state) => {
 /** 埋伏：静止漂浮，猎物进入范围才暴起 */
 const ambushBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
+
+  /* 威胁优先（2026-09-13 需求：灯笼鱼「来的鱼比自己大则逃跑」）：
+   * 体型比自己大的敌人进入感知范围 → 收起诱饵、掉头就跑。
+   * 判据用**半径**，和 LURE 吸引是同一把尺子（那边只骗比自己小的鱼）；
+   * 同级大鱼靠「同级大吃小」也咬得死我，只看等级会漏掉真正的威胁。 */
+  const threat = findNearest(
+    entity,
+    (other) => isEnemy(entity)(other) && other.radius > entity.radius,
+    senseRangeSq(entity, GAME_MECHANICS.AMBUSH_DISTANCE)
+  );
+  if (threat.entity) {
+    entity.isIdle = false;
+    entity.lureActive = false; // 跑路时不再是「大肉块」，别举着香味骗小鱼送死
+    fleeFrom(entity, threat.entity, state, agility);
+    return;
+  }
+
   const prey = findNearest(
     entity,
     (other) => isEnemy(entity)(other) && other.level < entity.level,
