@@ -21,6 +21,8 @@
 - **装扮/预览**（029ed2b → 45e4a89，2026-09-12 补全）：预览必须复用 drawCuteFish（GameCanvas 导出）；选项收在 data/cosmeticsOptions.ts（11 份清单），面板用 data-cosmetic-key/value 选择器 + 7 页签（含五官/身形）。⚠️ **上架铁律两面**：没渲染分支的不上架 + 渲染无区分度的也不上架（体型 STAR 参数与 ROUND 重合）。嘴型改鱼身前缘轮廓（mouthOpen 收口开口角），牙齿只给 TRIANGLE/SQUARE 露、FLAT 不画内壁、喙/唇线画在身体 fill 之后；bodyType 缩放放玩家光环之后。
 - **AI 心境**（8fc876e，2026-09-12）：data/moods.ts 8 心境（悠闲/警觉/胆怯/饥饿/好奇/群聚/瞌睡/狂躁）；数值型只改倍率（CALM 全 1 = 旧行为），接管型 MOOD_HANDLERS 先于种族行为分发；`senseRangeSq` 收口感知半径；到期重抽（angerTimer>0 交战不换）；HUD 画 emoji 徽章（玩家 900px 内）。⚠️ **随机性纪律：测试钉 `moodId:'CALM'` 或钉 moodWeights 权重，不掷骰子做断言**（concealment flake 实证）。⚠️ **追/退边界必须有停泊带**（squad FOLLOW_DEADZONE 同款经验）：两个全推力分支贴一条边界 + 转向增益 ~0.45/帧 = 原地打转 —— 好奇 CURIOUS_PARK=380、群聚 SOCIABLE_KEEP=135，带内减速滑停（修复见 2026-09-12 日志）。
 - **「原地转圈」第二味药**（2026-09-13，用户报「还是会有」）：停泊带只治了边界互抢方向盘，另有两条病根 —— ①**`atan2` 奇点**：实体间**没有分离力、可以互相重叠**，追/逃双方贴到重合时方位角随微小位移翻半圈 → 每帧满敏捷转向、转弯半径<1px（磷虾 0.84、乌龟 1.44 rad/帧）；②**锁定抖动**：若干威胁距离相近时「最近的那条」每帧易主。修法：`isOverlapping()` 重叠时**不追方位角、保持朝向直冲**（判定**只用半径和、不加余量** —— 加 24px 会吞掉 concealment 的「贴脸识破」用例，双髻鲨 r50 摆在 75px）；`TARGET_HYSTERESIS_SQ=1.25²` 锁定迟滞，记忆存新增可选字段 `Entity.lockId`（**别用 targetId**，被「混乱」技能改写；隐蔽仍一票否决，大鱼反制探测不写回）。判据用**转弯半径 = 路程÷角扫掠**（不是圈数）：修复前 90.9 圈/0.79px → 修复后 6.4 圈/49.7px。回归 `orbit.test.ts`，两味药各自做过反向验证。
+- **障碍物滑走**（2026-09-13，用户报「遇到障碍物会顿挫」）：`terrain.ts resolveObstacles` 原来**只推位置、从不改朝向** → 目标在岩石另一侧时「推进扎进去 + 推回表面」净位移=0，**顶死在石头上**（玩家贴面 387/400 帧、扫掠 0.00rad）。补上与边界同款的切向处理：推表面 → 朝向**限速**掰向切向（切向基 `(-ny,nx)`，按 `sign(cos·tx+sin·ty)` 取同侧那一支防左右乱翻）→ `vx/vy` 跟着朝向重设。⚠️ **必须限速**（`SLIDE_TURN_PER_FRAME=0.35` rad/帧）：渲染是 `ctx.rotate(angle)`，正面撞切向差最多 90°，一帧扭过去**本身就是新抽搐**；⚠️ **趴着不动的（伏击/打盹，speed<1e-4）只推位置不改朝向**；两遍处理保留（夹缝防锁死）。判据：贴面帧数够多**且**切向位移显著。回归 `obstacle-slide.test.ts`（3 例）+ 探针 `probe-obstacle-slide.mjs`。
+- **「边界做了平滑、障碍物没做」= 通用怀疑点**：地图边界 `clampToMap` 早就算切向做平滑（反射向内 + 朝向朝圆心压 0.6 + 软限速挡），障碍物一直没跟上 —— **改碰撞/约束前先对照另一条约束通路是否已有成熟处理，直接搬，别另发明**。
 - **取证手法（可复用）**：转圈/抖动类 bug 三步 —— ①真实 updateGame 帧循环 + 钉种子，按实体累计「角扫掠/路程/净位移」定位最坏个体；②给 `angle` 装 `Object.defineProperty` setter 抓**每帧写入次数+调用栈**，证明只有一个写者（排除两系统互抢）；③`Δ角 ÷ agility` 反推角差 ≈ −π → 锁定方位角奇点。⚠️ 抓栈过滤用 `includes('systems')`，**别用 `/src/`**（Windows 栈是反斜杠）。
 
 ## 本机环境坑（重要！）
@@ -29,6 +31,8 @@
 - PowerShell 禁 `cmd /c`；含 %VAR% 样式 token 的命令被拦（git log --format=%s 也拦）→ 换写法或拆两条发。
 - Get-Content 读 UTF-8 要加 -Encoding utf8（乱码/行数不准）→ 读文件优先 Read 工具。
 - git commit -F 传 Windows 正斜杠路径 C:/...（/c/... 读不到）；中文 message 落库正确，控制台乱码仅显示问题。npm 被 safe-delete 包装器拦截；vite 占 esbuild 文件锁时 npm ci 会失败。
+- **删文件别用 `Remove-Item`**（被 safe-delete 包装器拦，exit 1 且无输出，极易误判成功）→ 用 `node -e "require('fs').unlinkSync('x')"`。
+- **命令重定向的日志命名**：不带点的 `*-out.txt` 会被 `git add -A` 卷进来（9-11 已踩一次）→ `.gitignore` 已加 `/*-out.txt`；养成加点前缀（`.tsc-out.txt`）的习惯。
 - **.git 会莫名被清空** → 动 git 前 tar -czf 备份到 E:\gitlab\git-backup\；已删文件偶发自愈复活，工作树冒出旧文件先怀疑这个。
 - **嵌套 ref（带 / 的分支名）被 git 静默删掉且 exit 0** → 一律扁平分支名。
 - git 报 bad tree / unable to read tree / repack failed = 老 history 缺对象，**commit 不需要父 tree，直接提交即可，报错是噪音**。
@@ -40,16 +44,18 @@
 - **《开发任务清单.md》= 唯一执行入口**（待办分级 P0~P3 / 现状实测 / 验收模板 / 技术债 / 推荐顺序）。
 - 《开发计划.md》= 功能**规格**与历史（§十一 优先级表已归档，状态不可信）；《开发路线图.md》= 每轮交付记录与踩坑；《多鱼塘立项设计.md》= 多鱼塘专题与 2b 暂缓决策。README 挂四份指针。
 - ⚠️ **状态一律 grep 代码核实，不抄旧文档标记**（实测 §十一 里成就/排行榜/金币/传送门特效/无敌护盾全已完成却仍标 🔄）。
-- 当前待办首选：**P0-2 塘内独立成就**（纯加数据，让 3a 特产变现）；次选 P0-1 装扮子集补全（花纹 10/24、鳞片 7/15、眼睛 8/12、牙齿 8/13、配饰 8/15，缺的都是没渲染分支的）。
+- 当前待办首选：**P0-1 装扮子集补全**（花纹 10/24、鳞片 7/15、眼睛 8/12、牙齿 8/13、配饰 8/15，缺的都是没渲染分支的）；P0-2 塘内独立成就已于 2026-09-13 完成 ✅。
 - 已排除不是欠账：追踪鱼雷（按需求移除）、VIP（字段已删）、联机（需立项）。
 
 ## 游戏手感
 - 花瓣地图 r=2000+1200·|sin(2a)|，中心 (3000,3000)（出生点），商场 (1500,1500) E 进 1.5 倍圈；WORLD_SIZE 6000；SEAWEED 只长 SWAMP、可穿行可藏身；游戏是固定步长累加器（16.67ms/步，headless 不限帧也一致）。
-- 边界顺序：先 resolveObstacles 后 clampToMap；React RAF 循环用 alive 标记自排下一帧。
+- 边界顺序：先 resolveObstacles 后 clampToMap（两条通路**都要有切向平滑**，否则实体顶在约束上原地顿挫）；React RAF 循环用 alive 标记自排下一帧。
 
 ## 测试 / 探针约定
 - 模块级状态的系统先加 `__resetXxx()` 再写用例（prevInteract / teleportLock / switchCursor）；钉 Math.random 按系统真实取数顺序给序列（spawn：tier→食物判定→池内选择→刷点 x,y）。
-- 探针断言：玩家位置用容差；HUD 用 waitForSelector（uiState 100ms 才同步）；瞬时表现按 timer 帧数倒推采样（气泡仅 45 帧）；诱饵/追兵给 biteCooldown=9999 防被玩家吞掉；冻结画面别用 status='MENU'（GameCanvas 会卸载）；清场+读像素同一次 evaluate；采样框用当帧 camera 现算；测试物染与待测特征正交的颜色。
+- 探针断言：玩家位置用容差；HUD 用 waitForSelector（uiState 100ms 才同步）；瞬时表现按 timer 帧数倒推采样（气泡仅 45 帧）；诱饵/追兵给 biteCooldown=9999 防被玩家吞掉；冻结画面别用 status='MENU'（GameCanvas 会卸载）→ **保持 PLAYING，把干扰源（实体/障碍/道具）物理挪走**；清场+读像素同一次 evaluate；采样框用当帧 camera 现算；测试物染与待测特征正交的颜色。
+- **定场景别靠运气**：用 `window.__FISH_DEBUG__`（dev-only，`{state,player,squad}`）直接改 state 摆场景（贴到某块岩石表面等），比「等它自己游过去」可靠。
+- 全屏截图常常认不出被测对象（同色/被遮挡）→ 用 `state.camera` + `zoom` 现算屏幕坐标，再 `page.screenshot({ clip })` 裁近景。⚠️ `page.evaluate` 里**不能直接引用 Node 侧变量**（如 W/H），要当参数传进去。
 - text= 是子串匹配，点击与计数都会被污染（**差值恒定 → 先怀疑作用域，别查逻辑**）；点按钮用 button:has-text，计数先锁容器再数行；e2e 用 channel:'chromium'。
 - 探针截图命名定去留：与脚本同名的 `-probe.png` 忽略；描述性命名 = 功能证据 = 提交（README/gen-deliverable 引用，承重）。凡「脚本产物+忽略规则」收尾看 git status 是否以 `??` 出现。
 - 「按钮在、渲染空」类 bug：单测用记录型 canvas ctx 指纹（调用+样式 setter 串串，两两不同 + 比未实现基准多，配 positive control）；e2e 用 toDataURL 去重 / getImageData 平均色；动画 canvas 进 rAF 前先同步画一帧防首帧空白。⚠️ animate=true 的预览**不能拿 toDataURL 做前后对比**（每帧都不同，断言恒真）→ 用静态缩略图采像素或平均色分量。

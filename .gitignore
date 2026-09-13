@@ -40,3 +40,5 @@ scripts/*-probe.png
 .vitest-out.txt
 .probe-out.txt
 .check.txt
+# 不带点的同义写法（PowerShell 记不住加点的习惯，干脆一起挡掉）
+/*-out.txt
