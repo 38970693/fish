@@ -33,7 +33,7 @@
 - PowerShell 禁 `cmd /c`；含 %VAR% 样式 token 的命令被拦（git log --format=%s 也拦）→ 换写法或拆两条发。
 - Get-Content 读 UTF-8 要加 -Encoding utf8（乱码/行数不准）→ 读文件优先 Read 工具。
 - git commit -F 传 Windows 正斜杠路径 C:/...（/c/... 读不到）；中文 message 落库正确，控制台乱码仅显示问题。npm 被 safe-delete 包装器拦截；vite 占 esbuild 文件锁时 npm ci 会失败。
-- **删文件别用 `Remove-Item`**（被 safe-delete 包装器拦，exit 1 且无输出，极易误判成功）→ 用 `node -e "require('fs').unlinkSync('x')"`。
+- **删文件别用 `Remove-Item`**（被 safe-delete 包装器拦，exit 1 且无输出，极易误判成功）；⚠️ 2026-09-13 实测 **`node -e "...unlinkSync..."` 同样被拦**（先删掉第 1 个文件就静默失败）→ 改用 **`[System.IO.File]::Delete($path)`**（PowerShell + .NET，实测有效），删完**用 Glob 复核文件真的没了**，别信 exit code。
 - **命令重定向的日志命名**：不带点的 `*-out.txt` 会被 `git add -A` 卷进来（9-11 已踩一次）→ `.gitignore` 已加 `/*-out.txt`；养成加点前缀（`.tsc-out.txt`）的习惯。
 - **.git 会莫名被清空** → 动 git 前 tar -czf 备份到 E:\gitlab\git-backup\；已删文件偶发自愈复活，工作树冒出旧文件先怀疑这个。
 - **嵌套 ref（带 / 的分支名）被 git 静默删掉且 exit 0** → 一律扁平分支名。
@@ -52,6 +52,7 @@
 ## 游戏手感
 - 花瓣地图 r=2000+1200·|sin(2a)|，中心 (3000,3000)（出生点），商场 (1500,1500) E 进 1.5 倍圈；WORLD_SIZE 6000；SEAWEED 只长 SWAMP、可穿行可藏身；游戏是固定步长累加器（16.67ms/步，headless 不限帧也一致）。
 - 边界顺序：先 resolveObstacles 后 clampToMap（两条通路**共用 `alignToSurface`**：只推回表面 + 限速掰向切向；缺了任一半就会顶死或反弹）；React RAF 循环用 alive 标记自排下一帧。
+- **「快慢」是两个独立旋钮（2026-09-13）**：①**常速** `player.speed` = `creatures.ts 的 spec.speed × BASE_SWIM_SPEED(1.5) × 1.2`（小丑鱼 1.98 px/帧 ≈ 119 px/s），动它=改全局手感（AI 节奏 / 追击难度 / 贴脸识破距离一起变）；②**冲刺** = `systems/playerControl.ts:37` 按住 Space 的 `speedMult *= BOOST_CONFIG.SPEED_MULTIPLIER`，只影响爆发段。用户说「速度太慢」时**先问是哪个**。`SPEED_MULTIPLIER` **全仓库只有 `data/world.ts` 一处定义、唯一消费者 `playerControl.ts:37`**；2026-09-13 由 2.2 → **4.4**（用户「提高一倍」），体力 `MAX_ENERGY 100 / DRAIN_RATE 0.5 / REGEN_RATE 0.3` 刻意没动 → 满体力仍 ≈3.3s 用光。注：`input.space` 只认 `keysRef.current.space`，鼠标左键是另一个参数（`isMouseDown`），不会误触发加速。
 
 ## 测试 / 探针约定
 - 模块级状态的系统先加 `__resetXxx()` 再写用例（prevInteract / teleportLock / switchCursor）；钉 Math.random 按系统真实取数顺序给序列（spawn：tier→食物判定→池内选择→刷点 x,y）。
@@ -65,4 +66,6 @@
 - ⚠️ **「随机流 + 硬阈值」的统计型测试天然 flaky**：任何玩法改动都会平移 `Math.random` 取数顺序，阈值就漂了 —— `orbit.test` 的「转弯半径 < 12px」换 8 个种子误报 4 次（全是漂游的磷虾）。阈值要绑**物理不变量**（净位移/路程比值），别绑**运气量**（半径刚好几 px）。改判据两头都要验：**多-seed 阴性对照**（确认不再误报）+ **关掉修复的反向验证**（确认还能抓到真 bug）。
 - ⚠️ **用常量推导测试距离/位置时，检查推导值有没有掉进别的机制的区间**：`concealment.test.ts` 用 `Math.floor(CONCEAL_REVEAL_RANGE / 2)` 造「贴脸」距离，常量 150→80 后算出 40，小于「双髻鲨 r50 + 玩家 r17 = 67」的半径和 → 被 `ai.ts isOverlapping`（重叠时刻意不转向）接管，断言测的根本不是识破。**改成显式量 + 一条 `expect(值).toBeLessThan(常量)` 前提守卫** —— 常量再漂会当场报错，而不是静默测错对象。
 - 概率类改动优先用**固定骰点**而不是「跑 N 次数频率」：把 `Math.random` mock 成两个点夹住改动后的概率（本项目用 0.5 / 0.15 夹住掩体后的命中率），既确定性又能证明「不是无敌」。⚠️ `vitest.config.ts` 没开 `restoreMocks` → mock `Math.random` 的文件要自己 `afterEach(() => vi.restoreAllMocks())`，否则同文件用例互相污染。
+- ⚠️ **调参类探针别写死期望值 —— 从源码解析常量当期望**（`scripts/probe-boost-speed.mjs` 用 `fs.readFileSync` + 正则从 `src/data/world.ts` 的 `BOOST_CONFIG` 块里抠出 4 个数字，块内注释先 `replace(/\/\*[\s\S]*?\*\//g,'')` 洗掉再匹配）：常量改了探针自动跟上，「**世界没照常量算**」会当场暴露（反向验证：让 `playerControl.ts` 不应用常量 → 实测比掉到 1.0000，三条判据红）。再把「**用户诉求的底线**」单独写成一条判据（如 `EXPECT.mult >= 4.4`），回退到旧值必然变红 —— 「测得的和常量一致」与「常量本身达标」是两件事，缺一条就抓不到回退。比例类判据还要挑**两轮都会乘到、能约掉**的量（生态区加成 `BIOME_EFFECTS[x].speedMult`、`stats.speedMult`、道具加速），省掉清生态区的麻烦；同时把绝对值也打出来供肉眼核对。
+- ⚠️ **「按住到耗光」这类累计量采样前不能插 `waitForTimeout`**：那几帧照样扣体力/DPS，却扣在采样窗口外，累计值直接少算（本项目少了 5 步 → 整条判据误判；`page.keyboard.down` 已派发完毕，本来不需要等）。同理，用「位移 ÷ 每帧速度」反推步数时，隐含步率应 ≈60Hz —— 它同时是「累加器没吞步」的自检。
 - ⚠️ **「渲染期不许掷骰子」有直证写法**：组件测试里 `vi.spyOn(Math,'random')` → `render(...)` → `expect(spy).not.toHaveBeenCalled()`，**必须配一条阳性对照**（裸调那个抽取函数，证明 spy 有威力、不是断言没生效）。UIOverlay 这种大组件要 mock：lucide-react（**图标名列表内联在 factory 里**，避开 `vi.mock` 提升导致的 TDZ）、MiniMap、CosmeticsPanel、gameEngine、achievements、leaderboard；面板文字用 `container.querySelectorAll('h3')` 取。浏览器级回归就用 e2e spec **连采 N 次文字断言逐次一致**（`e2e/evolve-panel.spec.ts` 连采 15 次），改坏时它会把抖动内容打印出来。**三层都做了反向验证**（摘门闸 / 渲染期塞洗牌 → 组件测试抓 107 次调用 / 改回旧行为 → e2e 变红），才算证完。
