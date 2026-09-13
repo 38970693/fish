@@ -114,6 +114,27 @@ describe('战斗判定', () => {
     expect(victim.health).toBe(0);
   });
 
+  it('等级门闸：同等级及以下可以击杀（同级残血的鱼照样咬死）', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { state, attacker, victim, ctx } = makePair(
+      CreatureType.CLOWN_FISH,
+      CreatureType.BLUE_TANG
+    );
+    expect(attacker.level).toBe(victim.level); // 前提：都是 tier1 → Lv2
+    victim.health = 1; // 打到残血
+    processCollision(attacker, victim, state, ctx);
+    expect(victim.health).toBe(0);
+  });
+
+  it('等级门闸：等级高于自己的鱼杀不死，血量保底 1 点', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { state, attacker, victim, ctx } = makePair(CreatureType.CLOWN_FISH, CreatureType.ORCA);
+    expect(victim.level).toBeGreaterThan(attacker.level); // 前提：小丑鱼 Lv2 越级咬虎鲸 Lv5
+    victim.health = 1; // 残血 BOSS，这一口本该带走 —— 但等级不够
+    processCollision(attacker, victim, state, ctx);
+    expect(victim.health).toBe(1); // 留了活口：伤害照算，致死被拦
+  });
+
   it('背后偷袭没吃掉也会造成伤害', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99); // 必定不命中吞噬
     const { state, attacker, victim, ctx } = makePair(CreatureType.CLOWN_FISH, CreatureType.BLUE_TANG);

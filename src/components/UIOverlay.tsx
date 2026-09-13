@@ -250,7 +250,7 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </Section>
 
           <Section icon={<Sword size={20} />} title="战斗">
-            <p>背刺：绕到大鱼身后偷袭，吞噬概率大增；但大鱼也会反制，别贪。</p>
+            <p>背刺：绕到鱼身后偷袭，吞噬概率大增；等级比你高的鱼杀不死（只能咬到残血），大鱼也会反制，别贪。</p>
             <p>同等级比体型，等级压制加成吞噬概率。</p>
           </Section>
 

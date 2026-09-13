@@ -90,11 +90,14 @@ describe('P1-1 撕咬取代一击必杀', () => {
     expect(victim.angerTimer).toBe(COMBAT_CONFIG.ANGER_DURATION);
   });
 
-  it('小鱼也能把大鱼活活咬死（逆转路径没有被砍掉）', () => {
+  it('同等级的小鱼也能把大鱼活活咬死（逆转路径没有被砍掉）', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const state = makePlayingState();
     const ctx = makeCtx();
     const { attacker, victim } = makePair(CreatureType.CLOWN_FISH, CreatureType.ORCA);
+    // 2026-09-13 等级门闸：越级（小丑鱼 Lv2 vs 虎鲸 Lv5）杀不死，血量会保底在 1；
+    // 逆转咬死路径本身保留 —— 钉平等级，验证「同级下小鱼照样能磨死体型更大的鱼」。
+    victim.level = attacker.level;
 
     // 小鱼扛不住大鱼的「猛回头」，测试只关注「能不能咬死」，所以给它续上命
     attacker.maxHealth = 100000;

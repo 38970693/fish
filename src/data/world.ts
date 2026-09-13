@@ -197,6 +197,12 @@ export const COMBAT_CONFIG = {
   DEVOUR_HP_RATIO: 0.3,
   /** 吞噬所需的最小体型比：小于 1 意味着小鱼吞不掉大鱼 */
   DEVOUR_MIN_SIZE_RATIO: 1.0,
+  /**
+   * 等级门闸（2026-09-13 规则）：只能击杀「同等级及以下」的鱼。
+   * 等级更高的目标咬得动（掉血 / 缩水 / 恐惧 / 猛回头照常），但血量保底 1 点，
+   * 吞噬与背刺重击都无法致死。玩家升到与 BOSS 同级后照常可击杀通关（P0-4 不受影响）。
+   */
+  KILL_LEVEL_GATE: true,
   /** 体型差对撕咬伤害的影响，clamp 在这个区间 */
   SIZE_FACTOR_MIN: 0.5,
   SIZE_FACTOR_MAX: 2.0,

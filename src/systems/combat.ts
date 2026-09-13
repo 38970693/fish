@@ -58,6 +58,14 @@ const isFriendly = (e: Entity): boolean =>
 
 const isSemiGhost = (e: Entity): boolean => !!e.semiGhostTimer && e.semiGhostTimer > 0;
 
+/**
+ * 等级门闸（COMBAT_CONFIG.KILL_LEVEL_GATE，2026-09-13 规则）：
+ * victim 是否「杀不死」—— 等级高于攻击者时，咬得动但打不死（血量保底 1 点）。
+ * 命中概率的等级压制 / 同级大吃小等加成不受影响，这里只拦「致死」这一步。
+ */
+const isUnkillable = (attacker: Entity, victim: Entity): boolean =>
+  !!COMBAT_CONFIG.KILL_LEVEL_GATE && victim.level > attacker.level;
+
 const say = (e: Entity, text: string, timer: number, color: string): void => {
   e.speechBubble = { text, timer, color };
 };
@@ -282,13 +290,22 @@ export const processCollision = (
      * 两种死法：
      *   1) 吞下去 —— 对方残血且自己够大，一口吞（大鱼吃小鱼的爽感来源）
      *   2) 咬死   —— 自己不够大，但可以把对方活活咬到没血
-     * 第 2 条是「小鱼逆袭大鱼」唯一可行的路径，不能砍掉，否则逆转玩法直接消失。
+     * 第 2 条是「小鱼逆袭大鱼」唯一可行的路径，不能砍掉 —— 2026-09-13 起受
+     * 等级门闸约束：仅限同等级及以下，越级杀不死（见 isUnkillable）。
      */
     const canDevour =
       victim.health <= victim.maxHealth * COMBAT_CONFIG.DEVOUR_HP_RATIO &&
       sizeRatio >= COMBAT_CONFIG.DEVOUR_MIN_SIZE_RATIO;
 
     if (victim.health > 0 && !canDevour) return;
+
+    /* ── 等级门闸：高于自己的猎物杀不死 ──
+     * 掷骰 / 伤害 / 缩水 / 猛回头都已照常发生，这里只拦「致死」：
+     * 血量被这一口打到 0 以下时拉回 1（留个活口），吞噬同样失效。 */
+    if (isUnkillable(attacker, victim)) {
+      if (victim.health <= 0) victim.health = 1;
+      return;
+    }
     // 逆转判定：小鱼反杀大鱼（玩家专属高光时刻）
     if (
       sizeRatio < AMBUSH_CONFIG.REVERSAL_SIZE_THRESHOLD &&
@@ -346,6 +363,8 @@ export const processCollision = (
     const stabRaw =
       victim.maxHealth * COMBAT_CONFIG.BACK_STAB_HP_RATIO * AMBUSH_CONFIG.BACK_DAMAGE_MULT;
     const stab = dealDamage(victim, stabRaw);
+    // 等级门闸：背刺重击同样带不走等级更高的鱼（伤害照算，血量保底 1）
+    if (isUnkillable(attacker, victim) && victim.health <= 0) victim.health = 1;
     victim.fearTimer = 60;
     victim.angerTimer = 180;
     ctx.events.emit('hurt', { target: victim, amount: stab, source: attacker });
