@@ -163,7 +163,13 @@ describe('AI 看不见隐蔽目标', () => {
   });
 
   it('贴到脸上就藏不住了（CONCEAL_REVEAL_RANGE 内照样被追）', () => {
-    const { state, fish } = setupChase(Math.floor(CONCEAL_REVEAL_RANGE / 2), true);
+    // ⚠️ 距离必须落在「两者不重叠」与「CONCEAL_REVEAL_RANGE」之间：
+    //    重叠时 ai.ts 的 `isOverlapping` 会**刻意不转向**（那是「原地转圈」的第一味药，
+    //    见 orbit.test），拿一个重叠距离来测「识破」会测到另一个机制上去。
+    //    双髻鲨 r50 + 玩家 r17 = 67 → 取 75。
+    const FACE_TO_FACE = 75;
+    expect(FACE_TO_FACE).toBeLessThan(CONCEAL_REVEAL_RANGE);
+    const { state, fish } = setupChase(FACE_TO_FACE, true);
     expect(state.player.inCover).toBe(true);
 
     aiSystem(state, makeCtx());

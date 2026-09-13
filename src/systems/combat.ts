@@ -19,6 +19,7 @@ import type { Entity, GameState, FrameContext, PlayerState, Particle } from '../
 import { dist, uuid, pick, clamp } from '../core/math';
 import { recruitToSquad } from './squad';
 import { recordRun } from './leaderboard';
+import { isConcealed, CONCEAL_BITE_PROB_MULT } from './concealment';
 
 export const createParticle = (x: number, y: number, color: string): Particle => ({
   id: uuid(),
@@ -225,6 +226,12 @@ export const processCollision = (
   }
   // 诱惑中的猎手咬被香味骗来的鱼：几乎一口闷（灯笼鱼「来的小鱼直接吃」）
   if (attacker.lureActive) eatProbability = Math.min(1, eatProbability + 0.4);
+
+  // 藏在掩体里（水草 / 隐身技能）：视野被挡，扑咬大半会落空。
+  // ⚠️ 位置必须在**所有加成算完之后、掷骰之前**：同级大吃小的
+  //    `Math.max(eatProbability, 0.5)` 是地板值、等级压制是加法 —— 放在它们前面
+  //    会被整条覆盖掉，改了个寂寞（详见 concealment.ts 的 CONCEAL_BITE_PROB_MULT）。
+  if (isConcealed(victim)) eatProbability *= CONCEAL_BITE_PROB_MULT;
 
   const canBite = Math.random() < eatProbability;
 
