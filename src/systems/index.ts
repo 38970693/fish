@@ -14,6 +14,7 @@ import { safe } from '../core/errors';
 import type { GameState, FrameContext } from '../types';
 
 import { spawnSystem } from './spawn';
+import { runFlowSystem } from './runFlow';
 import { playerControlSystem } from './playerControl';
 import { skillsSystem } from './skills';
 import { concealmentSystem } from './concealment';
@@ -34,6 +35,7 @@ export interface SystemEntry {
 
 /**
  * 执行顺序说明：
+ *   runFlow     「鱼群争霸」阶段时钟（必须在最前：阶段决定本帧目标与压力等级）
  *   spawn       补货
  *   control     玩家先动（技能要基于最新朝向）
  *   skills      放技能
@@ -49,6 +51,7 @@ export interface SystemEntry {
  *   cleanup     死亡判定 / 进化 / 粒子回收 / 相机
  */
 export const SYSTEMS: SystemEntry[] = [
+  { name: 'runFlow', fn: safe('runFlow', runFlowSystem) },
   { name: 'spawn', fn: safe('spawn', spawnSystem) },
   { name: 'playerControl', fn: safe('playerControl', playerControlSystem) },
   { name: 'skills', fn: safe('skills', skillsSystem) },
@@ -111,4 +114,4 @@ export function runSystems(state: GameState, ctx: FrameContext): void {
   }
 }
 
-export { spawnSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };
+export { spawnSystem, runFlowSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };

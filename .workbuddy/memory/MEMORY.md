@@ -5,13 +5,14 @@
 - 门面聚合：constants/types/gameEngine re-export src/data/* 与 src/systems/*。数据驱动：as const 注册表+keyof；系统注册表 systems/index.ts 顺序执行；EventBus 分发（SKILL/AI/MOOD_HANDLERS）。
 - **伤害唯一入口 = `combat.ts dealDamage(target, amount)`**（返回实际伤害）：无敌模式 / 无敌帧 invulnerableTimer / 护盾 shieldTimer(吸收0.7) / 易伤 vulnerableTimer(×2) 全在这里判定。**新增任何伤害来源必须走它**，直接 `health -=` 就是 bug —— 查「无敌/无敌帧/护盾是否真生效」只需 grep `health -=`。已收口：combat / skills.ts（薄包装 `hitTarget`）/ world.ts 沼泽腐蚀。progression 死亡判定前另有兜底闸（isGodMode 时 health 保底 1）。
 - **React 渲染纪律**：随机/时变/洗牌值不许渲染期算——触发点算一次存 GameState 快照，UI 只渲染快照（范例 evolveOptions）；兜底也必须确定；触发点加幂等门闸。
-- **性能（2026-09-13 四叉树+DC+combat 三刀）**：邻居查询走 `utils/SpatialHash.ts` 的 QuadTree（零分配节点池，queryCircle 回索引、调用方精距过滤）；ai.ts findNearest 全走 candidateTree（tie-break 保持旧行为：玩家在先+索引序，迟滞用 candidateById）；terrain.ts ObstacleIndex 收窄障碍碰撞；combatSystem 捕食双循环也接 combatTree（候选按原下标升序只处理 j>i，随机流零变化）；GameCanvas 视锥剔除扩到全部对象 + Path2D 边界缓存（惰性 getBoundaryLayers，jsdom 无 Path2D）+ ROCK_SHAPE_CACHE。逻辑 1.70→0.575ms（−66%）、combat −76%、far 场景绘制 −80%。探针 `scripts/probe-perf.mjs`（vsync 必须关、B2=纯渲染耗时应 flush、工作负载钉到物种级才可 A/B；perf-baseline.json 基线、perf-<label>.json 对比自动打印）。
+- **性能（2026-09-13 四叉树+DC+combat 三刀）**：邻居查询走 `utils/SpatialHash.ts` 的 QuadTree（零分配节点池，queryCircle 回索引、调用方精距过滤）；ai.ts findNearest 全走 candidateTree（tie-break 保持旧行为：玩家在先+索引序，迟滞用 candidateById）；terrain.ts ObstacleIndex 收窄障碍碰撞；combatSystem 捕食双循环也接 combatTree（候选按原下标升序只处理 j>i，随机流零变化）；GameCanvas 视锥剔除扩到全部对象 + Path2D 边界缓存（惰性 getBoundaryLayers，jsdom 无 Path2D）+ ROCK_SHAPE_CACHE。逻辑 1.70→0.575ms（−66%）、combat −76%、far 场景绘制 −80%。探针 `scripts/probe-perf.mjs`（vsync 必须关、B2=纯渲染耗时应 flush、工作负载钉到物种级才可 A/B；**基线改用 `perf-g0-baseline.json`** —— 旧的 perf-baseline.json 是 180 实体时代，MAX_ENTITIES 提到 300 之后探针会标「不可比」。e2e 首轮冷启动易 flaky：4 例 `goto('/')` 超时但复跑 15/15 全绿 —— 首轮失败先看是否集中在同一类超时 + 同 spec 是否全挂，再怀疑代码）。
 
 ## 内容扩展套路
 - data/<x>.ts as const 注册表+取值函数（未知 id 回退默认）→ constants 门面；GameState.<x>；加分走 scoreGain(pondId, base)；收尾=菜单/HUD+单测+probe+文档。**新默认值==旧硬编码**（向后兼容铁律）。
 
 ## 功能现状要点
 - 多鱼塘 CLEAR/CORAL/ABYSS（1+2a+3a；2b 暂缓）；特产三线数据驱动（鱼 ponds 字段/建筑 BUILDING_SPAWN_RULES/塘事件 pondEvents）；加建筑登记四处 + MiniMap.test mock；teleportLock/obstacleIndex 模块级 → 单测先 `__resetXxx()`。
+- **「鱼群争霸」新模式入口（G0/FQ-02）**：`data/runRules.ts`(RUN_MODE/阶段表/规则参数) + `systems/runFlow.ts`(阶段时钟，注册在 SYSTEMS 最前)。**旧模式零改动 = `state.run === undefined`**，消费点一律 `if (!state.run) return;`（别写满地 `if (mode==='RIVALS')`）；默认 LEGACY，开发期 `?mode=rivals` 切换（写 localStorage）；时间一律存帧、`sec()` 是唯一换算入口；RIVALS 下 allowPondTravel=false 不生成塘际门；isGodMode/手动续命 → 粘性 `run.practice` → recordRun 返回未上榜且不动 currentRunState；排行榜条目带可选 mode/ruleVersion（旧档按 LEGACY/0 兜底）。测试资产 `src/test/scenario.ts`（withSeededRandom/createSeededScenario，mulberry32，finally 还原 Math.random）。
 - 成就 19 枚；图鉴目标由 getPondSpecialties().fish.length 推导不写死；建筑埋点独立 buildingUse 事件（复用 building 会双播音效）；换塘走 pondId 差分不加事件。
 - 生物形状：creatureShapes 20 形 + fishShapes 三件套；复用形状换色=新物种；测试造实体必须显式传 shape id。
 - 隐蔽：canPerceive 是锁定唯一收口（CONCEAL_REVEAL_RANGE=80，不能 <67）；combat 命中**所有加成后、掷骰前**乘 CONCEAL_BITE_PROB_MULT=0.2（放地板值 max(eatProb,0.5) 前会被覆盖）。隐身←声呐反制，草丛←只能贴脸破。
@@ -36,7 +37,7 @@
 - vitest 钉 ^3.2.7（v4/v5 Windows 套件崩溃）；PowerShell 禁 cmd /c 与 %VAR% token；git commit -F 用 C:/ 正斜杠路径；Get-Content 要 -Encoding utf8。
 
 ## 文档分工
-《开发任务清单.md》=唯一执行入口；《开发计划.md》=规格历史；《开发路线图.md》=每轮交付记录；**状态一律 grep 代码核实，不抄旧文档标记**。
+《开发任务清单.md》=唯一执行入口；《开发计划.md》=规格历史；《开发路线图.md》=每轮交付记录；《鱼群争霸开发计划.md》=新主模式规格；《G0-基线记录.md》=各阶段开工的对照基线；**状态一律 grep 代码核实，不抄旧文档标记**。
 
 ## 测试/探针约定（高频）
 - 模块级状态系统加 __resetXxx()；钉 Math.random 按真实取数顺序给序列；概率改动用固定骰点（两骰点夹概率）+ 文件内自带 restoreAllMocks（vitest 没开 restoreMocks）。

@@ -9,6 +9,12 @@ import { CREATURES, CreatureType } from '../data/creatures';
 import { WORLD_SIZE, BOOST_CONFIG, MAP_SHAPE_CONFIG } from '../data/world';
 import { BiomeType } from '../data/biomes';
 import { DEFAULT_POND, type PondId } from '../data/ponds';
+import {
+  RIVALS_RULES,
+  createRunState,
+  resolveRunMode,
+  type RunMode,
+} from '../data/runRules';
 import { DEFAULT_COSMETICS, GameStatus, type Cosmetics, type GameState } from '../types';
 import { createObstacles, createBuildings, createPortals } from '../systems/world';
 
@@ -19,6 +25,12 @@ export interface CreateInitialStateOptions {
   pondId?: PondId;
   /** 跳过地形生成（测试里想省时间时用） */
   skipWorldGen?: boolean;
+  /**
+   * 玩法模式（G0 / FQ-02）。缺省走 `resolveRunMode()`：
+   * URL `?mode=` > localStorage > LEGACY（默认仍是旧 Demo）。
+   * 显式传入是为了让单测与探针能在**不使用全局开关**的前提下跑指定模式。
+   */
+  mode?: RunMode;
 }
 
 /** 读取存档的技能等级，读不到就当 1 级 */
@@ -33,6 +45,11 @@ const loadSkillLevel = (): number => {
 export const createInitialState = (options: CreateInitialStateOptions = {}): GameState => {
   const startType = options.startType ?? CreatureType.CLOWN_FISH;
   const pondId = options.pondId ?? DEFAULT_POND;
+  // 「鱼群争霸」规则入口：LEGACY 时 createRunState 返回 undefined，state.run 保持缺省
+  const mode = options.mode ?? resolveRunMode();
+  const run = createRunState(mode);
+  // 单塘模式：不开塘际传送门，堵死「换塘重置对手与决战进度」这条路径
+  const allowPondTravel = !run || RIVALS_RULES.allowPondTravel;
   const baseConfig = CREATURES[startType as CreatureType] ?? CREATURES[CreatureType.CLOWN_FISH];
   const startX = MAP_SHAPE_CONFIG.CENTER_X;
   const startY = MAP_SHAPE_CONFIG.CENTER_Y;
@@ -93,7 +110,7 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     obstacles: options.skipWorldGen ? [] : createObstacles(pondId),
     powerUps: [],
     hazards: [],
-    portals: options.skipWorldGen ? [] : createPortals(pondId),
+    portals: options.skipWorldGen || !allowPondTravel ? [] : createPortals(pondId),
     buildings: options.skipWorldGen ? [] : createBuildings(pondId),
     treasures: [],
     fountains: [],
@@ -101,6 +118,7 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     pondId,
     screenFlash: null,
     evolveOptions: [],
+    run,
     worldWidth: WORLD_SIZE,
     worldHeight: WORLD_SIZE,
     camera: { x: startX, y: startY, zoom: 0.8 },

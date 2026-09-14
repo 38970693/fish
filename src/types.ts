@@ -10,6 +10,7 @@ import type { EventBus } from './core/EventBus';
 import type { CreatureConfig, CreatureType } from './data/creatures';
 import type { PondId } from './data/ponds';
 import type { MoodId } from './data/moods';
+import type { RunMode, RunPhaseId } from './data/runRules';
 
 /* ══════════════ 内容型类型（从 data 层转发） ══════════════ */
 
@@ -26,6 +27,8 @@ export { BuildingType } from './data/buildings';
 
 export type { PondId, PondConfig } from './data/ponds';
 
+export type { RunMode, RunPhaseId, RunPhaseConfig } from './data/runRules';
+
 /* ══════════════ 游戏状态机 ══════════════ */
 
 export enum GameStatus {
@@ -36,6 +39,34 @@ export enum GameStatus {
   VICTORY = 'VICTORY',
   SHOP = 'SHOP',
   BATTLE_TEST = 'BATTLE_TEST',
+}
+
+/* ══════════════ 「鱼群争霸」对局状态（G0 / FQ-02） ══════════════ */
+
+/**
+ * 对局级状态（模式 / 阶段 / 练习标记）。
+ *
+ * ⚠️ 只有 `RIVALS` 模式才有这个对象；旧模式 `state.run === undefined`，
+ *    所有消费点都用 `if (!state.run) return;` 提前退出 —— 这是「旧模式零改动」的实现方式，
+ *    别把消费点写成 `state.run!.phase`。
+ * ⚠️ 只放**查不出来的**状态。当前阶段能由 clock 推导（`getRunPhase`），
+ *    HUD 想显示就用函数算，不要在这里维护第二份副本。
+ */
+export interface RunState {
+  /** LEGACY = 旧 Demo 规则；RIVALS = 鱼群争霸 */
+  mode: RunMode;
+  /** 规则版本：排行榜与本地记录按它区分，规则变了要 +1 */
+  ruleVersion: number;
+  /** 当前阶段（由 runFlowSystem 推进时写入） */
+  phase: RunPhaseId;
+  /** 阶段时钟（帧）：只在 PLAYING 推进，进化/商店/结算面板期间世界冻结、时钟也停 */
+  clock: number;
+  /** 练习局（无敌模式 / 手动续命）：不计入正式排行 */
+  practice: boolean;
+  /** 标记练习局的原因（结算界面展示），非练习局为 null */
+  practiceReason: string | null;
+  /** 指定塘主（决战阶段目标），未指定为 null */
+  bossId: string | null;
 }
 
 /* ══════════════ 装扮 ══════════════ */
@@ -390,6 +421,12 @@ export interface GameEvents {
   achievement: { id: string; name: string; desc: string; icon: string };
   /** 金币拾取（items 的 COIN 发出，成就「守财奴」统计） */
   coin: { x: number; y: number; value: number };
+  /**
+   * 「鱼群争霸」阶段切换（runFlowSystem 发出）。
+   * 分成独立事件而不是复用 `biome`/`pickup`：阶段是**对局级**节奏点，
+   * 后续要接 HUD 目标条、提示音与试玩埋点，语义完全不同。
+   */
+  runPhase: { phase: string; name: string; clock: number };
 }
 
 /* ══════════════ 每帧上下文 ══════════════ */
@@ -445,6 +482,12 @@ export interface GameState {
    * 由 `systems/progression.ts` 写入，`App.tsx` 的 onEvolve 清空。缺省 / 空数组 = 未在进化中。
    */
   evolveOptions?: CreatureType[];
+  /**
+   * 「鱼群争霸」对局状态：**缺省 = 旧模式**（G0/FQ-02）。
+   * 由 `factories/initialState.ts` 按模式解析结果写入；`systems/runFlow.ts` 推进阶段时钟。
+   * 旧模式（LEGACY）保持 undefined，所有消费点因此整段空转。
+   */
+  run?: RunState;
   worldWidth: number;
   worldHeight: number;
   camera: { x: number; y: number; zoom: number };

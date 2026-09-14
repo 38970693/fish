@@ -8,6 +8,7 @@ import { updateGame, manualSquadSwitch, createEntity, getSquadMembers } from './
 // 性能剖析挂钩：只有 DEV 下的 __FISH_DEBUG__.profile() 会用到（见文件末尾的调试钩子）
 import { setProfileSink } from './systems';
 import { createInitialState } from './factories/initialState';
+import { markRunPractice } from './systems/runFlow';
 import { subscribeAudio, initAudio, toggleMute, isMuted } from './audio';
 import { subscribeAchievements } from './systems/achievements';
 
@@ -156,6 +157,25 @@ const App: React.FC = () => {
         };
       },
       /**
+       * 「鱼群争霸」对局状态快照（G0/FQ-02）。
+       * 探针与 e2e 用它断言阶段时钟与练习标记 —— 读 HUD 文本拿不到这些，
+       * 而且 HUD 每 100ms 才同步一次。旧模式返回 null。
+       */
+      run: () => {
+        const r = gameStateRef.current.run;
+        return r
+          ? {
+              mode: r.mode,
+              ruleVersion: r.ruleVersion,
+              phase: r.phase,
+              clock: r.clock,
+              practice: r.practice,
+              practiceReason: r.practiceReason,
+              bossId: r.bossId,
+            }
+          : null;
+      },
+      /**
        * 逻辑层性能剖析：同步跑 steps 帧 `updateGame`，把耗时**按系统**拆开返回。
        *
        * 和「量 rAF 帧耗时」是两件事：rAF 帧耗时 = 逻辑 + 渲染 + 浏览器合成，
@@ -204,6 +224,8 @@ const App: React.FC = () => {
       timer: 60,
       color: p.isGodMode ? '#facc15' : '#94a3b8',
     };
+    // 「鱼群争霸」规则：开过无敌就是练习局，不进正式排行（旧模式无 run，空转）
+    if (p.isGodMode) markRunPractice(gameStateRef.current, '无敌模式');
   };
 
   const startBattleTest = () => {
@@ -285,6 +307,8 @@ const App: React.FC = () => {
             p.vy = 0;
             p.invulnerableTimer = PROTECTION_CONFIG.REVIVE_DURATION;
             p.reviveCount += 1;
+            // 手动续命是「非正式」路径：鱼群争霸下整局标为练习（旧模式无 run，空转）
+            markRunPractice(gameStateRef.current, '手动续命');
             p.semiGhostTimer = 0;
             p.poisonTimer = 0;
             p.angerTimer = 0;

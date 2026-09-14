@@ -15,6 +15,7 @@
 
 import type { GameState } from '../types';
 import { getPond } from '../data/ponds';
+import type { RunMode } from '../data/runRules';
 
 const STORAGE_KEY = 'fish.leaderboard.v1';
 const MAX_ENTRIES = 10;
@@ -29,6 +30,13 @@ export interface LeaderboardEntry {
   recruits: number;
   /** 所在鱼塘名（「多鱼塘」阶段 1；旧记录可能没有该字段） */
   pond?: string;
+  /**
+   * 玩法模式（G0/FQ-02）。缺省 = LEGACY —— 旧存档没有这个字段，
+   * 读取端一律按「旧模式」处理，不做数据迁移。
+   */
+  mode?: RunMode;
+  /** 规则版本：同一模式不同规则版本要能分开看（旧记录缺省 0） */
+  ruleVersion?: number;
   date: string;
 }
 
@@ -65,6 +73,9 @@ const toEntry = (state: GameState): LeaderboardEntry => ({
   survivedSec: Math.floor(state.time / 60),
   recruits: state.squad.recruitedTotal,
   pond: getPond(state.pondId).name,
+  // 旧模式没有 run：按 LEGACY / 版本 0 记，排行榜读取端不用判空
+  mode: state.run?.mode ?? 'LEGACY',
+  ruleVersion: state.run?.ruleVersion ?? 0,
   date: new Date().toISOString().slice(0, 10),
 });
 
@@ -76,6 +87,14 @@ const toEntry = (state: GameState): LeaderboardEntry => ({
  * @returns 本局名次（1 起），未进前 10 返回 0
  */
 export const recordRun = (state: GameState): number => {
+  // 练习局（无敌模式 / 手动续命）不进正式榜：直接返回「未上榜」，
+  // 连 currentRunState 都不动 —— 免得同一局先记为练习、后被 upsert 洗白。
+  // （旧模式没有 run，此分支不生效，旧规则原样保留。）
+  if (state.run?.practice) {
+    lastRank = 0;
+    return 0;
+  }
+
   const entry = toEntry(state);
 
   if (currentRunState === state) {
