@@ -21,7 +21,7 @@ import { CreatureType } from '../data/creatures';
 import { DEFAULT_COSMETICS, GameStatus, type Building, type GameState, type FrameContext, type Obstacle, type Portal } from '../types';
 import { uuid, dist, pick } from '../core/math';
 import { getBiome, getRandomPosInBiome, isPositionValid, clampToMap, resolveObstacles, MAP_CENTER, ObstacleIndex } from './terrain';
-import { createParticle } from './combat';
+import { createParticle, dealDamage } from './combat';
 import { spawnSystem, createEntity } from './spawn';
 
 /** 塘际门比塘内门大一圈，一眼能认出来 */
@@ -373,7 +373,11 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
   if (effect && effect.corrosionPerFrame > 0) {
     // 沼泽腐蚀：硬壳体质免疫
     if (player.config.special !== 'SHELL') {
-      player.health -= player.maxHealth * effect.corrosionPerFrame;
+      // ⚠️ 必须走统一伤害入口：原来直接 `player.health -=` 绕过了 dealDamage，
+      //    无敌模式 / 无敌帧（新手保护、闪避、复活保护）/ 护盾 / 易伤全部失效 ——
+      //    开着无敌在沼泽里每秒仍被扣 4.8% 最大生命，约 20 秒就「战斗失败」
+      //    （用户报「无敌还会失败」的直接元凶）。
+      dealDamage(player, player.maxHealth * effect.corrosionPerFrame);
       player.biomeDebuffTimer = 30;
     }
   }

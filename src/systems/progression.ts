@@ -34,6 +34,11 @@ export const progressionSystem = (state: GameState, ctx: FrameContext): void => 
   }
 
   /* ── 3. 死亡判定 ── */
+  // 无敌模式是绝对承诺：万一将来又出现绕过统一伤害入口的路径，也绝不在这里判死。
+  // （主因是沼泽腐蚀绕过 dealDamage，已修；这道闸是「无敌还会失败」的兜底。）
+  if (player.isGodMode && player.health <= 0) {
+    player.health = 1; // 血条不显示负数，也不会掉进下面的死亡分支
+  }
   if (player.health <= 0 && state.status === GameStatus.PLAYING) {
     // 亡语机制（提示词 #234 / #245）：只要队里还有人，就夺舍半径最大的成员继续游戏，
     // 而不是直接结算。没有成员可夺舍了，才干净地切到 GAME_OVER（#294）。

@@ -3,6 +3,7 @@
 
 ## 架构 & 纪律
 - 门面聚合：constants/types/gameEngine re-export src/data/* 与 src/systems/*。数据驱动：as const 注册表+keyof；系统注册表 systems/index.ts 顺序执行；EventBus 分发（SKILL/AI/MOOD_HANDLERS）。
+- **伤害唯一入口 = `combat.ts dealDamage(target, amount)`**（返回实际伤害）：无敌模式 / 无敌帧 invulnerableTimer / 护盾 shieldTimer(吸收0.7) / 易伤 vulnerableTimer(×2) 全在这里判定。**新增任何伤害来源必须走它**，直接 `health -=` 就是 bug —— 查「无敌/无敌帧/护盾是否真生效」只需 grep `health -=`。已收口：combat / skills.ts（薄包装 `hitTarget`）/ world.ts 沼泽腐蚀。progression 死亡判定前另有兜底闸（isGodMode 时 health 保底 1）。
 - **React 渲染纪律**：随机/时变/洗牌值不许渲染期算——触发点算一次存 GameState 快照，UI 只渲染快照（范例 evolveOptions）；兜底也必须确定；触发点加幂等门闸。
 - **性能（2026-09-13 四叉树+DC+combat 三刀）**：邻居查询走 `utils/SpatialHash.ts` 的 QuadTree（零分配节点池，queryCircle 回索引、调用方精距过滤）；ai.ts findNearest 全走 candidateTree（tie-break 保持旧行为：玩家在先+索引序，迟滞用 candidateById）；terrain.ts ObstacleIndex 收窄障碍碰撞；combatSystem 捕食双循环也接 combatTree（候选按原下标升序只处理 j>i，随机流零变化）；GameCanvas 视锥剔除扩到全部对象 + Path2D 边界缓存（惰性 getBoundaryLayers，jsdom 无 Path2D）+ ROCK_SHAPE_CACHE。逻辑 1.70→0.575ms（−66%）、combat −76%、far 场景绘制 −80%。探针 `scripts/probe-perf.mjs`（vsync 必须关、B2=纯渲染耗时应 flush、工作负载钉到物种级才可 A/B；perf-baseline.json 基线、perf-<label>.json 对比自动打印）。
 

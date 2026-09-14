@@ -23,7 +23,7 @@ import {
 import { BIOME_EFFECTS, BiomeType } from '../data/biomes';
 import type { Entity, GameState, FrameContext, PlayerState } from '../types';
 import { dist } from '../core/math';
-import { createParticle } from './combat';
+import { createParticle, dealDamage } from './combat';
 
 // 用 Entity 而不是 PlayerState：AI 也会放技能（大鱼反制），签名必须兼容两者
 type SkillHandler = (caster: Entity, state: GameState, power: number) => void;
@@ -41,6 +41,15 @@ const forEachNearby = (
     if (dist(caster, e) <= range) fn(e);
   }
 };
+
+/**
+ * 技能命中结算：伤害统一走 `dealDamage`（无敌模式 / 无敌帧 / 护盾 / 易伤全部生效）。
+ *
+ * ⚠️ 历史遗漏：这里原来是对 `health` 直接做减法赋值，绕过了统一伤害入口 ——
+ *    后果是 AI 的无敌帧（闪避 / 翻滚）与护盾对技能完全无效；
+ *    将来技能若能打到玩家，玩家开无敌也拦不住（combat.ts 注释声称的契约被打破）。
+ */
+const hitTarget = (target: Entity, amount: number): boolean => dealDamage(target, amount) > 0;
 
 const burst = (state: GameState, x: number, y: number, color: string, count = 5): void => {
   for (let i = 0; i < count; i += 1) state.particles.push(createParticle(x, y, color));
@@ -93,7 +102,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   SHOCK: (caster, state, power) => {
     const range = 150 * power;
     forEachNearby(caster, state, range, (e) => {
-      e.health -= caster.config.damage * 2 * power;
+      hitTarget(e, caster.config.damage * 2 * power);
       e.speedBoostTimer = -60;
       burst(state, e.x, e.y, '#fde047', 5);
     });
@@ -103,7 +112,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   THUNDER: (caster, state, power) => {
     const range = 300 * power;
     forEachNearby(caster, state, range, (e) => {
-      e.health -= caster.config.damage * 2 * power;
+      hitTarget(e, caster.config.damage * 2 * power);
       e.speedBoostTimer = -60;
       burst(state, e.x, e.y, '#fde047', 5);
     });
@@ -127,7 +136,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hitY = caster.y + Math.sin(caster.angle) * caster.radius * 2;
     forEachNearby(caster, state, caster.radius * 4 * power, (e) => {
       if (dist({ x: hitX, y: hitY }, e) > caster.radius * 2 * power) return;
-      e.health -= caster.config.damage * 3 * power;
+      hitTarget(e, caster.config.damage * 3 * power);
       burst(state, e.x, e.y, '#ef4444', 5);
     });
   },
@@ -150,7 +159,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     caster.x += Math.cos(caster.angle) * 300 * power;
     caster.y += Math.sin(caster.angle) * 300 * power;
     forEachNearby(caster, state, caster.radius * 2 * power, (e) => {
-      e.health -= caster.config.damage * 4 * power;
+      hitTarget(e, caster.config.damage * 4 * power);
       burst(state, e.x, e.y, '#ef4444', 5);
     });
   },
@@ -161,7 +170,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hitY = caster.y + Math.sin(caster.angle) * caster.radius * 2;
     forEachNearby(caster, state, caster.radius * 3 * power, (e) => {
       if (dist({ x: hitX, y: hitY }, e) > caster.radius * 1.5 * power) return;
-      e.health -= caster.config.damage * power;
+      hitTarget(e, caster.config.damage * power);
       e.poisonTimer = 300;
       burst(state, e.x, e.y, '#84cc16', 6);
     });
@@ -199,7 +208,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
       e.x += (caster.x - e.x) * 0.8;
       e.y += (caster.y - e.y) * 0.8;
       if (dist(caster, e) < caster.radius) {
-        e.health -= caster.config.damage * power;
+        hitTarget(e, caster.config.damage * power);
         burst(state, e.x, e.y, '#ef4444', 5);
       }
     });
@@ -208,7 +217,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   /** 声波冲击：大范围伤害 */
   SONIC: (caster, state, power) => {
     forEachNearby(caster, state, 500 * power, (e) => {
-      e.health -= caster.config.damage * 2 * power;
+      hitTarget(e, caster.config.damage * 2 * power);
       burst(state, e.x, e.y, '#38bdf8', 5);
     });
   },
@@ -219,7 +228,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hitY = caster.y + Math.sin(caster.angle) * caster.radius * 3;
     forEachNearby(caster, state, caster.radius * 4 * power, (e) => {
       if (dist({ x: hitX, y: hitY }, e) > caster.radius * 1.5 * power) return;
-      e.health -= caster.config.damage * 5 * power;
+      hitTarget(e, caster.config.damage * 5 * power);
       burst(state, e.x, e.y, '#cbd5e1', 10);
     });
   },
@@ -239,7 +248,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     forEachNearby(caster, state, 800 * power, (e) => {
       e.x += (caster.x - e.x) * 0.8;
       e.y += (caster.y - e.y) * 0.8;
-      e.health -= caster.config.damage * power;
+      hitTarget(e, caster.config.damage * power);
       burst(state, e.x, e.y, '#7f1d1d', 5);
     });
   },
@@ -263,7 +272,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const target = nearestEnemy(caster, state, caster.radius * 3 * power);
     if (!target) return;
     for (let i = 0; i < 3; i += 1) {
-      target.health -= caster.config.damage * 1.2 * power;
+      hitTarget(target, caster.config.damage * 1.2 * power);
       burst(state, target.x, target.y, '#ef4444', 4);
     }
     target.vulnerableTimer = 120;
@@ -310,7 +319,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   WHIRL_SLASH: (caster, state, power) => {
     for (let i = 0; i < 2; i += 1) {
       forEachNearby(caster, state, 250 * power, (e) => {
-        e.health -= caster.config.damage * 1.5 * power;
+        hitTarget(e, caster.config.damage * 1.5 * power);
       });
     }
     caster.angle += Math.PI * 2;
@@ -403,7 +412,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hpRatio = Math.max(0, Math.min(1, caster.health / caster.maxHealth));
     const multiplier = 1 + (1 - hpRatio) * 4;
     forEachNearby(caster, state, caster.radius * 4 * power, (e) => {
-      e.health -= caster.config.damage * multiplier * power;
+      hitTarget(e, caster.config.damage * multiplier * power);
       burst(state, e.x, e.y, '#f59e0b', 6);
     });
   },
@@ -413,8 +422,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     let drained = 0;
     forEachNearby(caster, state, 350 * power, (e) => {
       const amount = caster.config.damage * power;
-      e.health -= amount;
-      drained += amount;
+      drained += dealDamage(e, amount);
       burst(state, e.x, e.y, '#22c55e', 3);
     });
     if (drained > 0) {
@@ -427,7 +435,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   /** 尾浪震荡：冲击波伤害并击退 */
   TAIL_WAVE: (caster, state, power) => {
     forEachNearby(caster, state, 400 * power, (e) => {
-      e.health -= caster.config.damage * power;
+      hitTarget(e, caster.config.damage * power);
       const a = Math.atan2(e.y - caster.y, e.x - caster.x);
       e.x += Math.cos(a) * 120;
       e.y += Math.sin(a) * 120;
