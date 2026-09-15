@@ -6,9 +6,11 @@
  *  2. 表现（粒子 / 飘字 / 逆转特效）改成发事件，逻辑层不再硬编码粒子
  *  3. 保留原有数值手感，未改动任何概率与倍率
  *
- * ⚠️ 已知待办（见 开发路线图.md P1-3）：
- *    目前 canEat 命中 = 直接 health 归零，属于「概率一击必杀」。
- *    计划改为「撕咬扣血 + 概率吞噬」，让血条真正有意义。改这一个函数即可。
+ * ✅ 2026-09-14 实测更正（G1 / FQ-03 核对）：上面那句「概率一击必杀」**早已不成立** ——
+ *    现在命中只扣血（`BITE_DAMAGE_MULT`），死亡要么血被磨到 0，要么满足
+ *    `DEVOUR_HP_RATIO` + `DEVOUR_MIN_SIZE_RATIO` 才被吞。旧注释留着只会误导，故改写：
+ *    当前真正的随机性在**命中判定**本身（`EAT_PROBABILITY`，0.05～0.8 + 各类加成），
+ *    命中与否掷一次骰子 —— 这与计划 §5.1「稳定造成伤害」相冲突，是 FQ-04 的待办。
  */
 
 import { CreatureType } from '../data/creatures';
@@ -21,6 +23,7 @@ import { QuadTree } from '../utils/SpatialHash';
 import { recruitToSquad } from './squad';
 import { recordRun } from './leaderboard';
 import { isConcealed, CONCEAL_BITE_PROB_MULT } from './concealment';
+import { canHarm, isPlayerFaction } from './factions';
 
 export const createParticle = (x: number, y: number, color: string): Particle => ({
   id: uuid(),
@@ -53,9 +56,6 @@ export const createCookieParticle = (x: number, y: number): Particle => ({
   spin: Math.random() * Math.PI * 2,
 });
 
-const isFriendly = (e: Entity): boolean =>
-  e.id === 'player' || (typeof e.ownerId === 'string' && e.ownerId === 'player');
-
 const isSemiGhost = (e: Entity): boolean => !!e.semiGhostTimer && e.semiGhostTimer > 0;
 
 /**
@@ -77,8 +77,12 @@ const say = (e: Entity, text: string, timer: number, color: string): void => {
  *   - shieldTimer 同理（缩壳只是好看）
  *   - vulnerableTimer（弱点标记）设了没人读
  * 现在所有伤害都走这里，三个状态才真正生效。
+ *
+ * @param source 伤害来源（G1 / FQ-03）：只用来记**致死归属**，不影响伤害数值。
+ *   传了就写进 `target.lastHitById`，死亡结算据此把收益记到来源所属的阵营；
+ *   环境伤害（陨石 / 沼泽腐蚀）不传来源，也就不会抢走别人的归属。
  */
-export const dealDamage = (target: Entity, amount: number): number => {
+export const dealDamage = (target: Entity, amount: number, source?: Entity): number => {
   // 无敌帧：新手保护 / 闪避等技能
   if (target.invulnerableTimer && target.invulnerableTimer > 0) return 0;
   // 无敌模式（G 键，调试用）：玩家挂着 isGodMode 标记，任何伤害直接拦下
@@ -93,29 +97,47 @@ export const dealDamage = (target: Entity, amount: number): number => {
   }
 
   target.health -= damage;
+  // 记归属时用对象同一性判自伤（不能用 id 比：单测把 Math.random 钉成常数时
+  // `uuid()` 会给所有实体生成同一个 id，见 factions.ts 的注释）
+  if (source && source !== target) target.lastHitById = source.id;
   return damage;
 };
 
 /**
- * 吞噬成功的收益结算。
- * 玩家吃鱼会长体重 / 进化点 / 等级；AI 吃鱼只回血，避免失控膨胀。
+ * 击杀收益结算。**只由 `resolveDeath` 调用**，别处不许发奖励 ——
+ * 「一次死亡只发一次」这条全靠这个收口撑着。
+ *
+ * 归属规则（G1 / FQ-03）：**收益记阵营，不记个人**
+ *   · 玩家本体杀死 → 玩家拿成长，自己回血（与旧行为逐字一致）
+ *   · 队友杀死     → 玩家照样拿成长，**队友回血**，玩家也补一份回血
+ *     —— 这正是「抢最后一口不再是最优解」的落点：
+ *        以前队友击杀一分钱不给，理性玩法就是把队友挤开自己补刀；
+ *        现在连回血都不必靠玩家亲手收尾，补刀动机进一步被压掉。
+ *        （回血那一份刻意给了玩家：归属是阵营级的，不是只给「嘴」）
+ *   · 野鱼互吃     → 只有吞它那条回血，玩家不拿（生态链照旧转）
+ *
+ * ⚠️ 收编仍然只认玩家本体（`killer.id === 'player'`）：队友打下来的鱼要不要入队
+ *    属于战利品取舍（G3 / FQ-10），本轮不扩大范围。
  */
-const applyDevour = (
-  attacker: Entity,
-  victim: Entity,
+const settleDevour = (
   state: GameState,
   ctx: FrameContext,
+  victim: Entity,
+  killer: Entity,
   isBackAttack: boolean
 ): void => {
-  const attackerIsPlayer = attacker.id === 'player';
+  const attackerIsPlayer = killer.id === 'player';
+  const gain = victim.config.weightValue;
 
-  if (attackerIsPlayer) {
-    const p = attacker as PlayerState;
-    const gain = victim.config.weightValue;
+  // 吞下去的那条鱼回血（大鱼吃小鱼的即时反馈，与阵营无关）
+  killer.health = Math.min(killer.maxHealth, killer.health + gain * 2);
+
+  if (isPlayerFaction(killer)) {
+    const p = state.player;
     p.weight += gain;
     p.evolutionPoints += gain;
     p.eatenHistory[victim.type] = (p.eatenHistory[victim.type] || 0) + 1;
-    attacker.health = Math.min(attacker.maxHealth, attacker.health + gain * 2);
+    if (!attackerIsPlayer) p.health = Math.min(p.maxHealth, p.health + gain * 2);
 
     const newLevel = Math.floor(p.weight / 10) + 1;
     if (newLevel > p.level) {
@@ -126,15 +148,10 @@ const applyDevour = (
     } else {
       say(p, pick(PHRASES.EAT) ?? '捕获!', 45, '#bef264');
     }
-  } else {
-    attacker.health = Math.min(
-      attacker.maxHealth,
-      attacker.health + victim.config.weightValue * 2
-    );
   }
 
   if (isBackAttack && attackerIsPlayer) {
-    say(attacker, pick(PHRASES.AMBUSH) ?? '偷袭!', 45, '#ef4444');
+    say(killer, pick(PHRASES.AMBUSH) ?? '偷袭!', 45, '#ef4444');
   }
 
   // 吃到鱼的奖励感：爆出一撮金色小饼干碎屑
@@ -143,7 +160,7 @@ const applyDevour = (
   }
 
   ctx.events.emit('eat', {
-    attacker,
+    attacker: killer,
     victim,
     isBackAttack,
     x: victim.x,
@@ -156,6 +173,56 @@ const applyDevour = (
   if (attackerIsPlayer) {
     recruitToSquad(state, victim);
   }
+};
+
+/**
+ * 一次性死亡结算 —— 所有致死路径的最终收口（G1 / FQ-03）。
+ *
+ * 为什么需要它：以前只有撕咬会结算死亡（发奖励 / 发 death 事件 / 判胜利），
+ * 而技能、中毒、陨石照样能把血打到 0 —— 尸体在 `combatSystem` 末尾被静默 filter 掉，
+ * 于是「玩家一个技能崩死一条鱼」= 零收益、零事件、零胜利判定，连音效都没有。
+ *
+ * 幂等：`deathSettled` 标记保证一条鱼只结算一次。同帧内撕咬先结算、后面的技能再补刀
+ * 不会二次发奖；反过来技能先打死、撕咬再判定也会被 `health <= 0` 的早退挡掉。
+ *
+ * @param killer 致死来源。缺省时（环境致死）只清理不发奖。
+ * @returns 是否由本次调用完成结算（false = 已经结算过了）
+ */
+export const resolveDeath = (
+  state: GameState,
+  ctx: FrameContext,
+  victim: Entity,
+  killer?: Entity | null,
+  isBackAttack = false
+): boolean => {
+  if (victim.deathSettled) return false;
+  victim.deathSettled = true;
+  victim.health = 0;
+
+  state.labels.push({
+    x: victim.x,
+    y: victim.y - 50,
+    text: pick(PHRASES.EAT) ?? '捕获!',
+    color: '#ef4444',
+    timer: 60,
+  });
+
+  if (killer) {
+    settleDevour(state, ctx, victim, killer, isBackAttack);
+    // P0-4 胜利条件：玩家阵营（本体**或队友**）击杀深海霸主即通关
+    checkVictory(state, killer, victim);
+  }
+
+  ctx.events.emit('death', { victim, killer: killer ?? undefined });
+  return true;
+};
+
+/** 按 id 找回致死来源：玩家本体不在 entities 里，要单独认一次 */
+const findKiller = (state: GameState, victim: Entity): Entity | null => {
+  const id = victim.lastHitById;
+  if (!id) return null;
+  if (id === state.player.id) return state.player;
+  return state.entities.find((e) => e.id === id) ?? null;
 };
 
 /** 一次攻击判定。attacker 试图吃 victim。 */
@@ -171,8 +238,8 @@ export const processCollision = (
   const mascot = CREATURES_MASCOT;
   if (attacker.type === mascot || victim.type === mascot) return;
 
-  // 友军不互吃
-  if (isFriendly(attacker) && isFriendly(victim)) return;
+  // 自己人不打自己人（统一阵营入口：combat / ai / skills 三处共用 `canHarm`）
+  if (!canHarm(attacker, victim)) return;
   // 同类不互吃
   if (attacker.type === victim.type) return;
   // 半虚保护：刚生成的鱼既不能吃也不能被吃
@@ -254,7 +321,7 @@ export const processCollision = (
     let damage = attacker.config.damage * COMBAT_CONFIG.BITE_DAMAGE_MULT * sizeFactor;
     if (isBackAttack) damage *= 1 + COMBAT_CONFIG.BACK_BITE_BONUS;
 
-    const realDamage = dealDamage(victim, damage);
+    const realDamage = dealDamage(victim, damage, attacker);
     attacker.biteCooldown = COMBAT_CONFIG.BITE_COOLDOWN;
 
     // 被咬后体型缓慢缩水（P1-2）
@@ -272,7 +339,8 @@ export const processCollision = (
       victim.angle = Math.atan2(attacker.y - victim.y, attacker.x - victim.x);
       const counterDamage = dealDamage(
         attacker,
-        victim.config.damage * COMBAT_CONFIG.COUNTER_DAMAGE_MULT
+        victim.config.damage * COMBAT_CONFIG.COUNTER_DAMAGE_MULT,
+        victim
       );
       ctx.events.emit('hurt', { target: attacker, amount: counterDamage, source: victim });
       if (victim.id === 'player' || attacker.id === 'player') {
@@ -340,19 +408,8 @@ export const processCollision = (
       ctx.events.emit('reversal', { x: victim.x, y: victim.y, score: state.score });
     }
 
-    victim.health = 0;
-    state.labels.push({
-      x: victim.x,
-      y: victim.y - 50,
-      text: pick(PHRASES.EAT) ?? '捕获!',
-      color: '#ef4444',
-      timer: 60,
-    });
-    applyDevour(attacker, victim, state, ctx, isBackAttack);
-    ctx.events.emit('death', { victim, killer: attacker });
-
-    // P0-4 胜利条件：玩家击杀深海霸主（虎鲸 / 美人鱼 / 深海巨怪）
-    checkVictory(state, attacker, victim);
+    // 一次性结算：奖励 / death 事件 / 胜利判定全在里面，重复调用会被标记挡掉
+    resolveDeath(state, ctx, victim, attacker, isBackAttack);
 
     if (attacker.radius > victim.radius * 1.1) {
       attacker.renderScale = 1.1;
@@ -362,7 +419,7 @@ export const processCollision = (
     // 背刺没咬中吞噬判定，依然扎扎实实来一口
     const stabRaw =
       victim.maxHealth * COMBAT_CONFIG.BACK_STAB_HP_RATIO * AMBUSH_CONFIG.BACK_DAMAGE_MULT;
-    const stab = dealDamage(victim, stabRaw);
+    const stab = dealDamage(victim, stabRaw, attacker);
     // 等级门闸：背刺重击同样带不走等级更高的鱼（伤害照算，血量保底 1）
     if (isUnkillable(attacker, victim) && victim.health <= 0) victim.health = 1;
     victim.fearTimer = 60;
@@ -375,12 +432,16 @@ export const processCollision = (
 };
 
 /**
- * P0-4 胜利条件：玩家亲手击杀深海霸主（虎鲸 / 美人鱼 / 深海巨怪）即通关。
- * AI 击杀不算 —— 判定 attacker 必须是玩家。
- * 抽成函数是因为不止一个地方能杀死实体（撕咬、鱼雷），逻辑不能各写一份。
+ * P0-4 胜利条件：玩家阵营击杀深海霸主（虎鲸 / 美人鱼 / 深海巨怪）即通关。
+ *
+ * 判定改用**阵营**（G1 / FQ-03）：以前只认 `attacker.id === 'player'`，
+ * 于是队友把 BOSS 磨到死也不算数 —— 和「收益记阵营」是同一个毛病的两面。
+ * 野鱼 / 敌对鱼群击杀仍然不算（它们不是玩家阵营）。
+ *
+ * 抽成函数是因为不止一个地方能杀死实体（撕咬 / 技能 / 中毒 / 环境），逻辑不能各写一份。
  */
 export const checkVictory = (state: GameState, attacker: Entity, victim: Entity): void => {
-  if (attacker.id !== 'player') return;
+  if (!isPlayerFaction(attacker)) return;
   if (victim.config.behavior !== 'BOSS') return;
   state.status = GameStatus.VICTORY;
   recordRun(state); // 通关也上本地排行榜
@@ -440,8 +501,21 @@ export const combatSystem = (state: GameState, ctx: FrameContext): void => {
     }
   }
 
+  /* ── 一次性死亡结算（G1 / FQ-03）──
+   * 撕咬会在 `processCollision` 里当场结算，但技能 / 中毒 / 陨石这些路径只管扣血，
+   * 扣到 0 就完事了 —— 以前这些尸体在下面被静默 filter 掉，零奖励、零 death 事件、
+   * 零胜利判定（玩家一个技能崩死 BOSS 不通关，就是这个洞）。
+   * 这里统一补一刀：`deathSettled` 保证撕咬已经结算过的不会再发一次。
+   */
+  let hasCorpse = false;
+  for (const e of entities) {
+    if (e.health > 0) continue;
+    hasCorpse = true;
+    if (!e.deathSettled) resolveDeath(state, ctx, e, findKiller(state, e));
+  }
+
   // 清理尸体（放在最后，保证本帧事件都能拿到完整 victim 数据）
-  if (entities.some((e) => e.health <= 0)) {
+  if (hasCorpse) {
     state.entities = entities.filter((e) => e.health > 0);
   }
 };

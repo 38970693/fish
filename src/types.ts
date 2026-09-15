@@ -207,6 +207,21 @@ export interface Entity {
   /** 护盾剩余帧（SHELL / INFLATE 等技能） */
   shieldTimer?: number;
 
+  /** 中毒来源（施毒者 id）：持续伤害也要能归属，VENOM 施加时写入 */
+  poisonSourceId?: string;
+  /**
+   * 最后一次**有来源**的伤害来源 id（G1 / FQ-03）。
+   * 由 `dealDamage(target, amount, source)` 写入，死亡结算读它定归属。
+   * 环境伤害（陨石 / 沼泽腐蚀）不传 source，**不改写**这里 —— 没有凶手的伤害不夺走别人的归属。
+   */
+  lastHitById?: string;
+  /**
+   * 死亡已结算（一次性结算的幂等标记）。
+   * 一条鱼只能死一次：撕咬 / 技能 / 中毒 / 环境都可能把血打到 0，
+   * 谁先到谁结算，后来的路径看到这个标记直接跳过（见 `combat.resolveDeath`）。
+   */
+  deathSettled?: boolean;
+
   /**
    * 当前心境（「AI 鱼随机状态」）—— 叠在种族行为之上的个体性格。
    * 缺省 = CALM（所有倍率 1），等于「没有心境」，旧实体行为不变。

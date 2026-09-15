@@ -24,11 +24,18 @@ import { BIOME_EFFECTS, BiomeType } from '../data/biomes';
 import type { Entity, GameState, FrameContext, PlayerState } from '../types';
 import { dist } from '../core/math';
 import { createParticle, dealDamage } from './combat';
+import { canHarm } from './factions';
 
 // 用 Entity 而不是 PlayerState：AI 也会放技能（大鱼反制），签名必须兼容两者
 type SkillHandler = (caster: Entity, state: GameState, power: number) => void;
 
-/** 范围内敌对目标统一处理（排除吉祥物和友军） */
+/**
+ * 范围内**敌对**目标统一处理（排除吉祥物和友军）。
+ *
+ * ⚠️ 2026-09-14 实测（G1 / FQ-03）：注释早就写了「排除友军」，代码却只排了吉祥物 ——
+ *    玩家一个 SHOCK / THUNDER / SONIC / WHIRL_SLASH 下去，先躺下的是自己的战队成员。
+ *    现在统一走 `factions.canHarm`：同阵营不打，野鱼照打（生态链不受影响）。
+ */
 const forEachNearby = (
   caster: Entity,
   state: GameState,
@@ -38,6 +45,7 @@ const forEachNearby = (
   for (const e of state.entities) {
     if (e.health <= 0) continue;
     if (e.config.behavior === 'MASCOT') continue;
+    if (!canHarm(caster, e)) continue;
     if (dist(caster, e) <= range) fn(e);
   }
 };
@@ -45,11 +53,15 @@ const forEachNearby = (
 /**
  * 技能命中结算：伤害统一走 `dealDamage`（无敌模式 / 无敌帧 / 护盾 / 易伤全部生效）。
  *
+ * 传 `caster` 是为了记**致死归属**（FQ-03）：技能打死的鱼也要有凶手，
+ * 否则死亡结算只能当环境伤害处理，玩家什么都拿不到。
+ *
  * ⚠️ 历史遗漏：这里原来是对 `health` 直接做减法赋值，绕过了统一伤害入口 ——
  *    后果是 AI 的无敌帧（闪避 / 翻滚）与护盾对技能完全无效；
  *    将来技能若能打到玩家，玩家开无敌也拦不住（combat.ts 注释声称的契约被打破）。
  */
-const hitTarget = (target: Entity, amount: number): boolean => dealDamage(target, amount) > 0;
+const hitTarget = (caster: Entity, target: Entity, amount: number): boolean =>
+  dealDamage(target, amount, caster) > 0;
 
 const burst = (state: GameState, x: number, y: number, color: string, count = 5): void => {
   for (let i = 0; i < count; i += 1) state.particles.push(createParticle(x, y, color));
@@ -61,13 +73,20 @@ const burst = (state: GameState, x: number, y: number, color: string, count = 5)
  */
 const SONAR_REVEAL_FRAMES = 420;
 
-/** 找最近的一个敌人，流派技能里的「锁定目标」都用它 */
+/**
+ * 找最近的一个敌人，流派技能里的「锁定目标」都用它。
+ *
+ * ⚠️ 2026-09-14 实测（G1 / FQ-03）：函数名叫 nearestEnemy，实际只按距离取最近的实体 ——
+ *    SHADOW_RUSH / DEADLY_TEAR / WEAKNESS_MARK 都会「锁定」身边的队友。
+ *    现在按阵营过滤（野鱼仍是合法目标）。
+ */
 const nearestEnemy = (caster: Entity, state: GameState, range: number): Entity | null => {
   let best: Entity | null = null;
   let bestDist = range;
   for (const e of state.entities) {
     if (e.health <= 0) continue;
     if (e.config.behavior === 'MASCOT') continue;
+    if (!canHarm(caster, e)) continue;
     const d = dist(caster, e);
     if (d < bestDist) {
       bestDist = d;
@@ -102,7 +121,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   SHOCK: (caster, state, power) => {
     const range = 150 * power;
     forEachNearby(caster, state, range, (e) => {
-      hitTarget(e, caster.config.damage * 2 * power);
+      hitTarget(caster, e, caster.config.damage * 2 * power);
       e.speedBoostTimer = -60;
       burst(state, e.x, e.y, '#fde047', 5);
     });
@@ -112,7 +131,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   THUNDER: (caster, state, power) => {
     const range = 300 * power;
     forEachNearby(caster, state, range, (e) => {
-      hitTarget(e, caster.config.damage * 2 * power);
+      hitTarget(caster, e, caster.config.damage * 2 * power);
       e.speedBoostTimer = -60;
       burst(state, e.x, e.y, '#fde047', 5);
     });
@@ -136,7 +155,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hitY = caster.y + Math.sin(caster.angle) * caster.radius * 2;
     forEachNearby(caster, state, caster.radius * 4 * power, (e) => {
       if (dist({ x: hitX, y: hitY }, e) > caster.radius * 2 * power) return;
-      hitTarget(e, caster.config.damage * 3 * power);
+      hitTarget(caster, e, caster.config.damage * 3 * power);
       burst(state, e.x, e.y, '#ef4444', 5);
     });
   },
@@ -159,7 +178,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     caster.x += Math.cos(caster.angle) * 300 * power;
     caster.y += Math.sin(caster.angle) * 300 * power;
     forEachNearby(caster, state, caster.radius * 2 * power, (e) => {
-      hitTarget(e, caster.config.damage * 4 * power);
+      hitTarget(caster, e, caster.config.damage * 4 * power);
       burst(state, e.x, e.y, '#ef4444', 5);
     });
   },
@@ -170,8 +189,10 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hitY = caster.y + Math.sin(caster.angle) * caster.radius * 2;
     forEachNearby(caster, state, caster.radius * 3 * power, (e) => {
       if (dist({ x: hitX, y: hitY }, e) > caster.radius * 1.5 * power) return;
-      hitTarget(e, caster.config.damage * power);
+      hitTarget(caster, e, caster.config.damage * power);
       e.poisonTimer = 300;
+      // 记下施毒者：持续伤害是独立的致死路径，没有它毒死的人只能算环境伤害（无归属）
+      e.poisonSourceId = caster.id;
       burst(state, e.x, e.y, '#84cc16', 6);
     });
   },
@@ -208,7 +229,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
       e.x += (caster.x - e.x) * 0.8;
       e.y += (caster.y - e.y) * 0.8;
       if (dist(caster, e) < caster.radius) {
-        hitTarget(e, caster.config.damage * power);
+        hitTarget(caster, e, caster.config.damage * power);
         burst(state, e.x, e.y, '#ef4444', 5);
       }
     });
@@ -217,7 +238,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   /** 声波冲击：大范围伤害 */
   SONIC: (caster, state, power) => {
     forEachNearby(caster, state, 500 * power, (e) => {
-      hitTarget(e, caster.config.damage * 2 * power);
+      hitTarget(caster, e, caster.config.damage * 2 * power);
       burst(state, e.x, e.y, '#38bdf8', 5);
     });
   },
@@ -228,7 +249,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hitY = caster.y + Math.sin(caster.angle) * caster.radius * 3;
     forEachNearby(caster, state, caster.radius * 4 * power, (e) => {
       if (dist({ x: hitX, y: hitY }, e) > caster.radius * 1.5 * power) return;
-      hitTarget(e, caster.config.damage * 5 * power);
+      hitTarget(caster, e, caster.config.damage * 5 * power);
       burst(state, e.x, e.y, '#cbd5e1', 10);
     });
   },
@@ -237,7 +258,10 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   SIREN: (caster, state, power) => {
     forEachNearby(caster, state, 400 * power, (e) => {
       e.aggroTimer = 180;
-      const others = state.entities.filter((o) => o.id !== e.id && o.health > 0);
+      // 只把敌人推向敌人：魅惑到队友头上会变成「自己人互殴」
+      const others = state.entities.filter(
+        (o) => o.id !== e.id && o.health > 0 && canHarm(e, o)
+      );
       e.targetId = others.length ? others[Math.floor(Math.random() * others.length)].id : null;
       burst(state, e.x, e.y, '#f472b6', 3);
     });
@@ -248,7 +272,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     forEachNearby(caster, state, 800 * power, (e) => {
       e.x += (caster.x - e.x) * 0.8;
       e.y += (caster.y - e.y) * 0.8;
-      hitTarget(e, caster.config.damage * power);
+      hitTarget(caster, e, caster.config.damage * power);
       burst(state, e.x, e.y, '#7f1d1d', 5);
     });
   },
@@ -272,7 +296,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const target = nearestEnemy(caster, state, caster.radius * 3 * power);
     if (!target) return;
     for (let i = 0; i < 3; i += 1) {
-      hitTarget(target, caster.config.damage * 1.2 * power);
+      hitTarget(caster, target, caster.config.damage * 1.2 * power);
       burst(state, target.x, target.y, '#ef4444', 4);
     }
     target.vulnerableTimer = 120;
@@ -319,7 +343,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   WHIRL_SLASH: (caster, state, power) => {
     for (let i = 0; i < 2; i += 1) {
       forEachNearby(caster, state, 250 * power, (e) => {
-        hitTarget(e, caster.config.damage * 1.5 * power);
+        hitTarget(caster, e, caster.config.damage * 1.5 * power);
       });
     }
     caster.angle += Math.PI * 2;
@@ -392,6 +416,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     let lowest = Infinity;
     for (const e of state.entities) {
       if (e.health <= 0) continue;
+      if (!canHarm(caster, e)) continue; // 不标记自己人
       if (e.radius <= caster.radius) continue; // 只盯比自己大的
       if (dist(caster, e) > 800 * power) continue;
       const ratio = e.health / e.maxHealth;
@@ -412,7 +437,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const hpRatio = Math.max(0, Math.min(1, caster.health / caster.maxHealth));
     const multiplier = 1 + (1 - hpRatio) * 4;
     forEachNearby(caster, state, caster.radius * 4 * power, (e) => {
-      hitTarget(e, caster.config.damage * multiplier * power);
+      hitTarget(caster, e, caster.config.damage * multiplier * power);
       burst(state, e.x, e.y, '#f59e0b', 6);
     });
   },
@@ -435,7 +460,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
   /** 尾浪震荡：冲击波伤害并击退 */
   TAIL_WAVE: (caster, state, power) => {
     forEachNearby(caster, state, 400 * power, (e) => {
-      hitTarget(e, caster.config.damage * power);
+      hitTarget(caster, e, caster.config.damage * power);
       const a = Math.atan2(e.y - caster.y, e.x - caster.x);
       e.x += Math.cos(a) * 120;
       e.y += Math.sin(a) * 120;

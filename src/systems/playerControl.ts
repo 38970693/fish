@@ -4,11 +4,12 @@
  * 只负责「玩家怎么动」，不掺和战斗和技能，方便单独调手感。
  */
 
-import { BOOST_CONFIG, GAME_MECHANICS } from '../data/world';
+import { BOOST_CONFIG, GAME_MECHANICS, COMBAT_CONFIG } from '../data/world';
 import { BIOME_EFFECTS, BiomeType } from '../data/biomes';
 import type { GameState, FrameContext } from '../types';
 import { dist, turnToward, num } from '../core/math';
 import { getBiome } from './terrain';
+import { dealDamage } from './combat';
 
 /** 转向灵敏度：体型越大越笨重，愤怒状态例外（大鱼反制用） */
 const getPlayerAgility = (state: GameState): number => {
@@ -95,8 +96,10 @@ export const playerControlSystem = (state: GameState, ctx: FrameContext): void =
   }
   if (p.poisonTimer && p.poisonTimer > 0) {
     p.poisonTimer--;
-    // 无敌模式连毒都免疫，否则挂机调试也会被磨死
-    if (!p.isGodMode) p.health -= p.maxHealth * 0.001;
+    // 中毒也走统一伤害入口（G1 / FQ-03）：无敌帧 / 护盾 / 易伤一视同仁，
+    // 无敌模式连毒都免疫（dealDamage 里那道 isGodMode 闸）—— 否则挂机调试也会被磨死。
+    // 与 ai.ts 的中毒共用 `COMBAT_CONFIG.POISON_DPS_RATIO`，两边永远同速。
+    dealDamage(p, p.maxHealth * COMBAT_CONFIG.POISON_DPS_RATIO);
   }
   if (p.renderScale > 1) p.renderScale = Math.max(1, p.renderScale - 0.01);
   if (p.speechBubble && p.speechBubble.timer > 0) {

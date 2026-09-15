@@ -10,9 +10,18 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createInitialState } from '../factories/initialState';
-import { pondTravel, createObstacles, createPortals, worldSystem, __resetTeleportLock } from '../systems/world';
+import {
+  pondTravel,
+  createObstacles,
+  createPortals,
+  worldSystem,
+  __resetTeleportLock,
+  SHOP_POSITION,
+  SHOP_PORTAL_KEEPOUT,
+} from '../systems/world';
 import { createEntity } from '../systems/spawn';
 import { otherPonds, POND_DATA } from '../data/ponds';
+import { BUILDING_DATA } from '../data/buildings';
 import { MAP_CENTER } from '../systems/terrain';
 import { CreatureType } from '../data/creatures';
 import { EventBus } from '../core/EventBus';
@@ -77,6 +86,27 @@ describe('塘际门生成', () => {
     expect(locals).toHaveLength(4);
     // 塘际门更大，一眼能认出来
     pondPortals.forEach((p) => expect(p.radius).toBeGreaterThan(locals[0].radius));
+  });
+
+  /**
+   * 2026-09-14 实测抓到的 bug：塘内门是**踩上去就传**（不按键、传完还锁 90 帧），
+   * 随机落点一旦压在商场交互圈上，玩家游向商场时会被传走 —— 那一局的商场等于废弃。
+   * 症状是 p0「按 E 进商场」用例偶发红（约 0.5% 的随机世界中招）。
+   * 这里用 N 次生成把「禁区」钉死：期望值直接读源码常量，改了常量测试自动跟上。
+   */
+  it('传送门落点永远在商场禁区外（站在商场中心不会被传走）', () => {
+    for (let i = 0; i < 200; i += 1) {
+      const pondId = i % 2 === 0 ? 'CLEAR' : 'ABYSS';
+      for (const p of createPortals(pondId)) {
+        const d = Math.hypot(p.x - SHOP_POSITION.x, p.y - SHOP_POSITION.y);
+        expect(d).toBeGreaterThanOrEqual(SHOP_PORTAL_KEEPOUT);
+      }
+    }
+  });
+
+  it('禁区半径必须盖住商场交互圈（否则站在商场里照样被传）', () => {
+    // 商场用 1.5 倍半径当交互圈（worldSystem 的建筑段）
+    expect(SHOP_PORTAL_KEEPOUT).toBeGreaterThan(BUILDING_DATA.SHOP.radius * 1.5);
   });
 
   it('塘际门的位置在地图内（不会生成到花瓣外面）', () => {

@@ -18,9 +18,11 @@ import { dist2, turnToward, num } from '../core/math';
 import { QuadTree } from '../utils/SpatialHash';
 import { getBiome } from './terrain';
 import { castSkill } from './skills';
+import { dealDamage } from './combat';
 import { isConcealed, CONCEAL_REVEAL_RANGE_SQ } from './concealment';
 import { getMood, randomizeMood, randomMoodTimer } from '../data/moods';
 import type { MoodId } from '../data/moods';
+import { canHarm } from './factions';
 
 /** 只更新这个范围内的 AI，远处静止不动省性能 */
 const AI_ACTIVE_RANGE = 2600;
@@ -158,12 +160,6 @@ const findNearest = (
   return { entity: best, distSq: bestSq };
 };
 
-const isEnemy = (self: Entity) => (other: Entity): boolean => {
-  // 同战队不互相攻击
-  if (self.ownerId && other.ownerId && self.ownerId === other.ownerId) return false;
-  return true;
-};
-
 const wander = (entity: Entity, state: GameState, agility: number): void => {
   // 每 90 帧左右换一次方向，避免抖动
   if (!entity.targetId || state.time % 90 === 0) {
@@ -240,7 +236,7 @@ const passiveBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const threat = findNearest(
     entity,
-    (other) => other !== state.player && isEnemy(entity)(other) && other.level > entity.level,
+    (other) => other !== state.player && canHarm(entity, other) && other.level > entity.level,
     senseRangeSq(entity, 320)
   );
   if (threat.entity) {
@@ -256,7 +252,7 @@ const fleeBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const threat = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.level > entity.level,
+    (other) => canHarm(entity, other) && other.level > entity.level,
     senseRangeSq(entity, 700)
   );
   if (threat.entity) {
@@ -272,7 +268,7 @@ const aggressiveBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const prey = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level,
     senseRangeSq(entity, 900)
   );
   if (prey.entity) {
@@ -293,7 +289,7 @@ const ambushBehavior: AIHandler = (entity, state) => {
    * 同级大鱼靠「同级大吃小」也咬得死我，只看等级会漏掉真正的威胁。 */
   const threat = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.radius > entity.radius,
+    (other) => canHarm(entity, other) && other.radius > entity.radius,
     senseRangeSq(entity, GAME_MECHANICS.AMBUSH_DISTANCE)
   );
   if (threat.entity) {
@@ -305,7 +301,7 @@ const ambushBehavior: AIHandler = (entity, state) => {
 
   const prey = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level,
     senseRangeSq(entity, GAME_MECHANICS.AMBUSH_DISTANCE)
   );
 
@@ -335,7 +331,7 @@ const bossBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity) * 0.7;
   const prey = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level,
     senseRangeSq(entity, 1400)
   );
   if (prey.entity) {
@@ -374,7 +370,7 @@ const HUNT_RANGE = 1000;
 const sleepyMood: AIHandler = (entity, state) => {
   const threat = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.level > entity.level,
+    (other) => canHarm(entity, other) && other.level > entity.level,
     senseRangeSq(entity, 260)
   );
   if (threat.entity) {
@@ -456,7 +452,7 @@ const hungryMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const prey = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level,
     senseRangeSq(entity, HUNT_RANGE)
   );
   if (prey.entity) {
@@ -472,7 +468,7 @@ const frenzyMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity);
   const foe = findNearest(
     entity,
-    (other) => isEnemy(entity)(other),
+    (other) => canHarm(entity, other),
     senseRangeSq(entity, HUNT_RANGE)
   );
   if (foe.entity) {
@@ -505,8 +501,30 @@ export const AI_HANDLERS: Record<BehaviorId, AIHandler> = {
   MASCOT: mascotBehavior,
 };
 
+/**
+ * 中毒每帧扣血（G1 / FQ-03）。
+ *
+ * ⚠️ 以前是直接 `entity.health -= maxHealth * 0.001`，绕过统一伤害入口 ——
+ *    两个后果：① 无敌帧（闪避）/ 护盾 / 易伤对中毒一律无效；
+ *    ② 毒死的人**没有凶手**，死亡结算只能当环境伤害，玩家一分钱拿不到。
+ *    现在走 `dealDamage`，来源由 VENOM 写下的 `poisonSourceId` 找回；
+ *    找不到施毒者（比如它已经死了）就当环境伤害，不抢别人的归属。
+ */
+const tickPoison = (
+  entity: Entity,
+  resolveSource: (id: string) => Entity | undefined
+): void => {
+  if (!entity.poisonTimer || entity.poisonTimer <= 0) return;
+  entity.poisonTimer -= 1;
+  const source = entity.poisonSourceId ? resolveSource(entity.poisonSourceId) : undefined;
+  dealDamage(entity, entity.maxHealth * COMBAT_CONFIG.POISON_DPS_RATIO, source);
+};
+
 /** 每帧递减的计时器集中在这里，避免散落到各系统里忘记清 */
-const tickTimers = (entity: Entity): void => {
+const tickTimers = (
+  entity: Entity,
+  resolveSource: (id: string) => Entity | undefined
+): void => {
   if (entity.aggroTimer && entity.aggroTimer > 0) entity.aggroTimer--;
   if (entity.speedBoostTimer && entity.speedBoostTimer !== 0) {
     entity.speedBoostTimer += entity.speedBoostTimer > 0 ? -1 : 1;
@@ -515,10 +533,7 @@ const tickTimers = (entity: Entity): void => {
   if (entity.biteCooldown && entity.biteCooldown > 0) entity.biteCooldown--;
   if (entity.schoolSkillCooldown && entity.schoolSkillCooldown > 0) entity.schoolSkillCooldown--;
   if (entity.ambushTimer && entity.ambushTimer > 0) entity.ambushTimer--;
-  if (entity.poisonTimer && entity.poisonTimer > 0) {
-    entity.poisonTimer--;
-    entity.health -= entity.maxHealth * 0.001;
-  }
+  tickPoison(entity, resolveSource);
   if (entity.angerTimer && entity.angerTimer > 0) entity.angerTimer--;
   if (entity.sonarTimer && entity.sonarTimer > 0) entity.sonarTimer--;
   if (entity.vulnerableTimer && entity.vulnerableTimer > 0) entity.vulnerableTimer--;
@@ -566,7 +581,7 @@ const tryCounterSkill = (entity: Entity, state: GameState, ctx: FrameContext): v
   //    如果也走隐蔽门闸，那隐蔽一旦生效，声呐这个反制技就永远触发不了（分支变成死代码）。
   const foe = findNearest(
     entity,
-    (other) => isEnemy(entity)(other) && other.radius < entity.radius,
+    (other) => canHarm(entity, other) && other.radius < entity.radius,
     600 * 600,
     true
   );
@@ -620,8 +635,11 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
     }
   }
 
+  // 本帧的 id → 实体查表（含玩家）：中毒要凭 `poisonSourceId` 找回施毒者
+  const resolveSource = (id: string): Entity | undefined => candidateById.get(id);
+
   for (const entity of state.entities) {
-    tickTimers(entity);
+    tickTimers(entity, resolveSource);
 
     // 战队成员不是野怪：行为归 squad 系统管（跟随玩家）。
     // 这里必须跳过，否则两个系统每帧各写一次位置，成员会原地抽搐。
@@ -664,7 +682,7 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
       const agility = getAgility(entity) * COMBAT_CONFIG.ANGER_AGILITY_MULT;
       const foe = findNearest(
         entity,
-        (other) => isEnemy(entity)(other),
+        (other) => canHarm(entity, other),
         900 * 900
       );
       if (foe.entity) {

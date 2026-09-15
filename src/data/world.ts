@@ -222,6 +222,12 @@ export const COMBAT_CONFIG = {
   /** 体型缩小的下限 */
   MIN_RADIUS: 5,
 
+  /**
+   * 中毒每帧扣血比例（基于最大生命）。
+   * 以前散在 ai.ts / playerControl.ts 各写一份 `maxHealth * 0.001`，
+   * 改数值要改两处 —— 收进配置表，顺手让两侧永远同速。
+   */
+  POISON_DPS_RATIO: 0.001,
   /** 易伤标记生效时受到的伤害倍率（弱点标记 / 血腥嗅觉） */
   VULNERABLE_DAMAGE_MULT: 2.0,
   /** 护盾吸收伤害的比例（剩下的照常扣血） */

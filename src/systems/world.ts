@@ -35,6 +35,33 @@ const POND_SEED_COUNT = 12;
 /** 落地保护：传送完站在中心，给一点时间别被立刻吃掉 */
 const POND_TRAVEL_PROTECTION = PROTECTION_CONFIG.REVIVE_DURATION;
 
+/**
+ * 商场位置 —— **固定地标**（createBuildings 里写死），玩家每局都要进。
+ * 抽出来是因为别处也要拿它做避让（见 SHOP_PORTAL_KEEPOUT）。
+ */
+export const SHOP_POSITION = { x: MAP_CENTER.x - 1500, y: MAP_CENTER.y - 1500 };
+
+/**
+ * 商场交互圈：SHOP 建筑按 1.5 倍半径算交互范围（worldSystem 的建筑段）。
+ * 随机内容如果压进来，玩家"想进商场"的动作会被别的东西抢走。
+ */
+const SHOP_INTERACT_RANGE = BUILDING_DATA.SHOP.radius * 1.5;
+
+/**
+ * 传送门与商场中心的最小距离。
+ *
+ * ⚠️ 为什么必须有这个约束（实测抓到的 bug，2026-09-15）：
+ *    塘内门是**踩上去就传**（不需要按键），而且传完还锁 90 帧。
+ *    随机塘内门一旦压在商场交互圈上，玩家游向商场的路上就被传走 ——
+ *    这一局的商场等于废弃（按 E 永远进不去，因为人已经不在圈里了）。
+ *    实测约 0.5% 的随机世界会中招，表现就是 p0「按 E 进商场」用例偶发红。
+ */
+export const SHOP_PORTAL_KEEPOUT = SHOP_INTERACT_RANGE + PORTAL_CONFIG.RADIUS + 60;
+
+/** 点是否落在「商场禁区」内（传送门落点一律要避开） */
+const insideShopKeepOut = (p: { x: number; y: number }): boolean =>
+  Math.hypot(p.x - SHOP_POSITION.x, p.y - SHOP_POSITION.y) < SHOP_PORTAL_KEEPOUT;
+
 /* ══════════════ 世界构建（初始化 / 跨塘重建时调用） ══════════════ */
 
 export const createObstacles = (pondId?: string | null): Obstacle[] => {
@@ -97,8 +124,8 @@ export const createBuildings = (pondId?: string | null): Building[] => {
   // 鱼一开局自动巡游 3 秒就撞进去，换装面板突然弹出把世界暂停（开局被"隔离"）
   buildings.push({
     id: 'shop-1',
-    x: MAP_CENTER.x - 1500,
-    y: MAP_CENTER.y - 1500,
+    x: SHOP_POSITION.x,
+    y: SHOP_POSITION.y,
     type: BuildingType.SHOP,
     radius: BUILDING_DATA.SHOP.radius,
     cooldown: 0,
@@ -115,7 +142,20 @@ export const createPortals = (pondId?: string | null): Portal[] => {
     BiomeType.ABYSS,
   ];
   const locals: Portal[] = biomes.map((biome, i) => {
-    const pos = getRandomPosInBiome(biome);
+    // 塘内门是随机落点，必须避开固定商场（见 SHOP_PORTAL_KEEPOUT）：
+    // 先重摇，摇不出来就沿「远离商场」的方向推到禁区外（保证门的数量不减）。
+    let pos = getRandomPosInBiome(biome);
+    for (let attempt = 0; attempt < 12 && insideShopKeepOut(pos); attempt += 1) {
+      pos = getRandomPosInBiome(biome);
+    }
+    if (insideShopKeepOut(pos)) {
+      const a = Math.atan2(pos.y - SHOP_POSITION.y, pos.x - SHOP_POSITION.x);
+      const pushed = {
+        x: SHOP_POSITION.x + Math.cos(a) * SHOP_PORTAL_KEEPOUT,
+        y: SHOP_POSITION.y + Math.sin(a) * SHOP_PORTAL_KEEPOUT,
+      };
+      if (isPositionValid(pushed.x, pushed.y, PORTAL_CONFIG.RADIUS + 40)) pos = pushed;
+    }
     return {
       id: uuid(),
       x: pos.x,
@@ -139,7 +179,8 @@ export const createPortals = (pondId?: string | null): Portal[] => {
       const r = POND_PORTAL_RING + attempt * 60;
       const px = MAP_CENTER.x + Math.cos(a) * r;
       const py = MAP_CENTER.y + Math.sin(a) * r;
-      if (isPositionValid(px, py, POND_PORTAL_RADIUS + 60)) {
+      // 商场禁区同样适用：塘际门把人换到别的塘，落在商场旁边一样会把购物打断
+      if (isPositionValid(px, py, POND_PORTAL_RADIUS + 60) && !insideShopKeepOut({ x: px, y: py })) {
         x = px;
         y = py;
         break;
