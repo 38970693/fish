@@ -11,6 +11,7 @@ import type { CreatureConfig, CreatureType } from './data/creatures';
 import type { PondId } from './data/ponds';
 import type { MoodId } from './data/moods';
 import type { RunMode, RunPhaseId } from './data/runRules';
+import type { SquadCommandId } from './data/squadRoles';
 
 /* ══════════════ 内容型类型（从 data 层转发） ══════════════ */
 
@@ -298,6 +299,30 @@ export interface SquadRecruit {
   cosmetics?: Cosmetics;
 }
 
+/**
+ * 战队指令的一条**离散**指令（G1 / FQ-05，配合 AR-03）。
+ *
+ * 为什么不让键盘处理函数直接改 state：AR-03 点名要求「重复输入不多次换身/领奖」。
+ * 键位 / 头像点击都发生在 React 事件里，既不在游戏循环内、也无法保证只触发一次
+ * （重渲染、连点、一次输多帧都会重复命中）。所以 UI 只**入队**，
+ * 由 squadSystem 在帧内**消费一次就出队**，并且在消费时**按 id 重新校验**——
+ * 「指定成员在点下去和生效之间阵亡」这种情况才不会交换到错误的身体。
+ */
+export type SquadAction =
+  /** 下令（集火带 `worldMouse`，由系统自己挑目标 —— UI 不做决策） */
+  | { kind: 'COMMAND'; command: SquadCommandId; worldMouse?: { x: number; y: number } }
+  /** 指定附身：点某个队员头像 */
+  | { kind: 'POSSESS'; memberId: string }
+  /** 快捷附身：R 轮转 */
+  | { kind: 'POSSESS_NEXT' };
+
+/** 指令状态提示（无法执行时给原因，不静默失败 —— 计划 §6.2 末句） */
+export interface SquadCommandNotice {
+  text: string;
+  color: string;
+  timer: number;
+}
+
 export interface SquadState {
   /** 本帧待入队的俘虏，squad 系统消费后清空 */
   pending: SquadRecruit[];
@@ -307,6 +332,16 @@ export interface SquadState {
   recruitedTotal: number;
   /** 夺舍次数（HUD 展示用） */
   possessCount: number;
+  /** 当前指令。缺省 / undefined = 护卫（FQ-05 之前的行为） */
+  command?: SquadCommandId;
+  /** 集火目标 id。目标失效后由 squadSystem 清掉并回护卫 */
+  commandTargetId?: string;
+  /** 失靶宽限计数器（帧），见 SQUAD_COMMAND_CONFIG.TARGET_LOST_GRACE */
+  targetLostTimer?: number;
+  /** 最近一条指令提示（HUD 直接渲染快照，不在渲染期算） */
+  notice?: SquadCommandNotice | null;
+  /** 离散指令队列：squadSystem 每帧消费一次即出队 */
+  pendingActions?: SquadAction[];
 }
 
 /* ══════════════ 世界物件 ══════════════ */

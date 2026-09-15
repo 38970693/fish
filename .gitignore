@@ -42,3 +42,6 @@ scripts/*-probe.png
 .check.txt
 # 不带点的同义写法（PowerShell 记不住加点的习惯，干脆一起挡掉）
 /*-out.txt
+# 根目录下所有「点开头」的 txt：一律是临时重定向日志
+# （带前缀只是为了好认，不加这条 `git add -A` 还是会把它们卷进来）
+/.*.txt

@@ -46,6 +46,31 @@ export const turnToward = (current: number, target: number, agility: number): nu
   current + angleDiff(current, target) * clamp(agility, 0, 1);
 
 /**
+ * 屏幕坐标 → 世界坐标。
+ *
+ * 变换与 `GameCanvas` 的相机完全一致：`screen = (world - camera) * zoom + size/2`。
+ * 反解出来就是下面这个式子。画布没有做 devicePixelRatio 缩放
+ * （`canvas.width = window.innerWidth`），所以屏幕坐标 == 画布坐标 == CSS 像素。
+ *
+ * 为什么要有它：鼠标在游戏里一直只当**方向**用（`playerControl` 拿它算屏幕中心的夹角），
+ * 从来没有世界坐标。FQ-05 的「集火」必须知道玩家点的是**哪条鱼**，
+ * 才需要这一次反解 —— 与其在 UI 里再抄一遍相机公式，不如收在这里一处。
+ */
+export const screenToWorld = (
+  camera: { x: number; y: number; zoom: number },
+  screenX: number,
+  screenY: number,
+  screenW: number,
+  screenH: number
+): { x: number; y: number } => {
+  const zoom = camera.zoom || 1;
+  return {
+    x: camera.x + (screenX - screenW / 2) / zoom,
+    y: camera.y + (screenY - screenH / 2) / zoom,
+  };
+};
+
+/**
  * 位置体检：坐标一旦变成 NaN 就会污染整张 QuadTree 和所有碰撞计算，
  * 所以每帧在进入物理前统一修复。
  */

@@ -113,4 +113,16 @@ export const updateGame = (
  */
 export const manualSquadSwitch = (state: GameState): boolean => switchToNextMember(state);
 
-export { getSquadMembers, tryPossessOnDeath, switchToNextMember } from './systems/squad';
+export {
+  getSquadMembers,
+  tryPossessOnDeath,
+  switchToNextMember,
+  // G1 / FQ-05：指令与指定附身
+  queueSquadAction,
+  issueCommand,
+  getSquadCommand,
+  pickFocusTarget,
+  peekNextSwitchTarget,
+  requestPossess,
+  __resetSwitchCursor,
+} from './systems/squad';

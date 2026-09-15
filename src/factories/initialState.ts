@@ -7,6 +7,7 @@
 
 import { CREATURES, CreatureType } from '../data/creatures';
 import { WORLD_SIZE, BOOST_CONFIG, MAP_SHAPE_CONFIG } from '../data/world';
+import { DEFAULT_SQUAD_COMMAND } from '../data/squadRoles';
 import { BiomeType } from '../data/biomes';
 import { DEFAULT_POND, type PondId } from '../data/ponds';
 import {
@@ -105,7 +106,18 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     status: GameStatus.MENU,
     player,
     entities: [],
-    squad: { pending: [], switchCooldown: 0, recruitedTotal: 0, possessCount: 0 },
+    squad: {
+      pending: [],
+      switchCooldown: 0,
+      recruitedTotal: 0,
+      possessCount: 0,
+      // G1 / FQ-05：开局就是护卫（= FQ-05 之前的跟随行为）
+      command: DEFAULT_SQUAD_COMMAND,
+      commandTargetId: undefined,
+      targetLostTimer: 0,
+      notice: null,
+      pendingActions: [],
+    },
     particles: [],
     obstacles: options.skipWorldGen ? [] : createObstacles(pondId),
     powerUps: [],

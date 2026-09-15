@@ -3,8 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
 import { GameState, GameStatus, CreatureType, DEFAULT_COSMETICS } from './types';
-import { CREATURES, CREATURE_DATA, MAP_SHAPE_CONFIG, PROTECTION_CONFIG } from './constants';
-import { updateGame, manualSquadSwitch, createEntity, getSquadMembers } from './gameEngine';
+import { CREATURES, CREATURE_DATA, MAP_SHAPE_CONFIG, PROTECTION_CONFIG, SQUAD_COMMAND_LIST } from './constants';
+import { updateGame, queueSquadAction, createEntity, getSquadMembers, peekNextSwitchTarget } from './gameEngine';
+import { screenToWorld } from './core/math';
 // 性能剖析挂钩：只有 DEV 下的 __FISH_DEBUG__.profile() 会用到（见文件末尾的调试钩子）
 import { setProfileSink } from './systems';
 import { createInitialState } from './factories/initialState';
@@ -33,17 +34,46 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  /**
+   * 鼠标屏幕坐标 → 世界坐标（FQ-05 集火选靶用）。
+   * 相机变换与 GameCanvas 完全一致，反解收在 `core/math.screenToWorld` 一处。
+   */
+  const mouseWorld = () =>
+    screenToWorld(
+      gameStateRef.current.camera,
+      mouseRef.current.x,
+      mouseRef.current.y,
+      window.innerWidth,
+      window.innerHeight
+    );
+
   useEffect(() => {
     // Space = 加速，Q = 流派技能（P1-3），E = 交互确认（进商场），G = 无敌模式（调试用）
+    // 1/2/3 = 战队指令（集火 / 护卫 / 撤退），R = 附身下一条（FQ-05）
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') keysRef.current.space = true;
       if (e.code === 'KeyQ') keysRef.current.q = true;
       if (e.code === 'KeyE') keysRef.current.e = true;
-      if (e.code === 'KeyR') {
-        // 切换战队成员（提示词 #234）：一次性动作，走事件不走轮询，
-        // 按一次切一次，squad 系统内部有 30 帧冷却防连点
-        manualSquadSwitch(gameStateRef.current);
+
+      // 指令与附身都是**离散输入**：这里只入队，由 squadSystem 帧内消费一次（AR-03）。
+      // 只在正常游玩中受理 —— 进化 / 结算 / 商场这些遮罩态下世界暂停、队列没人消费，
+      // 攒着会在恢复的瞬间一次性全炸出来。
+      if (gameStateRef.current.status === GameStatus.PLAYING) {
+        const command = SQUAD_COMMAND_LIST.find((c) => c.keyCode === e.code);
+        if (command) {
+          queueSquadAction(gameStateRef.current, {
+            kind: 'COMMAND',
+            command: command.id,
+            // 只有需要选靶的指令才带鼠标世界坐标；护卫 / 撤退是对自己人下令
+            worldMouse: command.needsTarget ? mouseWorld() : undefined,
+          });
+        }
+        if (e.code === 'KeyR') {
+          // 提示词 #234：按一次切一次；冷却判定与「没有队员」提示都在系统里（不静默失败）
+          queueSquadAction(gameStateRef.current, { kind: 'POSSESS_NEXT' });
+        }
       }
+
       if (e.code === 'KeyG') {
         toggleGodMode();
       }
@@ -101,19 +131,29 @@ const App: React.FC = () => {
       // 物种规格取值器：性能探针用固定物种钉工作负载（见 scripts/probe-perf.mjs buildScene）
       spec: (id: string) => (CREATURE_DATA as Record<string, { radius: number } | undefined>)[id],
       defaultCosmetics: () => ({ ...DEFAULT_COSMETICS }),
-      squad: () => ({
-        members: getSquadMembers(gameStateRef.current).map((e) => ({
-          id: e.id,
-          type: e.type,
-          radius: e.radius,
-          x: Math.round(e.x),
-          y: Math.round(e.y),
-        })),
-        pending: gameStateRef.current.squad.pending.length,
-        recruitedTotal: gameStateRef.current.squad.recruitedTotal,
-        possessCount: gameStateRef.current.squad.possessCount,
-        cooldown: gameStateRef.current.squad.switchCooldown,
-      }),
+      squad: () => {
+        const s = gameStateRef.current;
+        return {
+          members: getSquadMembers(s).map((e) => ({
+            id: e.id,
+            type: e.type,
+            radius: e.radius,
+            x: Math.round(e.x),
+            y: Math.round(e.y),
+          })),
+          pending: s.squad.pending.length,
+          recruitedTotal: s.squad.recruitedTotal,
+          possessCount: s.squad.possessCount,
+          cooldown: s.squad.switchCooldown,
+          // ── FQ-05 指令状态：e2e 断言读这里而不是 HUD 文本
+          //    （HUD 每 100ms 才从 gameStateRef 同步一次，按键后立刻读会拿到旧快照）
+          command: s.squad.command ?? null,
+          targetId: s.squad.commandTargetId ?? null,
+          notice: s.squad.notice ? s.squad.notice.text : null,
+          queued: s.squad.pendingActions?.length ?? 0,
+          nextSwitchTargetId: peekNextSwitchTarget(s)?.id ?? null,
+        };
+      },
       player: () => {
         const p = gameStateRef.current.player;
         return {
@@ -316,7 +356,14 @@ const App: React.FC = () => {
             p.speechBubble = { text: '复活成功！', timer: 90, color: '#22d3ee' };
         }}
         setGameStatus={(s) => { gameStateRef.current.status = s; }}
-        onSwitchSquad={() => { manualSquadSwitch(gameStateRef.current); }}
+        onSwitchSquad={() => { queueSquadAction(gameStateRef.current, { kind: 'POSSESS_NEXT' }); }}
+        onSquadCommand={(command) => {
+            // HUD 按钮没有鼠标落点：不带世界坐标，系统自己挑「离玩家最近的敌人」
+            queueSquadAction(gameStateRef.current, { kind: 'COMMAND', command });
+        }}
+        onPossessMember={(memberId) => {
+            queueSquadAction(gameStateRef.current, { kind: 'POSSESS', memberId });
+        }}
         onToggleGodMode={toggleGodMode}
         muted={muted}
         onToggleMute={() => { initAudio(); setMuted(toggleMute()); }}

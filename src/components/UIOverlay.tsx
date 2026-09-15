@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
-import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, SQUAD_CONFIG, EVOLVE_OPTION_COUNT } from '../constants';
-import { getMapBoundaryRadius, gameEvents, isConcealed } from '../gameEngine';
+import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, SQUAD_CONFIG, EVOLVE_OPTION_COUNT, SQUAD_COMMAND_LIST, getSquadCommandConfig, type SquadCommandId } from '../constants';
+import { getMapBoundaryRadius, gameEvents, isConcealed, peekNextSwitchTarget } from '../gameEngine';
 import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
@@ -192,6 +192,10 @@ interface UIOverlayProps {
   setGameStatus?: (status: GameStatus) => void;
   /** 战队：主动切换成员（提示词 #234）。没成员时按钮置灰 */
   onSwitchSquad?: () => void;
+  /** 战队指令（FQ-05 §6.2）：集火 / 护卫 / 撤退。目标由系统挑，UI 不做决策 */
+  onSquadCommand?: (command: SquadCommandId) => void;
+  /** 指定附身：点某个队员头像，只附身到它（找不到就失败，不换错身体） */
+  onPossessMember?: (memberId: string) => void;
   /** P1-4 音效开关 */
   muted?: boolean;
   onToggleMute?: () => void;
@@ -489,11 +493,22 @@ const LeaderboardPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, onSwitchSquad, muted, onToggleMute }) => {
+const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, onSwitchSquad, onSquadCommand, onPossessMember, muted, onToggleMute }) => {
   const { player, status, entities } = gameState;
   const opponent = entities.find(e => e.id !== 'player' && e.type === CreatureType.ORCA);
   // 战队成员 = ownerId 指向玩家的活体（与 systems/squad.ts 的判定保持一致）
   const squadMembers = entities.filter(e => e.ownerId === 'player' && e.health > 0);
+  // ── FQ-05 战队指令。全部从快照读：渲染期不做任何决策 / 不掷骰子
+  //    （command 为 undefined 时 getSquadCommandConfig 会回退到缺省「护卫」）
+  const squadCommand = getSquadCommandConfig(gameState.squad.command);
+  const squadFocusTarget = gameState.squad.commandTargetId
+    ? entities.find(e => e.id === gameState.squad.commandTargetId)
+    : undefined;
+  const squadNotice = gameState.squad.notice ?? null;
+  // R 键下一个会附身到谁（只读，不推进轮转游标）—— 头像上打个描边，玩家才知道会跳到哪
+  const squadNextSwitchId = peekNextSwitchTarget(gameState)?.id ?? null;
+  // 附身冷却（帧）：计划 §6.2 要求「显示目标与冷却」，所以按钮上直接把剩余秒数写出来
+  const possessCooldown = gameState.squad.switchCooldown;
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
   const [selectedPond, setSelectedPond] = useState<PondId>(DEFAULT_POND);
   const [showCosmetics, setShowCosmetics] = useState(false);
@@ -689,7 +704,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 >
                     <Crown size={15} /> {player.isGodMode ? '无敌模式：开（点击关闭）' : '无敌模式：关（点击开启）'}
                 </button>
-                {/* 战队面板（提示词 #70 / #234）：吃掉的鱼会倒戈入队，死了能夺舍续命 */}
+                {/* 战队面板（提示词 #70 / #234 + FQ-05 指令）：吃掉的鱼倒戈入队，可下令、可指定附身 */}
                 <div className="mt-2 pt-2 border-t border-slate-700/60">
                     <div className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-cyan-300 font-bold text-sm">
@@ -699,18 +714,73 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         </span>
                         <button
                             onClick={() => onSwitchSquad?.()}
-                            disabled={squadMembers.length === 0}
+                            disabled={squadMembers.length === 0 || possessCooldown > 0}
                             className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed"
-                            title="灵魂附身到下一条小弟身上（原身体变成小弟）"
+                            title="灵魂附身到下一条小弟身上（原身体变成小弟，快捷键 R）"
                         >
-                            <Repeat size={13} /> 切换 (R)
+                            <Repeat size={13} /> {possessCooldown > 0 ? `冷却 ${Math.ceil(possessCooldown / 60)}s` : '切换 (R)'}
                         </button>
                     </div>
+
+                    {/* 三个指令（FQ-05 §6.2）：指令是**状态**不是动作 —— 按一下就一直挂着，
+                        直到换下一条；所以高亮「当前那条」比按钮闪一下更有信息量 */}
+                    <div className="mt-1.5 grid grid-cols-3 gap-1">
+                        {SQUAD_COMMAND_LIST.map((cfg) => {
+                            const active = squadCommand.id === cfg.id;
+                            const Icon = cfg.id === 'FOCUS' ? Target : cfg.id === 'GUARD' ? Shield : Wind;
+                            return (
+                                <button
+                                    key={cfg.id}
+                                    onClick={() => onSquadCommand?.(cfg.id)}
+                                    disabled={squadMembers.length === 0}
+                                    title={cfg.hint}
+                                    className={`px-1 py-1 rounded-md text-[11px] font-bold border transition-all flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed ${active
+                                        ? ''
+                                        : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'}`}
+                                    style={active ? { background: `${cfg.color}22`, borderColor: cfg.color, color: cfg.color } : undefined}
+                                >
+                                    <Icon size={12} />
+                                    {cfg.keyLabel} {cfg.name}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* 集火目标写出来：不写的话玩家不知道队员在扑谁 */}
+                    {squadCommand.id === 'FOCUS' && (
+                        <div className="mt-1 text-[11px] text-center" style={{ color: squadCommand.color }}>
+                            集火目标：{squadFocusTarget ? squadFocusTarget.config.name : '（已失效，将自动回到护卫）'}
+                        </div>
+                    )}
+
+                    {/* 队员头像：点谁附身谁（指定附身）。下一个 R 的目标描个边 */}
                     {squadMembers.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1 justify-center">
+                            {squadMembers.map((m) => (
+                                <button
+                                    key={m.id}
+                                    onClick={() => onPossessMember?.(m.id)}
+                                    title={`点此附身到 ${m.config.name}（Lv.${m.level}，半径 ${Math.round(m.radius)}）`}
+                                    className={`w-7 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all bg-slate-900/70 ${m.id === squadNextSwitchId
+                                        ? 'border-cyan-400 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                                        : 'border-slate-600 text-slate-300 hover:border-cyan-400/70 hover:text-white'}`}
+                                >
+                                    {m.config.name.slice(0, 1)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 指令提示（下令回执 / 失败原因）：无法执行时给原因，不静默失败 */}
+                    {squadNotice ? (
+                        <div className="mt-1 text-[11px] text-center font-bold" style={{ color: squadNotice.color }}>
+                            {squadNotice.text}
+                        </div>
+                    ) : squadMembers.length > 0 ? (
                         <div className="mt-1 text-[11px] text-slate-500 text-center">
                             阵亡可夺舍体型最大的成员续命
                         </div>
-                    )}
+                    ) : null}
                 </div>
             </div>
 

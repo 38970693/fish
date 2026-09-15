@@ -46,8 +46,10 @@ export const CONCEAL_REVEAL_RANGE_SQ = CONCEAL_REVEAL_RANGE * CONCEAL_REVEAL_RAN
  * 被声呐照到），后面的扑咬判定里**没有任何隐蔽项** —— 体型 2 倍以上的猎手基础
  * 命中率就有 0.8，藏没藏住都是照咬。用户体感「躲进水草还是被杀」正来自这里。
  *
- * ⚠️ 用法：见 `combat.ts`，**必须在所有加成算完之后**再乘。放在前面会被
- * `Math.max(eatProbability, 0.5)`（同级大吃小）这类地板值直接覆盖掉。
+ * ⚠️ 用法：见 `combat.ts` —— **FQ-04 之后，它是整条扑咬判定里唯一还掷骰子的地方**
+ *    （旧实现是 `Math.max(eatProbability, 0.5)` 那个地板值覆盖它，命中率本身已随
+ *    「稳定撕咬」整体删除，别再去找那个 max 了）。所以顺序已经不再敏感，
+ *    但语义上仍然只该管「藏在掩体里那一下」，不要拿它当通用命中率用。
  */
 export const CONCEAL_BITE_PROB_MULT = 0.2;
 
@@ -73,6 +75,25 @@ export const isInSeaweedCover = (
 /** 是否处于隐蔽状态（隐身技能 或 藏在水草里） */
 export const isConcealed = (entity: Entity): boolean =>
   Boolean(entity.camoActive || entity.inCover);
+
+/**
+ * 能否察觉到目标 —— **所有锁定判定的唯一收口**。
+ *
+ * 隐蔽单位（藏在水草里 / 开着隐身技能）默认看不见，只有两种例外：
+ *   · 已经贴到脸上（CONCEAL_REVEAL_RANGE）—— 钻草丛不等于无敌
+ *   · 猎手刚放过「声呐扫描」（sonarTimer > 0）—— 这是隐蔽的反制手段
+ *
+ * ⚠️ 2026-09-15（FQ-05）从 `ai.ts` 搬到这里并导出：集火指令也要挑「可感知的敌人」，
+ *    如果 squad 再写一份自己的可见性判断，就又回到 FQ-03 之前
+ *    「同一件事三处各写一份、口径不一」的老毛病上。锁定类判定一律走这里。
+ *
+ * @param distSq 调用方已经算好的平方距离（避免这里重算一次）
+ */
+export const canPerceive = (seeker: Entity, target: Entity, distSq: number): boolean => {
+  if (!isConcealed(target)) return true;
+  if (seeker.sonarTimer && seeker.sonarTimer > 0) return true;
+  return distSq <= CONCEAL_REVEAL_RANGE_SQ;
+};
 
 /**
  * 复用缓冲，避免每帧 `filter` 分配一个新数组。

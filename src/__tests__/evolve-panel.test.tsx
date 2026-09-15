@@ -37,6 +37,8 @@ vi.mock('../components/CosmeticsPanel', () => ({ default: () => null }));
 vi.mock('../gameEngine', () => ({
   getMapBoundaryRadius: () => 2000,
   isConcealed: () => false,
+  // FQ-05：战队面板要读「R 下一个会附身到谁」，必须补进 mock（工厂式 mock 未列出的导出全是 undefined）
+  peekNextSwitchTarget: () => null,
   gameEvents: { on: () => () => {}, emit: () => {} },
 }));
 vi.mock('../systems/achievements', () => ({

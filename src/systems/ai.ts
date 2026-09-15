@@ -19,7 +19,7 @@ import { QuadTree } from '../utils/SpatialHash';
 import { getBiome } from './terrain';
 import { castSkill } from './skills';
 import { dealDamage } from './combat';
-import { isConcealed, CONCEAL_REVEAL_RANGE_SQ } from './concealment';
+import { isConcealed, canPerceive } from './concealment';
 import { getMood, randomizeMood, randomMoodTimer } from '../data/moods';
 import type { MoodId } from '../data/moods';
 import { canHarm } from './factions';
@@ -59,18 +59,8 @@ interface Nearest {
   distSq: number;
 }
 
-/**
- * 能否察觉到目标 —— **所有锁定判定的唯一收口**。
- *
- * 隐蔽单位（藏在水草里 / 开着隐身技能）默认看不见，只有两种例外：
- *   · 已经贴到脸上（CONCEAL_REVEAL_RANGE）—— 钻草丛不等于无敌
- *   · 猎手刚放过「声呐扫描」（sonarTimer > 0）—— 这是隐蔽的反制手段
- */
-const canPerceive = (seeker: Entity, target: Entity, distSq: number): boolean => {
-  if (!isConcealed(target)) return true;
-  if (seeker.sonarTimer && seeker.sonarTimer > 0) return true;
-  return distSq <= CONCEAL_REVEAL_RANGE_SQ;
-};
+/* `canPerceive`（锁定唯一收口）已搬到 `systems/concealment.ts` 并导出 ——
+ * 集火指令也要用同一份可见性判定，别再在本文件里留第二个副本。 */
 
 /** 在候选里找最近的满足条件者（隐蔽目标会被 canPerceive 过滤掉） */
 /**

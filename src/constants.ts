@@ -9,6 +9,7 @@
  */
 
 export * from './data/world';
+export * from './data/squadRoles';
 export * from './data/creatures';
 export * from './data/biomes';
 export * from './data/ponds';
