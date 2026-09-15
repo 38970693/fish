@@ -51,10 +51,15 @@
  * ─────────────────────────────────────────────────────────────
  * 用法
  * ─────────────────────────────────────────────────────────────
- *   node scripts/probe-perf.mjs <label>      # label 例：baseline / quadtree / dc
+ *   node scripts/probe-perf.mjs <label> [baselineLabel]
+ *        # label 例：baseline / quadtree / dc；baselineLabel 缺省 'baseline'
  *   → 打印表格，快照写进 scripts/perf-<label>.json
- *   → 若 scripts/perf-baseline.json 已存在且 label ≠ baseline，自动打对比表
+ *   → 若 scripts/perf-<baselineLabel>.json 已存在且 label ≠ baselineLabel，自动打对比表
  *     （含 workload 一致性校验：实体数/障碍数对不上就标「不可比」）
+ *
+ *   ⚠️ 对照基线**必须**指明 epoch：实体上限 180 → 300 之后旧的 perf-baseline.json 会被
+ *      判「不可比」（实体数 300≠180），此时用 `probe-perf.mjs fq04 g0-baseline`
+ *      直接对 perf-g0-baseline.json，别再手动改文件名。
  *
  * 前置：dev server 在 3000 端口（性能钩子只在 DEV 构建里），
  *       且必须先清掉 http_proxy / https_proxy，否则 Chromium 连 localhost 都会超时。
@@ -67,8 +72,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const URL = 'http://localhost:3000/';
 const LABEL = process.argv[2] ?? 'run';
+// 对照基线可换（第 2 个参数）：实体上限提到 300 之后，180 实体时代的 perf-baseline.json
+// 会因为 workload 不一致被标「不可比」—— 与其每次手动改名，不如直接点名基线。
+const BASE_LABEL = process.argv[3] ?? 'baseline';
 const OUT = path.join(ROOT, 'scripts', `perf-${LABEL}.json`);
-const BASE = path.join(ROOT, 'scripts', 'perf-baseline.json');
+const BASE = path.join(ROOT, 'scripts', `perf-${BASE_LABEL}.json`);
 
 const W = 1280;
 const H = 800;
@@ -688,7 +696,7 @@ const DC_KEYS = ['fill', 'stroke', 'fillText', 'measureText', 'save', 'restore',
 
 if (fs.existsSync(BASE) && LABEL !== 'baseline') {
   const base = JSON.parse(fs.readFileSync(BASE, 'utf8'));
-  log(`\n══ 对比 baseline → ${LABEL} ══`);
+  log(`\n══ 对比 ${BASE_LABEL} → ${LABEL} ══`);
   for (const name of Object.keys(scenes)) {
     const b = base.scenes[name];
     const c = scenes[name];

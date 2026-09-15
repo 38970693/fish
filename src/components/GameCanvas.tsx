@@ -2,7 +2,7 @@
 import React, { useRef, useEffect } from 'react';
 // Added GameStatus to imports to fix line 134 reference error
 import { GameState, GameStatus, Entity, Particle, CreatureType, Obstacle, PlayerState, PowerUp, Hazard, Building, BuildingType, Portal, Cosmetics, BodyType, TailType, TrailType, EyeType, EyebrowType, AccessoryType, PatternType, ScaleType } from '../types';
-import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, getPond, getMood } from '../constants';
+import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, getPond, getMood } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
 import { defineShapePath, drawShapeBack, drawShapeFront, drawSurfaceMouth } from './fishShapes';
 import type { CreatureShapeId } from '../data/creatureShapes';
@@ -1500,6 +1500,50 @@ const drawAmbushIndicator = (ctx: CanvasRenderingContext2D, entity: Entity, play
     ctx.restore();
 };
 
+/**
+ * 大鱼反击的前摇预告（FQ-04 / §5.1）。
+ *
+ * 为什么必须画出来：反击从「被咬瞬间的不可见伤害」改成「前摇 → 范围 → 伤害时点」之后，
+ * 如果只有伤害没有预告，玩家只会觉得「我明明游开了还是掉血」。
+ * 所以前摇期间把**判定范围**和**倒计时**都摊在屏幕上 —— 一眼看懂该往哪跑。
+ */
+const drawCounterTelegraph = (ctx: CanvasRenderingContext2D, entity: Entity, visualTime: number) => {
+    const windup = entity.counterWindup ?? 0;
+    if (windup <= 0) return;
+
+    const total = Math.max(1, COMBAT_CONFIG.COUNTER_WINDUP);
+    const progress = 1 - Math.min(1, windup / total); // 0 → 1，越接近 1 越危险
+    const range = entity.radius * COMBAT_CONFIG.COUNTER_RANGE_MULT;
+
+    ctx.save();
+    ctx.translate(entity.x, entity.y);
+
+    // 判定范围：站在这个圈里就会挨打，跑出去就躲掉了
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.arc(0, 0, range, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 贴身倒计时光环：随前摇收紧并变亮
+    ctx.globalAlpha = 0.45 + progress * 0.5;
+    ctx.strokeStyle = progress > 0.75 ? '#fca5a5' : '#fbbf24';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, entity.radius + 10 + (1 - progress) * 10, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 外圈进度弧：从 0 长满一圈 = 伤害落地的瞬间
+    ctx.globalAlpha = 0.55 + Math.sin(visualTime * 0.4) * 0.25;
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, range, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
+};
+
 // 传送门绘制函数
 
 // 视口裁剪辅助函数
@@ -1945,6 +1989,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // 绘制偷袭提示（在大鱼背后显示偷袭机会）
         visibleEntities.forEach(e => drawAmbushIndicator(ctx, e, player.x, player.y, player.level, visualTime));
+
+        // 大鱼反击的前摇预告（FQ-04）：范围 + 倒计时都要看得见，否则「游开了还掉血」
+        visibleEntities.forEach(e => drawCounterTelegraph(ctx, e, visualTime));
+        drawCounterTelegraph(ctx, player, visualTime);
 
         // 诱惑技能生效中：玩家画成一块大肉（武器机甲已随武器系统移除）
         if (player.lureActive) {

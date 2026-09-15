@@ -119,7 +119,7 @@ describe('P1-1 撕咬取代一击必杀', () => {
 /* ══════════════ P1-2 大鱼反制 ══════════════ */
 
 describe('P1-2 大鱼反制', () => {
-  it('被比自己小的鱼咬到，会猛回头反击', () => {
+  it('被比自己小的鱼咬到，会起「猛回头」反击前摇（FQ-04：当帧不再掉血）', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const state = makePlayingState();
     const ctx = makeCtx();
@@ -128,8 +128,11 @@ describe('P1-2 大鱼反制', () => {
     const before = attacker.health;
     processCollision(attacker, victim, state, ctx);
 
-    // 虎鲸比大白鲨大 → 反击成立
-    expect(attacker.health).toBeLessThan(before);
+    // 虎鲸比大白鲨大 → 反击成立。但 §5.1 要求它变成**可观察的动作**：
+    // 这一帧只起前摇 + 回头 + 亮预告，伤害要等前摇走完才落地。
+    expect(victim.counterWindup).toBe(COMBAT_CONFIG.COUNTER_WINDUP);
+    expect(attacker.health).toBe(before);
+    // 前摇 → 范围 → 伤害时点 → 冷却的完整验证在 fq04-combat.test.ts
   });
 
   it('被比自己大的鱼咬，不存在反击', () => {

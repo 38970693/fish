@@ -223,6 +223,16 @@ export interface Entity {
   deathSettled?: boolean;
 
   /**
+   * 大鱼反击前摇（帧，FQ-04）。
+   * > 0 = 正在蓄力：这期间**只有预告、没有伤害**，被咬的小鱼游出
+   * `COUNTER_RANGE` 就能躲开（§5.1「转身本身不立即生成无法躲避的伤害」）。
+   * 归零的那一帧才在范围内结算伤害，随后进入 `counterCooldown`。
+   */
+  counterWindup?: number;
+  /** 大鱼反击冷却（帧，FQ-04）：冷却中再被咬也不会起新的前摇 */
+  counterCooldown?: number;
+
+  /**
    * 当前心境（「AI 鱼随机状态」）—— 叠在种族行为之上的个体性格。
    * 缺省 = CALM（所有倍率 1），等于「没有心境」，旧实体行为不变。
    */

@@ -25,6 +25,7 @@ import {
 import { castSkill } from '../systems/skills';
 import { aiSystem } from '../systems/ai';
 import { canHarm, factionOf, FACTION } from '../systems/factions';
+import { COMBAT_CONFIG } from '../data/world';
 import { CreatureType } from '../data/creatures';
 import { GameStatus } from '../types';
 import type { FrameContext, GameEvents, GameState, Entity } from '../types';
@@ -311,38 +312,45 @@ describe('FQ-03 收益归属：队友击杀也算玩家的', () => {
   });
 });
 
-/* ══════════════ ⑤ 现状钉子（FQ-04 待修，不是本轮范围） ══════════════ */
+/* ══════════════ ⑤ 背刺方向（FQ-04 已修正，留作对照） ══════════════ */
 
-describe('【现状钉子 · FQ-04 待修】背刺方向语义', () => {
-  it('当前判的是「猎物在攻击者身后」，与计划 §5.1「攻击者在猎物尾部」相反', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0);
+/**
+ * 这条用例原先钉的是**反的**语义：「把攻击者转过去背对猎物，就算背刺」。
+ * FQ-04 按 §5.1 改成「攻击者位于**猎物尾部**才算」，所以整条用例翻了过来 ——
+ * 留在原文件里是为了让「当初那个反的判据」有据可查（改的人一眼能看到前后差别）。
+ */
+describe('背刺方向语义（FQ-04 修正后）', () => {
+  it('判据是「攻击者在猎物尾部」，不是「猎物在攻击者身后」', () => {
     const state = makeState();
     const ctx = makeCtx();
+    // 攻击者 0 号位、猎物 +10：攻击者在猎物的 -x 侧，两人都朝 +x（攻击者正对猎物）
     const attacker = placeFish(state, CreatureType.CLOWN_FISH, 0);
-    // 距离必须贴身：超过双方半径和后，非偷袭距离会被「实打实的贴身碰撞」门闸挡下
     const victim = placeFish(state, CreatureType.BLUE_TANG, 10);
     attacker.id = 'atk-dir';
     victim.id = 'vic-dir';
-    victim.health = victim.maxHealth;
-
-    // 攻击者与受害者都朝 +x：攻击者正对猎物（正面），
-    // 但按当前实现，把攻击者转过去背对猎物就会被判成「背刺」——方向语义是反的。
+    victim.maxHealth = 1e6;
+    victim.health = 1e6; // 只量伤害，不掺死亡与吞噬
     attacker.angle = 0;
+    // ⚠️ 同一对鱼连咬两口：`SHRINK_ON_BITE` 会在第一口后把猎物半径缩 0.5%，
+    //    体型因子随之变大 —— 不还原半径，「背刺 = 正面 × 1.5」就永远差 0.5%。
+    const r0 = victim.radius;
+
+    // ① 猎物朝 +x（尾巴朝 -x）→ 攻击者正站在它尾部 = 背刺
     victim.angle = 0;
     processCollision(attacker, victim, state, ctx);
-    const frontDamage = victim.maxHealth - victim.health;
+    const afterBack = victim.health;
+    const backDamage = 1e6 - afterBack;
 
-    victim.health = victim.maxHealth;
-    attacker.angle = Math.PI; // 攻击者背对猎物 → 当前实现判定为背刺
+    // ② 猎物转身面对攻击者 → 攻击者不再位于尾部 = 普通一口
+    victim.radius = r0; // 抹掉咬后缩水，两口的体型因子才可比
+    victim.angle = Math.PI;
     attacker.biteCooldown = 0;
     processCollision(attacker, victim, state, ctx);
-    const backDamage = victim.maxHealth - victim.health;
+    const frontDamage = afterBack - victim.health;
 
+    expect(backDamage).toBeGreaterThan(0);
     expect(frontDamage).toBeGreaterThan(0);
-    // 背刺伤害显著高于正面（当前实现：因为「猎物在攻击者身后」被当成了背刺）
     expect(backDamage).toBeGreaterThan(frontDamage);
-
-    // FQ-04 修正方向语义后，这两条断言会反过来（攻击者绕到猎物尾部才算背刺），
-    // 届时本用例需要同步改写 —— 它就是为「别忘了改这里」而存在的。
+    expect(backDamage).toBeCloseTo(frontDamage * (1 + COMBAT_CONFIG.BACK_BITE_BONUS), 5);
   });
 });

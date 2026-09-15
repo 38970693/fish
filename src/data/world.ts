@@ -163,21 +163,25 @@ export const BUILDING_CONFIGS = {
   SHIPWRECK: { radius: 170, cooldown: 1500, color: '#92400e', name: '沉船残骸' },
 };
 
-/** 偷袭 / 吞噬判定 */
+/**
+ * 偷袭 / 吞噬判定。
+ *
+ * ⚠️ FQ-04（2026-09-15）删掉了原 `EAT_PROBABILITY`（命中率表）与 `BACK_DAMAGE_MULT`：
+ *    普通撕咬改成**稳定命中**后，命中率表没有任何读取点，留着只会误导下一个人
+ *    （旧的 `BACK_DAMAGE_MULT` 只服务于「背刺没咬中时补一刀」，那条路径已不存在）。
+ */
 export const AMBUSH_CONFIG = {
   DETECTION_RANGE_MIN: 250,
   DETECTION_RANGE_MAX: 450,
-  /** 判定为「背后」的角度阈值（约 120°） */
+  /**
+   * 「背后」的角度阈值（约 120°）。
+   * FQ-04 起它的语义只在两处：
+   *   ① **位置**：攻击者是否位于**猎物的尾部**（按 `victim.angle` 判，§5.1）
+   *   ② **可达**：攻击者背对猎物时还咬不咬得到（`|facingDiff| > 阈值` 时仍允许出手，
+   *      与旧行为一致 —— 只改语义，不动触达范围，免得 AI 咬击频率整体变化）
+   */
   BACK_ANGLE_THRESHOLD: Math.PI * 0.67,
-  BACK_DAMAGE_MULT: 2.0,
   INDICATOR_RANGE: 500,
-
-  EAT_PROBABILITY: {
-    DOUBLE_OR_MORE: 0.8,
-    ONE_HALF_OR_MORE: 0.3,
-    ONE_FIFTH_OR_MORE: 0.1,
-    SIMILAR: 0.05,
-  },
 
   REVERSAL_SIZE_THRESHOLD: 0.5,
 };
@@ -206,17 +210,40 @@ export const COMBAT_CONFIG = {
   /** 体型差对撕咬伤害的影响，clamp 在这个区间 */
   SIZE_FACTOR_MIN: 0.5,
   SIZE_FACTOR_MAX: 2.0,
-  /** 背后撕咬的额外伤害倍率 */
+  /**
+   * 背后撕咬的额外伤害倍率。
+   * FQ-04 起「背刺」的方向语义改成**攻击者位于猎物尾部**（§5.1），
+   * 于是它是「绕后」这个操作本身的奖励，不再是贴身乱斗里的随机抽奖。
+   */
   BACK_BITE_BONUS: 0.5,
-  /** 背刺但没咬中吞噬时，按最大生命的比例造成伤害 */
-  BACK_STAB_HP_RATIO: 0.3,
+
+  /**
+   * 等级优势 = 伤害倍率（FQ-04）。
+   * 以前等级差加在**命中率**上（+0.15/级）：命中掷骰取消后那条规则会一起失效，
+   * 而 §5.2 要求「保留等级或体型的有限数值优势」—— 原样搬到伤害上并封顶。
+   */
+  LEVEL_DAMAGE_STEP: 0.15,
+  /** 等级伤害加成上限（+90%）：高低级之间是优势，不是一刀切 */
+  LEVEL_DAMAGE_CAP: 0.9,
+  /** 诱惑中的猎手咬被香味骗来的鱼：伤害倍率（原为命中率 +0.4） */
+  LURE_DAMAGE_MULT: 1.5,
+  /** 同级小丑鱼被针对：伤害倍率（原为命中率覆盖成 0.7） */
+  CLOWN_PREY_DAMAGE_MULT: 1.4,
 
   /** 被咬后进入愤怒状态的时长（帧） */
   ANGER_DURATION: 180,
   /** 愤怒时转向速度倍率（大鱼也能灵活回身） */
   ANGER_AGILITY_MULT: 2.5,
-  /** 猛回头反击伤害倍率（基于被咬者的 damage） */
+
+  /* ── 大鱼反击（FQ-04：从「不可躲避的瞬间伤害」改成可观察的动作，§5.1）── */
+  /** 反击伤害倍率（基于被咬者的 damage） */
   COUNTER_DAMAGE_MULT: 1.5,
+  /** 前摇（帧）：这期间只有预告没有伤害 —— 小鱼游出范围就能躲开 */
+  COUNTER_WINDUP: 30,
+  /** 伤害时点的判定范围（自身 radius 的倍数） */
+  COUNTER_RANGE_MULT: 2.2,
+  /** 反击后的冷却（帧），避免被连咬时每口都触发 */
+  COUNTER_COOLDOWN: 150,
   /** 每次被咬体型缩减系数 */
   SHRINK_ON_BITE: 0.995,
   /** 体型缩小的下限 */

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
-import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, SQUAD_CONFIG, EVOLVE_OPTION_COUNT } from '../constants';
+import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, SQUAD_CONFIG, EVOLVE_OPTION_COUNT } from '../constants';
 import { getMapBoundaryRadius, gameEvents, isConcealed } from '../gameEngine';
 import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
@@ -671,7 +671,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 {/* P1-3 流派技能槽（Q 键） */}
                 <SchoolSkillBar player={player} />
                 <div className="flex justify-between items-center text-xs mt-1">
-                    <span className="text-orange-400">背后偷袭伤害: +{Math.round((AMBUSH_CONFIG.BACK_DAMAGE_MULT - 1) * 100)}%</span>
+                    <span className="text-orange-400">绕后背刺伤害: +{Math.round(COMBAT_CONFIG.BACK_BITE_BONUS * 100)}%</span>
                     <span className="text-slate-500">检测范围: {AMBUSH_CONFIG.DETECTION_RANGE_MAX}px</span>
                 </div>
                 {player.invulnerableTimer > 0 && (

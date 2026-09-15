@@ -18,7 +18,7 @@ import { AMBUSH_CONFIG, COMBAT_CONFIG, PHRASES, REVERSAL_PHRASE } from '../data/
 import { scoreGain } from '../data/ponds';
 import { GameStatus } from '../types';
 import type { Entity, GameState, FrameContext, PlayerState, Particle } from '../types';
-import { dist, uuid, pick, clamp } from '../core/math';
+import { dist, uuid, pick, clamp, normalizeAngle } from '../core/math';
 import { QuadTree } from '../utils/SpatialHash';
 import { recruitToSquad } from './squad';
 import { recordRun } from './leaderboard';
@@ -61,10 +61,15 @@ const isSemiGhost = (e: Entity): boolean => !!e.semiGhostTimer && e.semiGhostTim
 /**
  * 等级门闸（COMBAT_CONFIG.KILL_LEVEL_GATE，2026-09-13 规则）：
  * victim 是否「杀不死」—— 等级高于攻击者时，咬得动但打不死（血量保底 1 点）。
- * 命中概率的等级压制 / 同级大吃小等加成不受影响，这里只拦「致死」这一步。
+ * 伤害 / 缩水 / 愤怒 / 反击都照常，这里只拦「致死」这一步。
+ *
+ * ⚠️ FQ-04 / §5.2：**鱼群争霸（`state.run` 存在）取消这道硬门槛** ——
+ *    「新模式取消『高等级永远保留 1 点血』，保留等级或体型的有限数值优势」，
+ *    等级优势改由 `LEVEL_DAMAGE_STEP` 的伤害倍率体现，难度交给血量 / 技能 / 反击。
+ *    **旧模式（`state.run === undefined`）原样保留**，这是本轮唯一按模式分叉的规则。
  */
-const isUnkillable = (attacker: Entity, victim: Entity): boolean =>
-  !!COMBAT_CONFIG.KILL_LEVEL_GATE && victim.level > attacker.level;
+const isUnkillable = (state: GameState, attacker: Entity, victim: Entity): boolean =>
+  !!COMBAT_CONFIG.KILL_LEVEL_GATE && !state.run && victim.level > attacker.level;
 
 const say = (e: Entity, text: string, timer: number, color: string): void => {
   e.speechBubble = { text, timer, color };
@@ -225,6 +230,72 @@ const findKiller = (state: GameState, victim: Entity): Entity | null => {
   return state.entities.find((e) => e.id === id) ?? null;
 };
 
+/* ══════════════ 大鱼反击（FQ-04 / §5.1） ══════════════ */
+
+/**
+ * 反击起手：被**更小的**鱼咬到，就进入一段有前摇的蓄力。
+ *
+ * 旧实现是「被咬的同一帧直接造成伤害」—— 玩家没有任何反应窗口，与 §5.1
+ * 「大鱼反击改为可观察的动作：前摇、攻击范围、伤害时点和冷却。
+ * 转身本身不立即生成无法躲避的伤害」直接冲突。
+ * 现在这一帧只做三件事：起前摇、回头（纯表现）、亮预告；伤害等前摇走完才落地。
+ */
+const startCounter = (state: GameState, victim: Entity, attacker: Entity): void => {
+  if (victim.radius <= attacker.radius) return; // 只有「被小个子咬」才反击
+  if (victim.counterWindup && victim.counterWindup > 0) return; // 已经在蓄力
+  if (victim.counterCooldown && victim.counterCooldown > 0) return; // 冷却中
+
+  victim.counterWindup = COMBAT_CONFIG.COUNTER_WINDUP;
+  victim.counterCooldown = COMBAT_CONFIG.COUNTER_COOLDOWN;
+  // 回头瞄准只是**表现**：伤害留到前摇结束，转身本身不产生伤害
+  victim.angle = Math.atan2(attacker.y - victim.y, attacker.x - victim.x);
+  state.labels.push({
+    x: victim.x,
+    y: victim.y - 40,
+    text: '猛回头!',
+    color: '#fbbf24',
+    timer: COMBAT_CONFIG.COUNTER_WINDUP,
+  });
+};
+
+/** 先推进冷却，再推进前摇；前摇归零的那一帧才是「伤害时点」 */
+const tickCounterOne = (state: GameState, ctx: FrameContext, e: Entity): void => {
+  if (e.counterCooldown && e.counterCooldown > 0) e.counterCooldown -= 1;
+  if (!e.counterWindup || e.counterWindup <= 0) return;
+  e.counterWindup -= 1;
+  if (e.counterWindup > 0) return; // 前摇还没走完 —— 这期间一点伤害都没有
+
+  /* ── 伤害时点：范围内的敌对目标才吃这一下 ──
+   * 判据是**当下**的站位（不是被咬那一刻），所以「挨了一口就赶紧游开」
+   * 是真的躲得掉 —— 这就是 §5.1 要的那条可躲避路径。 */
+  const range = e.radius * COMBAT_CONFIG.COUNTER_RANGE_MULT;
+  const strike = (other: Entity): void => {
+    if (other === e || other.health <= 0) return;
+    if (dist(e, other) > range) return;
+    if (!canHarm(e, other)) return;
+    const dmg = dealDamage(other, e.config.damage * COMBAT_CONFIG.COUNTER_DAMAGE_MULT, e);
+    ctx.events.emit('hurt', { target: other, amount: dmg, source: e });
+  };
+  for (const other of state.entities) strike(other);
+  if (state.player !== e) strike(state.player);
+
+  // 表现：一圈金色冲击 + 飘字。打空了也要有交代，玩家才读得懂「那下被躲开了」。
+  state.labels.push({ x: e.x, y: e.y - 40, text: '反击!', color: '#f97316', timer: 40 });
+  for (let i = 0; i < 8; i += 1) {
+    const a = (i / 8) * Math.PI * 2;
+    const spark = createParticle(e.x, e.y, '#fbbf24');
+    spark.vx = Math.cos(a) * 5;
+    spark.vy = Math.sin(a) * 5;
+    state.particles.push(spark);
+  }
+};
+
+/** 每帧推进所有实体的反击状态（玩家本体不在 entities 里，单独走一遍） */
+const tickCounters = (state: GameState, ctx: FrameContext): void => {
+  for (const e of state.entities) tickCounterOne(state, ctx, e);
+  tickCounterOne(state, ctx, state.player);
+};
+
 /** 一次攻击判定。attacker 试图吃 victim。 */
 export const processCollision = (
   attacker: Entity,
@@ -264,170 +335,140 @@ export const processCollision = (
     if (distance > attacker.radius + victim.radius) return;
   }
 
+  /* ── ① 朝向与位置语义（FQ-04 / §5.1）──
+   * 旧实现用一个 `angleDiff` 兼任两件事，于是「背刺」判反了：
+   *   · **能不能咬到**（朝向）：看**攻击者**有没有朝着猎物；
+   *   · **是不是背刺**（位置）：看**猎物的尾巴**朝哪边 —— 攻击者绕到尾部才算（§5.1）。
+   * 两条从此分开算，别再让「攻击者背对猎物」冒充背刺。
+   */
   const angleToVictim = Math.atan2(victim.y - attacker.y, victim.x - attacker.x);
-  let angleDiff = angleToVictim - attacker.angle;
-  while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-  while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+  const facingDiff = normalizeAngle(angleToVictim - attacker.angle);
+  const canBiteForward = Math.abs(facingDiff) <= Math.PI / 3;
+  // 后弧可达：攻击者背对猎物时依然咬得到（保留旧触达范围，只是不再叫「背刺」）
+  const canBiteRearArc = Math.abs(facingDiff) > AMBUSH_CONFIG.BACK_ANGLE_THRESHOLD;
+  if (!canBiteForward && !canBiteRearArc) return;
 
-  const isBackAttack = Math.abs(angleDiff) > AMBUSH_CONFIG.BACK_ANGLE_THRESHOLD;
-  const canEatForward = Math.abs(angleDiff) <= Math.PI / 3;
-  if (!canEatForward && !isBackAttack) return;
+  const angleToAttacker = Math.atan2(attacker.y - victim.y, attacker.x - victim.x);
+  const tailDiff = normalizeAngle(angleToAttacker - victim.angle);
+  const isBackAttack = Math.abs(tailDiff) > AMBUSH_CONFIG.BACK_ANGLE_THRESHOLD;
 
   const sizeRatio = attacker.radius / victim.radius;
-  const P = AMBUSH_CONFIG.EAT_PROBABILITY;
 
-  let eatProbability: number;
-  if (sizeRatio >= 2) eatProbability = P.DOUBLE_OR_MORE;
-  else if (sizeRatio >= 1.5) eatProbability = P.ONE_HALF_OR_MORE;
-  else if (sizeRatio >= 1.2) eatProbability = P.ONE_FIFTH_OR_MORE;
-  else eatProbability = P.SIMILAR;
+  /* ── ② 命中：稳定造成伤害（FQ-04 / §5.1）──
+   * 旧实现在这里掷一次骰子（体型越大 / 等级越高命中率越高），于是**同一位置、同样输入**
+   * 有时咬中有时落空 —— 与 §5.1「稳定造成伤害」直接冲突，命中率上的加成也因此不可解释。
+   * 现在满足朝向 / 距离 / 冷却就一定咬中；唯一保留随机落空的场合是
+   * **猎物藏在掩体里**（水草 / 隐身）：那是有解释的掩体机制，不是贴身随机闪避。
+   * 原来挂在命中率上的加成（等级压制 / 诱惑 / 小丑鱼）全部搬到伤害上，见 ③。
+   */
+  if (isConcealed(victim) && Math.random() >= CONCEAL_BITE_PROB_MULT) return;
 
-  if (isBackAttack) eatProbability += sizeRatio >= 1.5 ? 0.2 : sizeRatio >= 1.2 ? 0.15 : 0.1;
-
-  // 同级大吃小
-  if (attacker.level === victim.level && attacker.radius > victim.radius) {
-    eatProbability = Math.max(eatProbability, 0.5);
+  /* ── ③ 伤害：体型因子 × 等级优势 × 机制加成 × 背刺 ── */
+  const sizeFactor = clamp(
+    sizeRatio,
+    COMBAT_CONFIG.SIZE_FACTOR_MIN,
+    COMBAT_CONFIG.SIZE_FACTOR_MAX
+  );
+  let damage = attacker.config.damage * COMBAT_CONFIG.BITE_DAMAGE_MULT * sizeFactor;
+  // 等级优势（原：命中率 +0.15/级 → 现在按伤害加成，按 LEVEL_DAMAGE_CAP 封顶）
+  if (attacker.level > victim.level) {
+    const maxSteps = Math.round(COMBAT_CONFIG.LEVEL_DAMAGE_CAP / COMBAT_CONFIG.LEVEL_DAMAGE_STEP);
+    const steps = Math.min(attacker.level - victim.level, maxSteps);
+    damage *= 1 + steps * COMBAT_CONFIG.LEVEL_DAMAGE_STEP;
   }
-  // 小丑鱼同级被针对（保留原有设定）
+  // 诱惑中的猎手咬被香味骗来的鱼（原：命中率 +0.4）
+  if (attacker.lureActive) damage *= COMBAT_CONFIG.LURE_DAMAGE_MULT;
+  // 同级小丑鱼被针对（原有设定，原：命中率被覆盖成 0.7）
   if (
     attacker.level === victim.level &&
     victim.type === CREATURES_CLOWN &&
     attacker.type !== CREATURES_CLOWN
   ) {
-    eatProbability = 0.7;
+    damage *= COMBAT_CONFIG.CLOWN_PREY_DAMAGE_MULT;
   }
-  // 等级压制
-  if (attacker.level > victim.level) {
-    eatProbability = Math.min(1, eatProbability + (attacker.level - victim.level) * 0.15);
+  if (isBackAttack) damage *= 1 + COMBAT_CONFIG.BACK_BITE_BONUS;
+
+  const realDamage = dealDamage(victim, damage, attacker);
+  attacker.biteCooldown = COMBAT_CONFIG.BITE_COOLDOWN;
+
+  // 被咬后体型缓慢缩水（P1-2）+ 恐惧 + 愤怒
+  victim.radius = Math.max(
+    COMBAT_CONFIG.MIN_RADIUS,
+    victim.radius * COMBAT_CONFIG.SHRINK_ON_BITE
+  );
+  victim.fearTimer = 60;
+  victim.angerTimer = COMBAT_CONFIG.ANGER_DURATION;
+
+  ctx.events.emit('hurt', { target: victim, amount: realDamage, source: attacker });
+
+  // 背刺提示：绕后打出来的那一下要让玩家看得见（旧实现只在「没咬中」时提示，恰好反了）
+  if (isBackAttack && attacker.id === 'player') {
+    say(attacker, pick(PHRASES.AMBUSH) ?? '偷袭!', 30, '#fcd34d');
   }
-  // 诱惑中的猎手咬被香味骗来的鱼：几乎一口闷（灯笼鱼「来的小鱼直接吃」）
-  if (attacker.lureActive) eatProbability = Math.min(1, eatProbability + 0.4);
 
-  // 藏在掩体里（水草 / 隐身技能）：视野被挡，扑咬大半会落空。
-  // ⚠️ 位置必须在**所有加成算完之后、掷骰之前**：同级大吃小的
-  //    `Math.max(eatProbability, 0.5)` 是地板值、等级压制是加法 —— 放在它们前面
-  //    会被整条覆盖掉，改了个寂寞（详见 concealment.ts 的 CONCEAL_BITE_PROB_MULT）。
-  if (isConcealed(victim)) eatProbability *= CONCEAL_BITE_PROB_MULT;
+  /* ── ④ 大鱼反击：只起前摇，伤害留到前摇结束（FQ-04 / §5.1）── */
+  startCounter(state, victim, attacker);
 
-  const canBite = Math.random() < eatProbability;
+  /* ── ⑤ 判定死亡 ──
+   * 两种死法：
+   *   1) 吞下去 —— 对方残血且自己够大，一口吞（大鱼吃小鱼的爽感来源）
+   *   2) 咬死   —— 自己不够大，但可以把对方活活咬到没血
+   * 第 2 条是「小鱼逆袭大鱼」唯一可行的路径，不能砍掉 —— 旧模式仍受等级门闸约束
+   * （仅限同等级及以下）；鱼群争霸按 §5.2 取消该门槛，改由数值优势与反击拉扯体现难度。
+   */
+  const canDevour =
+    victim.health <= victim.maxHealth * COMBAT_CONFIG.DEVOUR_HP_RATIO &&
+    sizeRatio >= COMBAT_CONFIG.DEVOUR_MIN_SIZE_RATIO;
 
-  if (canBite) {
-    /* ── 第一步：咬一口，按体型差与是否背刺计算伤害 ── */
-    const sizeFactor = clamp(
-      sizeRatio,
-      COMBAT_CONFIG.SIZE_FACTOR_MIN,
-      COMBAT_CONFIG.SIZE_FACTOR_MAX
-    );
-    let damage = attacker.config.damage * COMBAT_CONFIG.BITE_DAMAGE_MULT * sizeFactor;
-    if (isBackAttack) damage *= 1 + COMBAT_CONFIG.BACK_BITE_BONUS;
+  if (victim.health > 0 && !canDevour) return;
 
-    const realDamage = dealDamage(victim, damage, attacker);
-    attacker.biteCooldown = COMBAT_CONFIG.BITE_COOLDOWN;
-
-    // 被咬后体型缓慢缩水（P1-2）
-    victim.radius = Math.max(
-      COMBAT_CONFIG.MIN_RADIUS,
-      victim.radius * COMBAT_CONFIG.SHRINK_ON_BITE
-    );
-    victim.fearTimer = 60;
-    victim.angerTimer = COMBAT_CONFIG.ANGER_DURATION;
-
-    ctx.events.emit('hurt', { target: victim, amount: realDamage, source: attacker });
-
-    /* ── 第二步：大鱼反制 —— 被小个子咬了就猛回头给一口 ── */
-    if (victim.radius > attacker.radius) {
-      victim.angle = Math.atan2(attacker.y - victim.y, attacker.x - victim.x);
-      const counterDamage = dealDamage(
-        attacker,
-        victim.config.damage * COMBAT_CONFIG.COUNTER_DAMAGE_MULT,
-        victim
-      );
-      ctx.events.emit('hurt', { target: attacker, amount: counterDamage, source: victim });
-      if (victim.id === 'player' || attacker.id === 'player') {
-        state.labels.push({
-          x: victim.x,
-          y: victim.y - 40,
-          text: '猛回头!',
-          color: '#fbbf24',
-          timer: 45,
-        });
+  /* ── 等级门闸：高于自己的猎物杀不死（旧模式保留；鱼群争霸已放开）──
+   * 伤害 / 缩水 / 愤怒 / 反击都已照常发生，这里只拦「致死」：
+   * 血量被这一口打到 0 以下时拉回 1（留个活口），吞噬同样失效。 */
+  if (isUnkillable(state, attacker, victim)) {
+    if (victim.health <= 0) victim.health = 1;
+    return;
+  }
+  // 逆转判定：小鱼反杀大鱼（玩家专属高光时刻）
+  if (
+    sizeRatio < AMBUSH_CONFIG.REVERSAL_SIZE_THRESHOLD &&
+    attacker.id !== 'player' &&
+    victim.id === 'player'
+  ) {
+    state.score += scoreGain(state.pondId, Math.floor(victim.radius * 10));
+    // 逆转特效属于游戏状态的一部分（会存进 GameState 被渲染），直接产生；
+    // 同时发事件，方便将来接音效 / 成就，而不用回头改这里。
+    // 特效增强：金色大字（Label.size）+ 双圈定向冲击波，这是全游戏最稀缺的高光时刻，值得排场。
+    state.labels.push({
+      x: victim.x, y: victim.y - 50,
+      text: REVERSAL_PHRASE, color: '#fbbf24', timer: 90, size: 44,
+    });
+    // 冲击波：内圈快而密（金）、外圈慢而疏（红），定向速度让粒子炸成一圈而不是糊成一团
+    for (let ring = 0; ring < 2; ring += 1) {
+      const speed = ring === 0 ? 7 : 3.5;
+      const count = ring === 0 ? 22 : 14;
+      for (let i = 0; i < count; i += 1) {
+        const a = (i / count) * Math.PI * 2 + ring * 0.35;
+        const spark = createParticle(victim.x, victim.y, ring === 0 ? '#fcd34d' : '#ef4444');
+        spark.vx = Math.cos(a) * speed;
+        spark.vy = Math.sin(a) * speed;
+        spark.size = ring === 0 ? 4 : 3;
+        state.particles.push(spark);
       }
     }
-
-    /* ── 第三步：判定死亡 ──
-     * 两种死法：
-     *   1) 吞下去 —— 对方残血且自己够大，一口吞（大鱼吃小鱼的爽感来源）
-     *   2) 咬死   —— 自己不够大，但可以把对方活活咬到没血
-     * 第 2 条是「小鱼逆袭大鱼」唯一可行的路径，不能砍掉 —— 2026-09-13 起受
-     * 等级门闸约束：仅限同等级及以下，越级杀不死（见 isUnkillable）。
-     */
-    const canDevour =
-      victim.health <= victim.maxHealth * COMBAT_CONFIG.DEVOUR_HP_RATIO &&
-      sizeRatio >= COMBAT_CONFIG.DEVOUR_MIN_SIZE_RATIO;
-
-    if (victim.health > 0 && !canDevour) return;
-
-    /* ── 等级门闸：高于自己的猎物杀不死 ──
-     * 掷骰 / 伤害 / 缩水 / 猛回头都已照常发生，这里只拦「致死」：
-     * 血量被这一口打到 0 以下时拉回 1（留个活口），吞噬同样失效。 */
-    if (isUnkillable(attacker, victim)) {
-      if (victim.health <= 0) victim.health = 1;
-      return;
+    for (let i = 0; i < 30; i += 1) {
+      state.particles.push(createParticle(victim.x, victim.y, '#fcd34d'));
+      state.particles.push(createParticle(victim.x, victim.y, '#ef4444'));
     }
-    // 逆转判定：小鱼反杀大鱼（玩家专属高光时刻）
-    if (
-      sizeRatio < AMBUSH_CONFIG.REVERSAL_SIZE_THRESHOLD &&
-      attacker.id !== 'player' &&
-      victim.id === 'player'
-    ) {
-      state.score += scoreGain(state.pondId, Math.floor(victim.radius * 10));
-      // 逆转特效属于游戏状态的一部分（会存进 GameState 被渲染），直接产生；
-      // 同时发事件，方便将来接音效 / 成就，而不用回头改这里。
-      // 特效增强：金色大字（Label.size）+ 双圈定向冲击波，这是全游戏最稀缺的高光时刻，值得排场。
-      state.labels.push({
-        x: victim.x, y: victim.y - 50,
-        text: REVERSAL_PHRASE, color: '#fbbf24', timer: 90, size: 44,
-      });
-      // 冲击波：内圈快而密（金）、外圈慢而疏（红），定向速度让粒子炸成一圈而不是糊成一团
-      for (let ring = 0; ring < 2; ring += 1) {
-        const speed = ring === 0 ? 7 : 3.5;
-        const count = ring === 0 ? 22 : 14;
-        for (let i = 0; i < count; i += 1) {
-          const a = (i / count) * Math.PI * 2 + ring * 0.35;
-          const spark = createParticle(victim.x, victim.y, ring === 0 ? '#fcd34d' : '#ef4444');
-          spark.vx = Math.cos(a) * speed;
-          spark.vy = Math.sin(a) * speed;
-          spark.size = ring === 0 ? 4 : 3;
-          state.particles.push(spark);
-        }
-      }
-      for (let i = 0; i < 30; i += 1) {
-        state.particles.push(createParticle(victim.x, victim.y, '#fcd34d'));
-        state.particles.push(createParticle(victim.x, victim.y, '#ef4444'));
-      }
-      ctx.events.emit('reversal', { x: victim.x, y: victim.y, score: state.score });
-    }
+    ctx.events.emit('reversal', { x: victim.x, y: victim.y, score: state.score });
+  }
 
-    // 一次性结算：奖励 / death 事件 / 胜利判定全在里面，重复调用会被标记挡掉
-    resolveDeath(state, ctx, victim, attacker, isBackAttack);
+  // 一次性结算：奖励 / death 事件 / 胜利判定全在里面，重复调用会被标记挡掉
+  resolveDeath(state, ctx, victim, attacker, isBackAttack);
 
-    if (attacker.radius > victim.radius * 1.1) {
-      attacker.renderScale = 1.1;
-      attacker.happyTimer = 30;
-    }
-  } else if (isBackAttack) {
-    // 背刺没咬中吞噬判定，依然扎扎实实来一口
-    const stabRaw =
-      victim.maxHealth * COMBAT_CONFIG.BACK_STAB_HP_RATIO * AMBUSH_CONFIG.BACK_DAMAGE_MULT;
-    const stab = dealDamage(victim, stabRaw, attacker);
-    // 等级门闸：背刺重击同样带不走等级更高的鱼（伤害照算，血量保底 1）
-    if (isUnkillable(attacker, victim) && victim.health <= 0) victim.health = 1;
-    victim.fearTimer = 60;
-    victim.angerTimer = 180;
-    ctx.events.emit('hurt', { target: victim, amount: stab, source: attacker });
-    if (attacker.id === 'player') {
-      say(attacker, pick(PHRASES.AMBUSH) ?? '偷袭!', 30, '#fcd34d');
-    }
+  if (attacker.radius > victim.radius * 1.1) {
+    attacker.renderScale = 1.1;
+    attacker.happyTimer = 30;
   }
 };
 
@@ -473,6 +514,10 @@ const byIndexAsc = (a: number, b: number): number => a - b;
 
 export const combatSystem = (state: GameState, ctx: FrameContext): void => {
   const { player, entities } = state;
+
+  // 大鱼反击的时钟（前摇倒计时 + 冷却）：必须在碰撞之前推进，
+  // 否则「前摇结束那一帧」的伤害时点会被拖到下一帧才结算
+  tickCounters(state, ctx);
 
   // 玩家 vs 鱼（O(n) 线性，无需索引）
   for (const e of entities) {

@@ -16,6 +16,7 @@ import { processCollision } from '../systems/combat';
 import { getBiome } from '../systems/terrain';
 import { updateGame } from '../gameEngine';
 import { createInitialState } from '../factories/initialState';
+import { COMBAT_CONFIG } from '../data/world';
 import { GameStatus, type FrameContext, type GameEvents, type GameState } from '../types';
 
 const makeCtx = (): FrameContext => ({
@@ -135,14 +136,24 @@ describe('战斗判定', () => {
     expect(victim.health).toBe(1); // 留了活口：伤害照算，致死被拦
   });
 
-  it('背后偷袭没吃掉也会造成伤害', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.99); // 必定不命中吞噬
-    const { state, attacker, victim, ctx } = makePair(CreatureType.CLOWN_FISH, CreatureType.BLUE_TANG);
-    // 让攻击者背对受害者，构成「从背后袭击」
-    attacker.angle = Math.PI;
-    const before = victim.health;
-    processCollision(attacker, victim, state, ctx);
-    expect(victim.health).toBeLessThan(before);
+  it('绕到猎物尾部撕咬按背刺加成记（FQ-04 语义：看的是**猎物的尾巴**）', () => {
+    // makePair 里猎物朝 +x、攻击者站在它 -x 侧 —— 正好在猎物尾部，天然构成背刺。
+    // （旧实现判的是「猎物在攻击者身后」，方向恰好相反；改语义的完整用例见 fq04-combat.test.ts）
+    const backPair = makePair(CreatureType.CLOWN_FISH, CreatureType.BLUE_TANG);
+    const backBefore = backPair.victim.health;
+    processCollision(backPair.attacker, backPair.victim, backPair.state, backPair.ctx);
+    const backDamage = backBefore - backPair.victim.health;
+
+    // 对照：让猎物转身面对攻击者 → 攻击者不再位于它的尾部，同一口只剩正面伤害
+    const frontPair = makePair(CreatureType.CLOWN_FISH, CreatureType.BLUE_TANG);
+    frontPair.victim.angle = Math.PI;
+    const frontBefore = frontPair.victim.health;
+    processCollision(frontPair.attacker, frontPair.victim, frontPair.state, frontPair.ctx);
+    const frontDamage = frontBefore - frontPair.victim.health;
+
+    expect(backDamage).toBeGreaterThan(0);
+    expect(frontDamage).toBeGreaterThan(0);
+    expect(backDamage).toBeCloseTo(frontDamage * (1 + COMBAT_CONFIG.BACK_BITE_BONUS), 5);
   });
 
   it('刚生成的鱼受半虚保护，既不能吃也不会被吃', () => {

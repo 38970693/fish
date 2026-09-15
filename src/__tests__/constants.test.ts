@@ -5,6 +5,7 @@ import {
   BOOST_CONFIG,
   METEOR_CONFIG,
   AMBUSH_CONFIG,
+  COMBAT_CONFIG,
   TREASURE_CONFIG,
   PORTAL_CONFIG,
   MAP_SHAPE_CONFIG,
@@ -72,14 +73,23 @@ describe('Constants - Ambush Configuration', () => {
     expect(AMBUSH_CONFIG.BACK_ANGLE_THRESHOLD).toBeLessThanOrEqual(Math.PI);
   });
 
-  it('should have valid back damage multiplier', () => {
-    expect(AMBUSH_CONFIG.BACK_DAMAGE_MULT).toBeGreaterThan(1);
+  it('绕后背刺有加成，但不是秒杀级（FQ-04 起它就是「绕后」这个操作的奖励）', () => {
+    expect(COMBAT_CONFIG.BACK_BITE_BONUS).toBeGreaterThan(0);
+    expect(COMBAT_CONFIG.BACK_BITE_BONUS).toBeLessThan(1);
   });
 
-  it('should have valid eat probability rules', () => {
-    expect(AMBUSH_CONFIG.EAT_PROBABILITY).toBeDefined();
-    expect(AMBUSH_CONFIG.EAT_PROBABILITY.DOUBLE_OR_MORE).toBeDefined();
-    expect(AMBUSH_CONFIG.EAT_PROBABILITY.SIMILAR).toBeDefined();
+  it('FQ-04 大鱼反击配置：有前摇、有范围、有冷却（可观察、可躲避）', () => {
+    expect(COMBAT_CONFIG.COUNTER_WINDUP).toBeGreaterThan(0);
+    expect(COMBAT_CONFIG.COUNTER_RANGE_MULT).toBeGreaterThan(1);
+    // 冷却必须长于前摇：否则「每口被咬都触发一次」又变回不可躲避的连击
+    expect(COMBAT_CONFIG.COUNTER_COOLDOWN).toBeGreaterThan(COMBAT_CONFIG.COUNTER_WINDUP);
+  });
+
+  it('FQ-04 等级优势改挂伤害：每一级加成有限且有上限', () => {
+    expect(COMBAT_CONFIG.LEVEL_DAMAGE_STEP).toBeGreaterThan(0);
+    expect(COMBAT_CONFIG.LEVEL_DAMAGE_CAP).toBeGreaterThan(0);
+    // 「有限数值优势」（§5.2）：最高级的加成不该变成一刀切
+    expect(COMBAT_CONFIG.LEVEL_DAMAGE_CAP).toBeLessThanOrEqual(1.5);
   });
 });
 
