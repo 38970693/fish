@@ -26,6 +26,8 @@
 - 约束两通路统一：resolveObstacles 与 clampToMap 共用 alignToSurface（推表面+限速掰切向 0.35rad/帧）；缓入区只减速不夺方向盘；静止实体只推位置。
 - 手感：常速=spec.speed×1.5×1.2；冲刺=playerControl.ts ×BOOST_CONFIG.SPEED_MULTIPLIER（当前 3.08）。两旋钮独立，用户说慢先问哪个。
 - 花瓣地图 r=2000+1200·|sin2a|，中心(3000,3000)，WORLD_SIZE 6000；固定步长累加器 16.67ms/步。
+- **G1/FQ-05 战队指令与指定附身（§6.2）**：`data/squadRoles.ts`（指令注册表 FOCUS/GUARD/RETREAT + `SQUAD_COMMAND_CONFIG` 数值；**角色部分留给 FQ-06 同文件扩展，别开第二个注册表**）+ `squad.ts` 的 `issueCommand`/`pickFocusTarget`/`queueSquadAction`/`requestPossess`/`consumeSquadActions`/`validateFocusTarget`/`swapAttackTimers`/`pickMoveTarget`。三条纪律：**① 指令是状态不是动作**（`squad.command`/`commandTargetId` 挂 state，队员每帧照着动，UI 只读快照）；**② 离散输入走队列**（AR-03：键盘/头像点击只入队，`squadSystem` 帧内 splice 执行一次，上限 8）；**③ 指定附身绝不做兜底**（成员没了 = 什么都不做 + 给原因，悄悄换人比失败更糟）。GUARD 是缺省指令且**队形数学与 FQ-05 之前逐字一致**（新默认值==旧硬编码）；脱队判据用**离玩家**距离（用离队员的会让跑远的队员被脚边猎物越带越远）；RETREAT = 收紧(40) + 小死区(110) + **完全无视敌人**。可感知一律走 `concealment.canPerceive`（它已从 ai.ts 搬来并导出）。冷却归属：**灵魂**=技能/流派/切换冷却（挂 player，附身刷不掉）；**身体**=bite/counter（`swapAttackTimers` 对调，不是清零）。鼠标→世界坐标用 `core/math.screenToWorld`（与 GameCanvas 相机互为反解）。`SquadState` 新字段全可选 → 老夹具不带也不炸。
+- 附身交换身体**不含 level**（level 是灵魂的：吃鱼推进 + 解锁流派技能，跟着身体走会让 Q 技能消失）。
 
 ## 取证手法（转圈/抖动类 bug）
 ①真实帧循环+钉种子，按实体算角扫掠/路程/净位移；②angle defineProperty 抓写入栈（过滤 includes('systems')，别用 /src/，Windows 反斜杠）；③Δ角÷agility 反推奇点。判据=转弯半径小**且**净位移<路程×10%（只看半径会误报漂游个体）。
@@ -48,4 +50,6 @@
 - 统计型阈值绑物理不变量（净位移比），不绑运气量；改判据做多-seed 阴性对照+摘修复反向验证。
 - 调参探针从源码解析常量当期望+需求底线单列（快照会随需求红一次）；「按住到耗光」采样前别插 waitForTimeout。
 - 「渲染期不许掷骰子」三层验证：组件 spy+阳性对照 / e2e 连采 N 次 / 摘门闸反向红。
+- **移动/位置类单测必须「钉 speed + 冻 time」**（FQ-05）：① `createEntity` 给的是物种速度（小丑鱼 1.1 → ×1.25 = 1.375px/帧，跑 800px 要 580 帧），夹具显式 `speed = 4`；② 队形角含 `state.time * 0.01` 自转项，推 time 会让目标点绕圈、任何「停在多少像素」都不成立 → 冻住 time；③ 想断言「A 比 B 更紧」做成**与体型无关的差值不变量**（两次运行半径项抵消：护卫距离−撤退距离 == `FOLLOW_GAP+FOLLOW_DEADZONE − (RALLY_GAP+RETREAT_DEADZONE)`）。
+- **e2e 夹具必须把不确定性按死**（FQ-05 跑第二遍才红）：注入实体后若靠「就近取目标」，世界里随机刷出的野鱼会比注入的更近 → 用相机变换把鼠标真的压到目标身上（`(world - camera) * zoom + size/2`）。另：**dev server 下每个新 context 要现取 1749 个未打包模块**，机器一忙首个 `page.goto` 就过 30s 默认线（表现是「一串 goto 超时」但下一轮全绿）→ 已在 `playwright.config.ts` 把 `navigationTimeout` 放宽到 60s（只放宽导航，断言仍 5s；不掩盖「页面坏了」），改后 19/19 / 41.7s。
 - HUD 用 waitForSelector（uiState 100ms 才同步）；text= 是子串匹配，计数先锁容器。
