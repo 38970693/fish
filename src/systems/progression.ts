@@ -5,11 +5,36 @@
  */
 
 import { EVOLUTION_THRESHOLDS } from '../data/world';
-import { pickEvolveOptions } from '../data/creatures';
+import { CREATURES, pickEvolveOptions } from '../data/creatures';
 import { recordRun } from './leaderboard';
 import { GameStatus } from '../types';
 import type { GameState, FrameContext } from '../types';
 import { tryPossessOnDeath } from './squad';
+
+/**
+ * 应用一次进化选择（G1 放行条件 · 3 分钟切片台架共用）。
+ *
+ * 原来这段写在 `App.tsx` 的 `onEvolve` 里。抽出来是因为**无人值守的切片台架也要替玩家做选择** ——
+ * 复制一份的话，进化数值一改（半径公式 / 满血 / 速度 1.2 倍）台架就会静默跑在旧规则上，
+ * 而它恰恰是用来给「放行」下结论的那个东西。宁可多一个导出，也不要两份真值。
+ *
+ * 候选快照用完即清：下一次进化由 `progressionSystem` 重新抽（不清也不会错，只是留着旧数据）。
+ */
+export const applyEvolutionChoice = (state: GameState, type: string): void => {
+  const player = state.player;
+  const newConfig = CREATURES[type as keyof typeof CREATURES];
+  if (!newConfig) return;
+
+  player.type = type as typeof player.type;
+  player.config = newConfig;
+  player.radius = newConfig.baseRadius + (player.level - 1) * 2;
+  player.maxHealth = newConfig.health;
+  player.health = newConfig.health;
+  player.speed = newConfig.speed * 1.2;
+  state.status = GameStatus.PLAYING;
+  state.evolveOptions = [];
+  player.speechBubble = { text: '进化完成！', timer: 60, color: '#bef264' };
+};
 
 export const progressionSystem = (state: GameState, ctx: FrameContext): void => {
   const player = state.player;

@@ -4,6 +4,7 @@ import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
 import { GameState, GameStatus, CreatureType, DEFAULT_COSMETICS } from './types';
 import { CREATURES, CREATURE_DATA, MAP_SHAPE_CONFIG, PROTECTION_CONFIG, SQUAD_COMMAND_LIST } from './constants';
+import { applyEvolutionChoice } from './systems/progression';
 import { updateGame, queueSquadAction, createEntity, getSquadMembers, peekNextSwitchTarget } from './gameEngine';
 import { screenToWorld } from './core/math';
 // 性能剖析挂钩：只有 DEV 下的 __FISH_DEBUG__.profile() 会用到（见文件末尾的调试钩子）
@@ -323,18 +324,9 @@ const App: React.FC = () => {
             gameStateRef.current = createInitialState({ pondId });
         }}
         onEvolve={(type: any) => {
-            const player = gameStateRef.current.player;
-            const newConfig = CREATURES[type as CreatureType];
-            player.type = type as CreatureType;
-            player.config = newConfig;
-            player.radius = newConfig.baseRadius + (player.level - 1) * 2;
-            player.maxHealth = newConfig.health;
-            player.health = newConfig.health;
-            player.speed = newConfig.speed * 1.2;
-            gameStateRef.current.status = GameStatus.PLAYING;
-            // 候选快照用完即清：下一次进化由 progression.ts 重新抽（不清也不会错，只是留着旧数据）
-            gameStateRef.current.evolveOptions = [];
-            player.speechBubble = { text: "进化完成！", timer: 60, color: '#bef264' };
+            // 进化数值只有一份真值（systems/progression.ts）—— 无人值守的 3 分钟切片台架
+            // 也走这里，改数值时两边不会各跑一套
+            applyEvolutionChoice(gameStateRef.current, type);
         }}
         onUpdateCosmetics={(cos) => { gameStateRef.current.player.cosmetics = cos; }}
         onRevive={() => {
