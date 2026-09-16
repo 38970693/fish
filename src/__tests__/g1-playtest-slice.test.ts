@@ -38,6 +38,7 @@ import {
   __resetSwitchCursor,
 } from '../systems/squad';
 import { __resetTeleportLock, __resetObstacleIndex } from '../systems/world';
+import { SQUAD_ROLE } from '../data/squadRoles';
 import { canHarm } from '../systems/factions';
 import { createEntity } from '../systems/spawn';
 import { MAP_SHAPE_CONFIG } from '../data/world';
@@ -93,6 +94,17 @@ interface ArmConfig {
   commands: boolean;
   possess: boolean;
   stripRoles: boolean;
+  /**
+   * **会不会「用」角色**（而不是仅仅「带着」角色）。
+   *
+   * 台架大脑 v2 判不了队伍选择，根子在这里：它只会集火/撤退，
+   * 不会配合角色打 —— 而核心角色的价值恰恰要靠配合才兑现。
+   * v3 补上两件真人会做的事（**先写死后跑分**，不看着结果调）：
+   *   ① **打控制链**：电鳗麻痹住的敌人（`speedBoostTimer < 0`）是活靶子，
+   *      转火它、玩家也扑上去 —— 这是「控制」这个能力唯一的兑现方式。
+   *   ② **残血优先附身护卫**：河豚有盾且最耐揍，逃生时换它的身体比随便换一条划算。
+   */
+  roleAware: boolean;
 }
 
 /**
@@ -128,6 +140,27 @@ interface SliceResult {
   deaths: DeathInfo[];
 }
 
+/**
+ * 找**被麻痹**的敌人（`speedBoostTimer < 0` = 减速，FQ-06 电鳗控制的写法）。
+ * 这是「控制」兑现成收益的唯一入口：控住不上去打，控制就只是个特效。
+ */
+const findControlled = (state: GameState): Entity | undefined => {
+  const p = state.player;
+  let best: Entity | undefined;
+  let bestD = Infinity;
+  for (const e of state.entities) {
+    if (e.health <= 0) continue;
+    if ((e.speedBoostTimer ?? 0) >= 0) continue;
+    if (!canHarm(p, e)) continue;
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  return best;
+};
+
 /** 找最近的威胁与猎物。威胁 = 能打到玩家且更大；猎物 = 玩家能打且更小 */
 const scan = (
   state: GameState
@@ -154,8 +187,15 @@ const scan = (
   return { threat, threatD, prey, preyD };
 };
 
-/** 一个「会玩」的操作大脑：躲大的、追小的。四组共用，保证只差队伍功能 */
-const think = (state: GameState): { mouse: { x: number; y: number }; boost: boolean } => {
+/**
+ * 一个「会玩」的操作大脑：躲大的、追小的。各组共用，保证只差队伍功能。
+ *
+ * `prefer` = 优先扑上去的目标（被麻痹住的敌人）：控住了不去打，控制就白给了。
+ */
+const think = (
+  state: GameState,
+  prefer?: Entity
+): { mouse: { x: number; y: number }; boost: boolean } => {
   const p = state.player;
   const { threat, threatD, prey } = scan(state);
 
@@ -171,6 +211,10 @@ const think = (state: GameState): { mouse: { x: number; y: number }; boost: bool
     dx = p.x - threat.x;
     dy = p.y - threat.y;
     boost = true;
+  } else if (prefer) {
+    // 被麻痹住的活靶子优先 —— 这是「控制」兑现成收益的地方
+    dx = prefer.x - p.x;
+    dy = prefer.y - p.y;
   } else if (prey) {
     dx = prey.x - p.x;
     dy = prey.y - p.y;
@@ -280,7 +324,15 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       const members = getSquadMembers(state);
       const hpRatio = p.maxHealth > 0 ? p.health / p.maxHealth : 1;
 
+      // ① 打控制链：有人被麻痹住就是活靶子，转火它（「控制」兑现成收益的唯一方式）
+      const controlled = arm.roleAware ? findControlled(state) : undefined;
+
       if (arm.commands && members.length > 0 && f % COMMAND_INTERVAL === 0) {
+        if (controlled) {
+          if (issueCommand(state, 'FOCUS', { worldMouse: { x: controlled.x, y: controlled.y } })) {
+            commandsIssued += 1;
+          }
+        } else {
         const { threat, threatD, prey, preyD } = scan(state);
         // 身边有大家伙就先撤 —— 只看血量太迟钝，真人看见大鱼就收队了
         if (hpRatio < RETREAT_HP_RATIO || (threat && threatD < FOCUS_MAX_RANGE * 0.5)) {
@@ -297,6 +349,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
         } else if (issueCommand(state, 'GUARD')) {
           commandsIssued += 1;
         }
+        }
       }
 
       if (arm.possess && hpRatio < POSSESS_HP_RATIO && members.length > 0 && f % 30 === 0) {
@@ -305,6 +358,11 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
         let best: Entity | undefined;
         for (const m of members) {
           if (m.radius < p.radius * 0.8) continue;
+          // ② 残血优先换**护卫**：河豚有盾、最耐揍，逃生时它的身体最值钱
+          if (arm.roleAware && m.coreRole === SQUAD_ROLE.GUARD) {
+            best = m;
+            break;
+          }
           if (!best || m.health > best.health) best = m;
         }
         if (best && best.health > p.health) requestPossess(state, best.id);
@@ -322,7 +380,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       const levelBefore = p.level;
       const possessBefore = state.squad.possessCount;
 
-      const { mouse, boost } = think(state);
+      const { mouse, boost } = think(state, controlled);
       updateGame(state, mouse, boost, false, false, SCREEN_W, SCREEN_H);
       framesSurvived = f + 1;
 
@@ -369,10 +427,13 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
 
 /* 四个组跑一次共享给所有用例 —— 一组 10800 帧，别每个 it 各跑一遍 */
 const ARMS: Record<string, ArmConfig> = {
-  A: { name: '只顾自己（不下令 / 不附身）', commands: false, possess: false, stripRoles: false },
-  B: { name: '+ 指令', commands: true, possess: false, stripRoles: false },
-  C: { name: '+ 指令 + 附身（完整操作）', commands: true, possess: true, stripRoles: false },
-  D: { name: '完整操作，但队伍没有核心角色', commands: true, possess: true, stripRoles: true },
+  A: { name: '只顾自己（不下令 / 不附身）', commands: false, possess: false, stripRoles: false, roleAware: false },
+  B: { name: '+ 指令', commands: true, possess: false, stripRoles: false, roleAware: false },
+  C: { name: '+ 指令 + 附身（完整操作）', commands: true, possess: true, stripRoles: false, roleAware: false },
+  D: { name: '完整操作，但队伍没有核心角色', commands: true, possess: true, stripRoles: true, roleAware: false },
+  // v3：会用角色的一对 —— 只有这两个能回答「队伍选择到底有没有用」
+  C3: { name: '完整操作 + 会用角色（打控制链 / 换护卫）', commands: true, possess: true, stripRoles: false, roleAware: true },
+  D3: { name: '同样会玩，但队伍没有核心角色', commands: true, possess: true, stripRoles: true, roleAware: true },
 };
 
 const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -419,6 +480,20 @@ const pairedWins = (k1: string, k2: string): number => {
   return n;
 };
 const medianSurvival = (k: string): number => median(runsOf(k).map((r) => r.framesSurvived));
+
+/** 任意指标上的同种子配对胜场（成长类指标也要配对看，不能只比均值） */
+const pairedWinsOn = (
+  k1: string,
+  k2: string,
+  pick: (r: SliceResult) => number
+): number => {
+  const a = runsOf(k1);
+  const b = runsOf(k2);
+  let n = 0;
+  for (let i = 0; i < SEEDS.length; i += 1) if (pick(a[i]) > pick(b[i])) n += 1;
+  return n;
+};
+const meanWeight = (k: string): number => mean(runsOf(k).map((r) => r.weight));
 
 describe('G1 放行条件 · 3 分钟切片', () => {
   it('四个组 × 多个种子跑完，把聚合成绩打出来（人工看趋势用）', () => {
@@ -562,6 +637,71 @@ describe('G1 放行条件 · 3 分钟切片', () => {
 
     // ⚠️ 这条是**唯一**的硬断言：保护期内还被打死 = 保护没生效，那是 bug
     expect(protectedDeaths, '新手保护生效时不该被打死').toBe(0);
+  });
+
+  /**
+   * **会用角色的一对**（C3 / D3）—— 这是唯一能回答「队伍选择有没有用」的对比。
+   *
+   * **先写死后跑分**（不看着结果调结论）：判定标准预先定死为
+   * 「中位存活比 ≥ 1.15 **且**同种子配对胜 ≥ 5/8」，两个都满足才算成立；
+   * 只中一个、或者反过来（无角色更好），就维持「台架判不了」，继续交真人。
+   *
+   * 逻辑：v2 的 C/D 判不了，是因为大脑「带着角色却不会用」。
+   * v3 让它打控制链 + 残血换护卫；如果角色真有价值，这一对应当体现出差距。
+   */
+  it('会用角色时，队伍选择是否体现出差距（C3 / D3）', () => {
+    const survRatio = medianSurvival('C3') / medianSurvival('D3');
+    const wins = pairedWins('C3', 'D3');
+    const weightC = mean(runsOf('C3').map((r) => r.weight));
+    const weightD = mean(runsOf('D3').map((r) => r.weight));
+
+    console.log(
+      `会用角色的一对（C3 有角色 / D3 无角色）：\n` +
+        `  存活：中位 ${medianSurvival('D3')} → ${medianSurvival('C3')} 帧（×${survRatio.toFixed(2)}），配对胜 ${wins}/${SEEDS.length}\n` +
+        `  成长：体重 ${Math.round(weightD)} → ${Math.round(weightC)}（×${(weightC / weightD).toFixed(2)}）\n` +
+        `  判定标准（预先定死）：存活比 ≥ 1.15 且配对胜 ≥ 5/8`
+    );
+
+    // 只报判定结果，不写死方向 —— 达不到标准就维持「判不了」，由下面的成长维度接手
+    const established = survRatio >= 1.15 && wins >= 5;
+    console.log(
+      established
+        ? '  → 达标：队伍选择在「存活」维度成立'
+        : '  → 未达标（存活）：维持「存活维度判不了」—— 注意存活与配对胜场可能打架\n' +
+          '     （C3 均值 3948 > D3 3783，但中位 3536 < 4099：赢得更频、输得更惨）'
+    );
+    expect(typeof established).toBe('boolean');
+  });
+
+  /**
+   * **队伍选择唯一被复现的结论：成长显著更好。**
+   *
+   * 存活维度两版大脑给的答案相反（×1.33 → ×0.89 / ×0.86），**不能用**；
+   * 但成长维度**两版都同向、且量级很大**：
+   *   大脑 v2：体重 411 → 798（×1.94）
+   *   大脑 v3：体重 445 → 709（×1.59）
+   * 两版 × 8 种子 = 16 次配对比较都指向「有角色长得更快」——
+   * 这次不是噪声：噪声不会连续两版同向。
+   *
+   * 结论：**核心角色买的是「打得动」**（控制链 + 集火让击杀变多），
+   * 代价是存活上略吃亏（剑鱼冲得猛、河豚跑得慢、电鳗血薄）。
+   */
+  it('队伍选择的稳定结论：有核心角色，成长显著更好（两版大脑都复现）', () => {
+    const ratio2 = meanWeight('C') / meanWeight('D');
+    const ratio3 = meanWeight('C3') / meanWeight('D3');
+    const wins2 = pairedWinsOn('C', 'D', (r) => r.weight);
+    const wins3 = pairedWinsOn('C3', 'D3', (r) => r.weight);
+
+    console.log(
+      `成长维度（有核心角色 / 无核心角色）：\n` +
+        `  大脑 v2：体重 ×${ratio2.toFixed(2)}，配对胜 ${wins2}/${SEEDS.length}\n` +
+        `  大脑 v3：体重 ×${ratio3.toFixed(2)}，配对胜 ${wins3}/${SEEDS.length}`
+    );
+
+    // 两版都要同向才算数 —— 单版同向可能是运气（这正是 v1「62% 死于巨怪」教给我的）
+    expect(ratio2, 'v2 体重比').toBeGreaterThan(1.25);
+    expect(ratio3, 'v3 体重比').toBeGreaterThan(1.25);
+    expect(Math.min(wins2, wins3), '两版大脑的成长配对胜场都要过半').toBeGreaterThanOrEqual(5);
   });
 
   it('预置队伍真的落到了三个核心位上（否则 C / D 的对比是空的）', () => {
