@@ -1,10 +1,9 @@
 /**
- * 战队角色与指令注册表（G1 / FQ-05，《鱼群争霸开发计划》§6.2）。
+ * 战队角色与指令注册表（G1 / FQ-05 + FQ-06，《鱼群争霸开发计划》§6.1 / §6.2）。
  *
  * 为什么单开一个文件：计划 §9 的分工表把「队伍角色和指令」划给 `data/squadRoles.ts`。
  * 指令的键位、文案、数值都属于**可调配置**，不该散在 `systems/squad.ts` 的 if 分支里。
- * 本文件先落 FQ-05 需要的**指令**部分；三个核心角色（河豚护卫 / 电鳗控制 / 机动鱼）
- * 是 FQ-06，届时在同一个文件里加 `SQUAD_ROLE`，**别再去开第二个注册表**。
+ * 指令（FQ-05）与三个核心角色（FQ-06）都在本文件里 —— 别再去开第二个注册表。
  *
  * 数据驱动套路（与 data/ponds.ts、data/moods.ts 一致）：
  *   `as const` 注册表 + `keyof` 取值 + `getXxxConfig(id)` 未知 id 回退默认值。
@@ -129,4 +128,131 @@ export const SQUAD_COMMAND_CONFIG = {
   NOTICE_FRAMES: 150,
   /** 一次最多堆多少条离散指令 —— 防连点把队列撑爆（AR-03：重复输入不多次换身） */
   ACTION_QUEUE_MAX: 8,
+} as const;
+
+/* ══════════════ 核心角色（G1 / FQ-06 · 计划 §6.1） ══════════════ */
+
+export const SQUAD_ROLE = {
+  /** 河豚护卫：贴身保护受威胁的自己人，冷却允许时给盾 */
+  GUARD: 'GUARD',
+  /** 电鳗控制：对集火目标 / 贴近队伍的威胁释放短控制 */
+  CONTROL: 'CONTROL',
+  /** 机动鱼：快速接近争夺点，撤退时优先脱离包围 */
+  SCOUT: 'SCOUT',
+} as const;
+
+export type SquadRoleId = keyof typeof SQUAD_ROLE;
+
+export interface SquadRoleConfig {
+  id: SquadRoleId;
+  /** HUD 显示名 */
+  name: string;
+  /** 一句话定位（HUD / 帮助面板） */
+  desc: string;
+  /** **弱点**（计划 §6.1 表格第三列）：角色必须各有一条代价，否则选谁都一样 */
+  weakness: string;
+  /** HUD 角色色 */
+  color: string;
+  /**
+   * 首选物种（收编到这些鱼时优先占核心位）。
+   * 角色是**行为配置**，不新增物种 —— 河豚 / 电鳗 / 剑鱼本来就在池子里。
+   */
+  species: readonly string[];
+  /** 移动速度倍率（河豚慢、机动鱼更快的来源） */
+  speedMult: number;
+  /** 入队时按此比例改最大生命（电鳗「血量低」的来源） */
+  healthMult: number;
+  /** 入队时按此比例改伤害（机动鱼「正面输出低」的来源，克隆 config 实现，不污染数据表） */
+  damageMult: number;
+}
+
+export const SQUAD_ROLES: Record<SquadRoleId, SquadRoleConfig> = {
+  GUARD: {
+    id: SQUAD_ROLE.GUARD,
+    name: '河豚护卫',
+    desc: '靠近受威胁的自己人，冷却好了就给它套一层护盾',
+    weakness: '速度慢，不擅长追击',
+    color: '#22c55e',
+    species: ['PUFFER_FISH'],
+    speedMult: 0.85,
+    healthMult: 1,
+    damageMult: 1,
+  },
+  CONTROL: {
+    id: SQUAD_ROLE.CONTROL,
+    name: '电鳗控制',
+    desc: '对集火目标或贴近队伍的威胁释放短控制',
+    weakness: '血量低，控制有冷却',
+    color: '#eab308',
+    species: ['ELECTRIC_EEL'],
+    speedMult: 1,
+    healthMult: 0.7,
+    damageMult: 1,
+  },
+  SCOUT: {
+    id: SQUAD_ROLE.SCOUT,
+    name: '机动鱼',
+    desc: '快速接近争夺点，撤退时优先脱离包围',
+    weakness: '正面输出低',
+    color: '#38bdf8',
+    species: ['SWORD_FISH'],
+    speedMult: 1.1,
+    healthMult: 1,
+    damageMult: 0.6,
+  },
+};
+
+/** HUD 上的角色顺序（与计划 §6.1 表格一致） */
+export const SQUAD_ROLE_LIST: readonly SquadRoleConfig[] = [
+  SQUAD_ROLES.GUARD,
+  SQUAD_ROLES.CONTROL,
+  SQUAD_ROLES.SCOUT,
+];
+
+/**
+ * 取角色配置。**没有角色返回 undefined** —— 大多数队员本来就是普通成员，
+ * 「没角色」是常态而不是异常，别给它塞一个默认角色（那会让所有鱼都变成核心）。
+ */
+export const getSquadRoleConfig = (id?: SquadRoleId): SquadRoleConfig | undefined =>
+  (id && SQUAD_ROLES[id]) || undefined;
+
+/** 按物种查角色：收编时用它决定这条鱼能不能占核心位 */
+export const findRoleBySpecies = (type: string): SquadRoleConfig | undefined =>
+  SQUAD_ROLE_LIST.find((r) => r.species.includes(type));
+
+/* ══════════════ 角色数值 ══════════════ */
+
+/**
+ * 核心位与专属能力参数。
+ *
+ * ⚠️ 计划 §6.1 首版：**普通鱼不能触发核心专属能力** —— 否则收满 10 条控制鱼
+ *    就是「同时放十个控制」，队伍越大越无脑（计划 §12 的头号风险）。
+ *    能力的开关只有 `entity.coreRole` 一个，普通成员永远是 undefined。
+ */
+export const SQUAD_ROLE_CONFIG = {
+  /** 核心成员位（总人数上限仍是 `SQUAD_CONFIG.MAX_SIZE` = 10） */
+  CORE_SLOTS: 3,
+
+  /** 河豚：被保护者身边多近算「受威胁」 */
+  GUARD_THREAT_RANGE: 420,
+  /** 河豚：自己要贴到被保护者多近才给得起盾 */
+  GUARD_PROTECT_RANGE: 260,
+  /** 河豚：护盾持续帧（3 秒） */
+  GUARD_SHIELD_FRAMES: 180,
+  /** 河豚：给盾冷却（10 秒）—— 不给冷却就成了无限护盾 */
+  GUARD_COOLDOWN: 600,
+
+  /** 电鳗：集火目标在这个距离内才值得控（超出就打别的主意） */
+  CONTROL_RANGE: 520,
+  /** 电鳗：没有集火目标时，找玩家周围这个范围内的威胁 */
+  CONTROL_THREAT_RANGE: 380,
+  /** 电鳗：控制持续帧（1.5 秒，短控制 —— 与「无限控死」划清界限） */
+  CONTROL_SLOW_FRAMES: 90,
+  /** 电鳗：控制冷却（7 秒） */
+  CONTROL_COOLDOWN: 420,
+
+  /** 机动鱼：集火时的额外追击速度倍率（乘在角色速度倍率之上） */
+  SCOUT_FOCUS_SPEED_MULT: 1.25,
+  /** 机动鱼：撤退时从「敌人质心」反方向拉开的距离 */
+  SCOUT_BREAKOUT_OFFSET: 260,
 } as const;

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameStatus, PlayerState, CreatureType, Cosmetics, TeethType, PatternType, ScaleType, Entity, AccessoryType, TailType, BodyType, EyeType, EyebrowType, TrailType, Treasure } from '../types';
-import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, SQUAD_CONFIG, EVOLVE_OPTION_COUNT, SQUAD_COMMAND_LIST, getSquadCommandConfig, type SquadCommandId } from '../constants';
+import { CREATURES, GAME_MECHANICS, BIOME_CONFIGS, WORLD_SIZE, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, TREASURE_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, SQUAD_CONFIG, EVOLVE_OPTION_COUNT, SQUAD_COMMAND_LIST, getSquadCommandConfig, SQUAD_ROLE_CONFIG, getSquadRoleConfig, type SquadCommandId } from '../constants';
 import { getMapBoundaryRadius, gameEvents, isConcealed, peekNextSwitchTarget } from '../gameEngine';
 import { getAchievementView, getUnlockedCount, type AchievementView } from '../systems/achievements';
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
@@ -507,6 +507,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   const squadNotice = gameState.squad.notice ?? null;
   // R 键下一个会附身到谁（只读，不推进轮转游标）—— 头像上打个描边，玩家才知道会跳到哪
   const squadNextSwitchId = peekNextSwitchTarget(gameState)?.id ?? null;
+  // ── FQ-06 核心角色：核心成员 = 身上挂着 coreRole 的活体（与 systems/squad.ts 同一判据）
+  const coreMembers = squadMembers.filter(m => !!m.coreRole);
   // 附身冷却（帧）：计划 §6.2 要求「显示目标与冷却」，所以按钮上直接把剩余秒数写出来
   const possessCooldown = gameState.squad.switchCooldown;
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
@@ -711,6 +713,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                             <Users size={15} /> 战队
                             <span className="text-white">{squadMembers.length}</span>
                             <span className="text-slate-500 text-xs">/ {SQUAD_CONFIG.MAX_SIZE}</span>
+                            {/* 核心位是**有限资源**（FQ-06）：写清楚还剩几个，玩家才知道该挑谁收编 */}
+                            <span className="text-slate-500 text-xs">· 核心</span>
+                            <span className="text-amber-300 text-xs">{coreMembers.length}/{SQUAD_ROLE_CONFIG.CORE_SLOTS}</span>
                         </span>
                         <button
                             onClick={() => onSwitchSquad?.()}
@@ -756,18 +761,23 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     {/* 队员头像：点谁附身谁（指定附身）。下一个 R 的目标描个边 */}
                     {squadMembers.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1 justify-center">
-                            {squadMembers.map((m) => (
+                            {squadMembers.map((m) => {
+                                // 核心成员描角色色（FQ-06）：一眼看出「这三条是有角色的」
+                                const role = getSquadRoleConfig(m.coreRole);
+                                return (
                                 <button
                                     key={m.id}
                                     onClick={() => onPossessMember?.(m.id)}
-                                    title={`点此附身到 ${m.config.name}（Lv.${m.level}，半径 ${Math.round(m.radius)}）`}
+                                    title={`点此附身到 ${m.config.name}（Lv.${m.level}，半径 ${Math.round(m.radius)}）${role ? ` · ${role.name}：${role.desc}；弱点：${role.weakness}` : ''}`}
                                     className={`w-7 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all bg-slate-900/70 ${m.id === squadNextSwitchId
                                         ? 'border-cyan-400 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
                                         : 'border-slate-600 text-slate-300 hover:border-cyan-400/70 hover:text-white'}`}
+                                    style={role && m.id !== squadNextSwitchId ? { borderColor: role.color, color: role.color } : undefined}
                                 >
                                     {m.config.name.slice(0, 1)}
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
 

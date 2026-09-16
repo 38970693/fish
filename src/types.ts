@@ -11,6 +11,7 @@ import type { CreatureConfig, CreatureType } from './data/creatures';
 import type { PondId } from './data/ponds';
 import type { MoodId } from './data/moods';
 import type { RunMode, RunPhaseId } from './data/runRules';
+import type { SquadRoleId } from './data/squadRoles';
 import type { SquadCommandId } from './data/squadRoles';
 
 /* ══════════════ 内容型类型（从 data 层转发） ══════════════ */
@@ -27,6 +28,8 @@ export { SkillId } from './data/skills';
 export { BuildingType } from './data/buildings';
 
 export type { PondId, PondConfig } from './data/ponds';
+
+export type { SquadRoleId } from './data/squadRoles';
 
 export type { RunMode, RunPhaseId, RunPhaseConfig } from './data/runRules';
 
@@ -232,6 +235,18 @@ export interface Entity {
   counterWindup?: number;
   /** 大鱼反击冷却（帧，FQ-04）：冷却中再被咬也不会起新的前摇 */
   counterCooldown?: number;
+
+  /**
+   * 核心角色（G1 / FQ-06）—— 河豚护卫 / 电鳗控制 / 机动鱼。
+   *
+   * **绑定身体**（计划 §6.1「核心身份绑定成员身体」）：附身时它与 `roleCooldown`
+   * 一起**对调**，不是清零、也不留在旧身体上。
+   * 缺省 = 普通成员，不触发任何专属能力 —— 这正是「普通鱼不能触发核心专属能力」
+   * 的实现方式（十条队员同时放控制 = 无脑碾压，计划 §12 的头号风险）。
+   */
+  coreRole?: SquadRoleId;
+  /** 角色专属能力冷却（帧），同属身体，随附身一起对调 */
+  roleCooldown?: number;
 
   /**
    * 当前心境（「AI 鱼随机状态」）—— 叠在种族行为之上的个体性格。

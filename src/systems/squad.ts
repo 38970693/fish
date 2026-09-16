@@ -33,9 +33,15 @@ import { SQUAD_CONFIG, PHRASES } from '../data/world';
 import {
   SQUAD_COMMAND,
   SQUAD_COMMAND_CONFIG,
+  SQUAD_ROLE,
+  SQUAD_ROLES,
+  SQUAD_ROLE_CONFIG,
   DEFAULT_SQUAD_COMMAND,
   getSquadCommandConfig,
+  getSquadRoleConfig,
+  findRoleBySpecies,
   type SquadCommandId,
+  type SquadRoleId,
 } from '../data/squadRoles';
 import type {
   Entity,
@@ -58,6 +64,16 @@ export const getSquadMembers = (state: GameState): Entity[] =>
   state.entities.filter((e) => e.ownerId === 'player' && e.health > 0);
 
 export const isSquadMember = (e: Entity): boolean => e.ownerId === 'player';
+
+/**
+ * 核心成员（G1 / FQ-06）—— 身上挂着 `coreRole` 的活体队员。
+ *
+ * 只有这一批人会触发专属能力。普通成员的能力开关恒为 undefined，
+ * 于是「十条队员同时放控制」这件事在数据结构层面就不可能发生
+ * （计划 §6.1 首版 + §12「队伍越大越无脑」）。
+ */
+export const getCoreMembers = (state: GameState): Entity[] =>
+  state.entities.filter((e) => e.ownerId === 'player' && e.health > 0 && !!e.coreRole);
 
 /* ══════════════ 收编 ══════════════ */
 
@@ -111,8 +127,44 @@ const flushRecruits = (state: GameState): void => {
     };
     state.entities.push(member);
     state.squad.recruitedTotal += 1;
+    assignCoreRole(state, member);
   }
   state.squad.pending.length = 0;
+};
+
+/**
+ * 给新成员分配核心角色（G1 / FQ-06 · 计划 §6.1）。
+ *
+ * 三条门槛，缺一不可：
+ *   ① 物种要对得上（`findRoleBySpecies`）—— 角色是行为配置，不新增物种；
+ *   ② 核心位没满（`CORE_SLOTS` = 3）；
+ *   ③ 该角色还空着 —— 收第二条河豚也只是普通成员，不给第二个护卫位。
+ *
+ * 角色自带的**弱点在这里一次性落到身体上**：血量倍率改 `maxHealth`、
+ * 伤害倍率改**克隆出来**的 config（绝不改 `data/creatures.ts` 的共享对象），
+ * 速度倍率不落身体 —— 它每帧从角色配置读（换身体时自动跟着角色走）。
+ */
+const assignCoreRole = (state: GameState, member: Entity): void => {
+  const role = findRoleBySpecies(member.type);
+  if (!role) return;
+
+  const cores = getCoreMembers(state);
+  if (cores.length >= SQUAD_ROLE_CONFIG.CORE_SLOTS) return;
+  if (cores.some((c) => c.coreRole === role.id)) return;
+
+  member.coreRole = role.id;
+
+  if (role.healthMult !== 1) {
+    member.maxHealth = Math.max(1, Math.round(member.maxHealth * role.healthMult));
+    member.health = Math.min(member.health, member.maxHealth);
+  }
+  if (role.damageMult !== 1) {
+    // ⚠️ 必须克隆：直接改 `member.config.damage` 会改到 data/creatures.ts 的**共享配置**，
+    //    全世界的剑鱼都会一起变弱（而且不可逆）。
+    member.config = { ...member.config, damage: member.config.damage * role.damageMult };
+  }
+
+  member.speechBubble = { text: `${role.name} 入列！`, timer: 90, color: role.color };
 };
 
 /* ══════════════ 身体交换 ══════════════ */
@@ -141,6 +193,24 @@ const swapAttackTimers = (a: Entity, b: Entity): void => {
   const windup = a.counterWindup ?? 0;
   a.counterWindup = b.counterWindup ?? 0;
   b.counterWindup = windup;
+};
+
+/**
+ * 核心身份属于**身体**（G1 / FQ-06 · 计划 §6.1「核心身份绑定成员身体」），
+ * 换身体时与角色冷却一起**对调**。
+ *
+ * 为什么要连 `roleCooldown` 一起换：只换角色不换冷却的话，连按 R 在两条身体之间来回跳
+ * 就能让「刚放完技能的电鳗」变成「冷却清空的电鳗」—— 正是 §6.1 末句
+ * 「禁止靠连续换身刷新技能」要堵的洞。对调之后，谁的身体在冷却里谁就得等。
+ */
+const swapBodyIdentity = (a: Entity, b: Entity): void => {
+  const role = a.coreRole;
+  a.coreRole = b.coreRole;
+  b.coreRole = role;
+
+  const cd = a.roleCooldown ?? 0;
+  a.roleCooldown = b.roleCooldown ?? 0;
+  b.roleCooldown = cd;
 };
 
 /**
@@ -185,6 +255,9 @@ export const possessMember = (
     /* 亡语：旧身体作废，灵魂进新身体，满血 + 保护帧 */
     state.entities.splice(idx, 1);
     moveBody(member, player);
+    // 亡语：旧身体作废，灵魂连同**身体的核心身份**一起接管（新身体是河豚就当河豚）
+    player.coreRole = member.coreRole;
+    player.roleCooldown = member.roleCooldown ?? 0;
     player.health = player.maxHealth;
     player.invulnerableTimer = SQUAD_CONFIG.POSSESS_PROTECTION;
     player.semiGhostTimer = 0;
@@ -203,6 +276,8 @@ export const possessMember = (
 
   // 身体的攻击计时器也跟着对调（FQ-05：附身不能刷新冷却）
   swapAttackTimers(player, member);
+  // 核心身份与角色冷却同属身体（FQ-06）：对调，不清零
+  swapBodyIdentity(player, member);
 
   // 先把玩家当前的身体存下来（等下要给成员）
   const memberBody = {
@@ -498,6 +573,183 @@ export const peekNextSwitchTarget = (state: GameState): Entity | null => {
   return members[Math.min(switchCursor, members.length - 1)] ?? null;
 };
 
+/* ══════════════ 核心角色（G1 / FQ-06 · 计划 §6.1） ══════════════ */
+
+/**
+ * 找 `around` 周围最近的威胁。
+ *
+ * 「威胁」的定义刻意用 `canHarm(around, e)` —— 阵营唯一判定（FQ-03）：
+ * 能打到 `around` 的才叫威胁，自己人永远不算。
+ */
+const nearestThreat = (
+  state: GameState,
+  around: Entity,
+  rangePx: number,
+  viewer: Entity
+): Entity | undefined => {
+  let best: Entity | undefined;
+  let bestD = rangePx;
+  for (const e of state.entities) {
+    if (e.health <= 0) continue;
+    if (e === around || e === viewer) continue;
+    if (!canHarm(around, e)) continue;
+    const d = dist(around, e);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  return best;
+};
+
+/**
+ * 河豚该保护谁：**受威胁**的玩家或其它核心成员里离自己最近的那个（计划 §6.1
+ * 「护卫时靠近受威胁的玩家或核心成员」）。普通成员不在这份名单里 —— 核心位只有 3 个，
+ * 全队十个人都想要盾的话，护卫就变成了永远追不上需求的救火队。
+ */
+const findProtectee = (
+  state: GameState,
+  guard: Entity
+): { ally: Entity; threat: Entity } | undefined => {
+  const candidates: Entity[] = [state.player, ...getCoreMembers(state).filter((m) => m !== guard)];
+
+  let best: { ally: Entity; threat: Entity } | undefined;
+  let bestD = Infinity;
+  for (const ally of candidates) {
+    const threat = nearestThreat(state, ally, SQUAD_ROLE_CONFIG.GUARD_THREAT_RANGE, guard);
+    if (!threat) continue;
+    const d = dist(guard, ally);
+    if (d < bestD) {
+      bestD = d;
+      best = { ally, threat };
+    }
+  }
+  return best;
+};
+
+/** 河豚护卫：贴上去给盾。没贴到就什么都不做 —— 移动段会负责靠拢 */
+const tryGuardAbility = (state: GameState, guard: Entity): void => {
+  const found = findProtectee(state, guard);
+  if (!found) return;
+  if (dist(guard, found.ally) > SQUAD_ROLE_CONFIG.GUARD_PROTECT_RANGE) return;
+
+  const cfg = SQUAD_ROLES.GUARD;
+  found.ally.shieldTimer = Math.max(
+    found.ally.shieldTimer ?? 0,
+    SQUAD_ROLE_CONFIG.GUARD_SHIELD_FRAMES
+  );
+  guard.roleCooldown = SQUAD_ROLE_CONFIG.GUARD_COOLDOWN;
+  state.labels.push({
+    x: found.ally.x,
+    y: found.ally.y - 45,
+    text: '河豚护盾！',
+    color: cfg.color,
+    timer: 45,
+  });
+};
+
+/**
+ * 电鳗控制：优先控**集火目标**，没有集火就控贴近队伍的威胁（计划 §6.1）。
+ *
+ * 用 `speedBoostTimer = -N`（负值 = 减速 / 麻痹，与 PRESSURE_BIND 同一机制）——
+ * 不引入新的状态字段，AI 与 HUD 现有读数天然认识它。
+ * 持续只有 1.5 秒：这是**短控制**，与「三条控制鱼把塘主无限控死」划清界限
+ * （塘主的控制抗性属 G4 / FQ-13，本轮不碰）。
+ */
+const tryControlAbility = (state: GameState, eel: Entity, focus?: Entity): void => {
+  let target: Entity | undefined;
+  if (focus && focus.health > 0 && dist(eel, focus) <= SQUAD_ROLE_CONFIG.CONTROL_RANGE) {
+    target = focus;
+  }
+  if (!target) target = nearestThreat(state, state.player, SQUAD_ROLE_CONFIG.CONTROL_THREAT_RANGE, eel);
+  if (!target) return;
+
+  const cfg = SQUAD_ROLES.CONTROL;
+  target.speedBoostTimer = -SQUAD_ROLE_CONFIG.CONTROL_SLOW_FRAMES;
+  eel.roleCooldown = SQUAD_ROLE_CONFIG.CONTROL_COOLDOWN;
+  state.labels.push({
+    x: target.x,
+    y: target.y - 45,
+    text: '电麻！',
+    color: cfg.color,
+    timer: 45,
+  });
+};
+
+/**
+ * 每帧跑一遍核心能力。**只有核心成员进入这个循环** —— 普通鱼的 `coreRole`
+ * 恒为 undefined，根本不会被 `getCoreMembers` 捞出来（计划 §6.1 首版）。
+ *
+ * 冷却在**能力之外**统一递减：还在冷却里的角色这一帧直接跳过，
+ * 于是「控制有冷却」不是一句注释而是可测的行为。
+ */
+const runCoreAbilities = (state: GameState): void => {
+  const focus = getSquadCommand(state) === SQUAD_COMMAND.FOCUS ? getFocusTarget(state) : undefined;
+
+  for (const m of getCoreMembers(state)) {
+    if (m.roleCooldown && m.roleCooldown > 0) {
+      m.roleCooldown -= 1;
+      continue;
+    }
+    if (m.coreRole === SQUAD_ROLE.GUARD) tryGuardAbility(state, m);
+    else if (m.coreRole === SQUAD_ROLE.CONTROL) tryControlAbility(state, m, focus);
+    // 机动鱼没有主动能力：它的价值全在移动上（快速接近 / 脱离包围）
+  }
+};
+
+/**
+ * 角色对移动的影响 —— **只有核心成员有**，普通成员永远走缺省队形。
+ *
+ * · 河豚护卫：有人受威胁就贴到那个人身上（「靠近受威胁的自己人」）
+ * · 机动鱼 + 撤退：站到**背对敌群质心**的那一侧（「优先脱离包围」）
+ */
+const pickRoleMoveTarget = (
+  state: GameState,
+  member: Entity,
+  command: SquadCommandId
+): { x: number; y: number; stopAt: number } | undefined => {
+  const p = state.player;
+
+  if (member.coreRole === SQUAD_ROLE.GUARD) {
+    const found = findProtectee(state, member);
+    if (found) {
+      return {
+        x: found.ally.x,
+        y: found.ally.y,
+        stopAt: member.radius + found.ally.radius + 30,
+      };
+    }
+    return undefined;
+  }
+
+  if (member.coreRole === SQUAD_ROLE.SCOUT && command === SQUAD_COMMAND.RETREAT) {
+    // 敌群质心（只数玩家周围的威胁）：没有敌人就退回常规队形
+    let cx = 0;
+    let cy = 0;
+    let n = 0;
+    const rangeSq = SQUAD_COMMAND_CONFIG.GUARD_CHASE_RANGE ** 2;
+    for (const e of state.entities) {
+      if (e.health <= 0) continue;
+      if (!canHarm(p, e)) continue;
+      if (dist2(p, e) > rangeSq) continue;
+      cx += e.x;
+      cy += e.y;
+      n += 1;
+    }
+    if (n === 0) return undefined;
+
+    const away = Math.atan2(p.y - cy / n, p.x - cx / n);
+    const desired = p.radius + member.radius + SQUAD_COMMAND_CONFIG.RETREAT_RALLY_GAP;
+    return {
+      x: p.x + Math.cos(away) * (desired + SQUAD_ROLE_CONFIG.SCOUT_BREAKOUT_OFFSET),
+      y: p.y + Math.sin(away) * (desired + SQUAD_ROLE_CONFIG.SCOUT_BREAKOUT_OFFSET),
+      stopAt: SQUAD_COMMAND_CONFIG.RETREAT_DEADZONE,
+    };
+  }
+
+  return undefined;
+};
+
 /* ══════════════ 跟随 ══════════════ */
 
 /**
@@ -596,7 +848,8 @@ const updateMovement = (state: GameState): void => {
 
   for (let i = 0; i < members.length; i += 1) {
     const m = members[i];
-    const goal = pickMoveTarget(state, m, i, command);
+    // 角色优先于指令队形（FQ-06）：河豚贴人、机动鱼撤退时绕到背敌侧
+    const goal = pickRoleMoveTarget(state, m, command) ?? pickMoveTarget(state, m, i, command);
 
     const dx = goal.x - m.x;
     const dy = goal.y - m.y;
@@ -606,7 +859,13 @@ const updateMovement = (state: GameState): void => {
       const heading = Math.atan2(dy, dx);
       m.angle = turnToward(m.angle, heading, 0.15);
       // 比常规速度快一点，否则追不上开了加速的玩家
-      const sp = m.speed * 1.25;
+      const role = getSquadRoleConfig(m.coreRole);
+      const rush =
+        m.coreRole === SQUAD_ROLE.SCOUT && command === SQUAD_COMMAND.FOCUS
+          ? SQUAD_ROLE_CONFIG.SCOUT_FOCUS_SPEED_MULT
+          : 1;
+      // 角色速度倍率每帧从配置读：河豚 0.85（不擅长追击）、机动鱼 1.1（快速接近）
+      const sp = m.speed * 1.25 * (role?.speedMult ?? 1) * rush;
       m.vx = Math.cos(m.angle) * sp;
       m.vy = Math.sin(m.angle) * sp;
       m.x += m.vx;
@@ -627,10 +886,12 @@ export const squadSystem = (state: GameState, _ctx: FrameContext): void => {
   //   ① 先消费指令 —— 玩家这一帧按下的键当帧就生效（不然会有 1 帧的「没反应」）
   //   ② 再落地新成员（指令数队员时看到的才和后面移动的是同一批人）
   //   ③ 校验集火目标（判定死亡 / 丢失 / 追不上 → 降级回护卫）
-  //   ④ 最后才按指令推位置
+  //   ④ 核心角色能力（FQ-06：只有挂了 coreRole 的队员才进这个循环）
+  //   ⑤ 最后才按指令 + 角色推位置
   consumeSquadActions(state);
   flushRecruits(state);
   validateFocusTarget(state);
+  runCoreAbilities(state);
   updateMovement(state);
 
   // 指令提示倒计时（HUD 直接渲染这个快照，不在渲染期算）
