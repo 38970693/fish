@@ -539,13 +539,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
       // 而且滚不到（居中布局的经典坑：子元素上下同时溢出，父级滚动条只能滚下方那一半）。
       // 现在外层负责滚动，内层用 `min-h-full` 包裹：内容矮时居中，内容高时把容器撑开、交给外层滚。
       <div className="absolute inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40">
-        <div className="min-h-full flex items-center justify-center p-3 sm:p-6">
+        <div className="min-h-full flex items-center justify-center p-3 sm:p-5">
         <div className="flex flex-col items-center text-center">
-            <div className="bg-slate-900/80 p-4 sm:p-6 lg:p-8 rounded-3xl border border-slate-700 shadow-2xl backdrop-blur-md">
-                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-4 sm:mb-6">欢乐鱼塘</h1>
+            <div className="bg-slate-900/80 p-4 sm:p-5 lg:p-6 rounded-3xl border border-slate-700 shadow-2xl backdrop-blur-md">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-3 sm:mb-4">欢乐鱼塘</h1>
 
-                <div className="flex flex-col gap-3 sm:gap-4">
-                    <h2 className="text-xl sm:text-2xl text-white font-bold">选择鱼塘</h2>
+                <div className="flex flex-col gap-2 sm:gap-3">
+                    <h2 className="text-lg sm:text-xl text-white font-bold">选择鱼塘</h2>
                     <div className="flex gap-2 sm:gap-3 justify-center flex-wrap max-w-3xl">
                         {POND_LIST.map(({ id, config }) => {
                             const isSel = selectedPond === id;
@@ -575,7 +575,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         })}
                     </div>
 
-                    <h2 className="text-xl sm:text-2xl text-white font-bold">选择你的初始鱼类</h2>
+                    <h2 className="text-lg sm:text-xl text-white font-bold">选择你的初始鱼类</h2>
                     <div className="flex gap-2 sm:gap-3 justify-center flex-wrap max-w-3xl">
                         {startOptions.map(type => {
                             const config = CREATURES[type];
@@ -586,8 +586,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                     onClick={() => setSelectedStarter(type)} 
                                     className={`p-2.5 rounded-2xl border transition-all flex flex-col items-center gap-1.5 ${isSelected ? 'bg-cyan-900 border-cyan-400 scale-110 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-cyan-400 hover:bg-slate-700'}`}
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: config.color }}>
-                                        <Fish size={28} color="white" />
+                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: config.color }}>
+                                        <Fish size={26} color="white" />
                                     </div>
                                     <span className="text-white font-bold text-sm">{config.name}</span>
                                     <span className="text-slate-400 text-[11px]">{config.skillName ? `技能: ${config.skillName}` : '无技能'}</span>
