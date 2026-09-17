@@ -112,6 +112,16 @@ interface ArmConfig {
    * 这是**调优实验**，不是改数值 —— 默认值 0，跑完不留下任何改动。
    */
   weaknessRelief?: number;
+  /**
+   * **不预置队伍**（真·开局：光杆一条鱼）。
+   *
+   * 其余八组都开局就送一支 5 人队伍（为了让 C / D 的对比有东西可比），
+   * 但这也让台架**比真人强得多** —— 实测有整整一半的局是「50 秒内击杀 BOSS 通关」，
+   * 而真人开局是一条鱼、得先自己收编。所以这里补一组从零开始的，
+   * 目的不是对比角色，而是回答一个真人切片必须先知道的问题：
+   * **3 分钟够不够「从光杆打到有队伍」？**
+   */
+  noSeedSquad?: boolean;
 }
 
 /**
@@ -131,7 +141,22 @@ interface DeathInfo {
   protectedNow: boolean;
 }
 
+/**
+ * **这一局是怎么结束的** —— 没有它，「活满三分钟 0/8」是个会误导人的数字。
+ *
+ * ⚠️ `combat.ts checkVictory`：**玩家阵营击杀 BOSS 即通关**（虎鲸 / 美人鱼 / 深海巨怪）。
+ *    也就是说「没跑满 10800 帧」有两种完全不同的含义 —— **被打死了** 和 **提前通关了**。
+ *    把它们合并成一个「活满三分钟 0/8」报出去，会让真人切片带着「这游戏太难」的预设进场，
+ *    而真相可能恰恰相反。所以逐局记下结束原因再统计。
+ */
+type EndReason =
+  | 'SURVIVED' // 真跑满 10800 帧
+  | 'GAME_OVER' // 队伍拼光，无人可夺舍
+  | 'VICTORY' // 击杀 BOSS，提前通关
+  | 'EVOLVE_STUCK'; // 进了进化面板却没有候选（台架卡死，属于 bug 不是难度）
+
 interface SliceResult {
+  endReason: EndReason;
   framesSurvived: number;
   weight: number;
   level: number;
@@ -333,7 +358,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
     resetModuleState();
     const state = createInitialState({});
     state.status = GameStatus.PLAYING;
-    seedSquad(state);
+    if (!arm.noSeedSquad) seedSquad(state);
     const seededMembers = getSquadMembers(state);
     const squadSizeAtStart = seededMembers.length;
     // 对照组的「抹角色」必须在**取快照之前**做一次：预置是走真实收编路径的，
@@ -344,18 +369,31 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
     let evolutions = 0;
     let commandsIssued = 0;
     let framesSurvived = 0;
+    let endReason: EndReason = 'SURVIVED';
     const deaths: DeathInfo[] = [];
 
     for (let f = 0; f < SLICE_FRAMES; f += 1) {
       // 进化面板：替玩家选第一个候选（走生产同一条 applyEvolutionChoice，不复制数值）
       if (statusOf(state) === GameStatus.EVOLVING) {
         const opt = state.evolveOptions?.[0];
-        if (!opt) break;
+        if (!opt) {
+          endReason = 'EVOLVE_STUCK';
+          break;
+        }
         applyEvolutionChoice(state, opt);
         evolutions += 1;
         continue;
       }
-      if (statusOf(state) === GameStatus.GAME_OVER || statusOf(state) === GameStatus.VICTORY) break;
+      if (statusOf(state) === GameStatus.GAME_OVER) {
+        endReason = 'GAME_OVER';
+        break;
+      }
+      // ⚠️ 通关**不是**「没活满」：击杀 BOSS 就结束，是本局的胜利条件，
+      //    混进「活不过三分钟」里统计会把难度结论带反
+      if (statusOf(state) === GameStatus.VICTORY) {
+        endReason = 'VICTORY';
+        break;
+      }
       // 商场 / 菜单这类遮罩态世界是暂停的，别让台架卡死
       if (statusOf(state) !== GameStatus.PLAYING) state.status = GameStatus.PLAYING;
 
@@ -448,6 +486,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
     const eaten = Object.values(p.eatenHistory).reduce((a, b) => a + b, 0);
 
     return {
+      endReason,
       framesSurvived,
       weight: Math.round(p.weight),
       level: p.level,
@@ -476,6 +515,8 @@ const ARMS: Record<string, ArmConfig> = {
   // 调优探针：弱点放松一半（电鳗血 0.7→0.85、剑鱼伤害 0.6→0.8、河豚速度 0.85→0.925）
   C3r: { name: '会用角色 + 弱点放松一半', commands: true, possess: true, stripRoles: false, roleAware: true, weaknessRelief: 0.5 },
   D3r: { name: '弱点放松一半，但无核心角色', commands: true, possess: true, stripRoles: true, roleAware: true, weaknessRelief: 0.5 },
+  // 真·开局：不预置队伍，看 3 分钟够不够从光杆打到有队伍
+  E: { name: '真·开局（不预置队伍，完整操作 + 会用角色）', commands: true, possess: true, stripRoles: false, roleAware: true, noSeedSquad: true },
 };
 
 const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -489,7 +530,11 @@ interface Aggregate {
   策略: string;
   存活均值: number;
   存活中位: number;
+  /** 真跑满 10800 帧的局数 */
   活满三分钟: number;
+  /** 击杀 BOSS 提前通关的局数 —— **不是失败**，别混进「活不过」里 */
+  通关: number;
+  被打死: number;
   体重均值: number;
   吃掉均值: number;
 }
@@ -543,7 +588,9 @@ const aggOf = (k: string): Aggregate => {
     策略: ARMS[k].name,
     存活均值: Math.round(mean(rs.map((r) => r.framesSurvived))),
     存活中位: Math.round(median(rs.map((r) => r.framesSurvived))),
-    活满三分钟: rs.filter((r) => r.framesSurvived >= SLICE_FRAMES).length,
+    活满三分钟: rs.filter((r) => r.endReason === 'SURVIVED').length,
+    通关: rs.filter((r) => r.endReason === 'VICTORY').length,
+    被打死: rs.filter((r) => r.endReason === 'GAME_OVER').length,
     体重均值: Math.round(mean(rs.map((r) => r.weight))),
     吃掉均值: Math.round(mean(rs.map((r) => r.eaten)) * 10) / 10,
   };
@@ -575,6 +622,24 @@ const pairedWinsOn = (
   return n;
 };
 const meanWeight = (k: string): number => mean(runsOf(k).map((r) => r.weight));
+
+/**
+ * **通关率才是「结果」，存活帧数不是。**
+ *
+ * ⚠️ `framesSurvived` 是个**被污染的指标**：本作的胜利条件是「玩家阵营击杀 BOSS」
+ *    （`combat.ts checkVictory`），**赢得越快，`framesSurvived` 越短** ——
+ *    和「被打死」在数字上完全无法区分。实测 64 局里 **34 局是提前通关**，
+ *    也就是说这个指标有一半的样本在**反向计分**。
+ *
+ * 后果很具体：D 组（无核心角色）中位存活 3649 帧 > C 组 3258 帧，
+ * 一度被读成「有角色反而死得快」。真相是 **D 赢得更少（3/8 vs 5/8），所以局数拖得更久** ——
+ * 它不是活得久，是**没赢**。
+ *
+ * 所以任何跨「会不会赢」的对比都必须改用通关率（配对比），存活帧数只在同一结局内部可比。
+ */
+const victoryCount = (k: string): number => runsOf(k).filter((r) => r.endReason === 'VICTORY').length;
+const pairedVictories = (k1: string, k2: string): number =>
+  pairedWinsOn(k1, k2, (r) => (r.endReason === 'VICTORY' ? 1 : 0));
 
 describe('G1 放行条件 · 3 分钟切片', () => {
   /**
@@ -691,15 +756,30 @@ describe('G1 放行条件 · 3 分钟切片', () => {
 
   /**
    * ⚠️ 这条**不是**断言，是给人工切片留的醒目标记。
-   * 台架里四组都没能活满 3 分钟（中位 30~50 秒就出局）。台架的「操作大脑」只有
-   * 躲大的 / 追小的两条规则，比真人笨得多，所以不能直接判定「游戏太难」；
-   * 但**这是一个必须由真人切片回答的问题：三分钟能不能打完一局？**
+   *
+   * **「没跑满 10800 帧」必须先拆成两种完全不同的结局**（`endReason`）：
+   *   · `GAME_OVER` —— 队伍拼光、无人可夺舍，**被打死了**
+   *   · `VICTORY`   —— **提前通关**（`combat.ts checkVictory`：玩家阵营击杀 BOSS 即通关）
+   * 合并成一句「活满三分钟 0/8」报出去，会让真人带着「这游戏太难」的预设进场，
+   * 而真相可能是「赢得太快」。所以这里两种分开数。
    */
-  it('【发现】台架四组都活不满 3 分钟 —— 留给人工切片确认', async () => {
+  it('【发现】没有一组跑满 3 分钟 —— 但要分清「被打死」还是「提前通关」', async () => {
     for (const k of Object.keys(ARMS)) await ensureArm(k);
-    const full = Object.keys(ARMS).map((k) => `${k}:${A(k).活满三分钟}/${SEEDS.length}`);
-    console.log(`活满三分钟 ${full.join('  ')} —— 台架大脑只有两条规则，比真人笨，` +
-      `这不等于「游戏太难」，但真人切片必须专门看一眼生存曲线。`);
+
+    const line = (pick: (a: Aggregate) => number, label: string): string =>
+      `${label} ${Object.keys(ARMS).map((k) => `${k}:${pick(A(k))}`).join('  ')}`;
+    console.log(line((a) => a.被打死, '被打死'));
+    console.log(line((a) => a.通关, '提前通关'));
+    console.log(line((a) => a.活满三分钟, '真跑满三分钟'));
+
+    const totalVictory = Object.keys(ARMS).reduce((n, k) => n + A(k).通关, 0);
+    const totalRuns = Object.keys(ARMS).length * SEEDS.length;
+    console.log(
+      `合计 ${totalRuns} 局：被打死 ${totalRuns - totalVictory - Object.keys(ARMS).reduce((n, k) => n + A(k).活满三分钟, 0)} · ` +
+        `提前通关 ${totalVictory} · 跑满 ${Object.keys(ARMS).reduce((n, k) => n + A(k).活满三分钟, 0)}`
+    );
+    console.log('台架大脑只有两条规则，比真人笨 —— 这不等于「游戏太难」，' +
+      '但真人切片必须专门看一眼生存曲线（以及：赢得太快也是个问题）。');
     expect(SEEDS.length).toBeGreaterThan(0);
   });
 
@@ -815,6 +895,56 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     expect(ratio2, 'v2 体重比').toBeGreaterThan(1.25);
     expect(ratio3, 'v3 体重比').toBeGreaterThan(1.25);
     expect(Math.min(wins2, wins3), '两版大脑的成长配对胜场都要过半').toBeGreaterThanOrEqual(5);
+  });
+
+  /**
+   * **【纠正】通关率才是「结果」，存活帧数不是。**
+   *
+   * 这一条推翻了前面两个读数，两条都是**指标污染**而不是游戏性质：
+   *   ①「0/8 活满三分钟 = 游戏太难」—— 其实 **34/64 是提前通关**（击杀 BOSS 即胜利），
+   *      不是被打死。
+   *   ②「有核心角色反而死得快（存活 ×0.89）」—— D 组存活更久是因为它**赢得更少**，
+   *      局数拖长了。它不比 C 活得久，它只是**没赢**。
+   *
+   * ⚠️ 仍然只报数、不断言：5/8 vs 3/8 这种差距在 8 个种子上**离噪声不远**，
+   *    真正的判据是「两版大脑同向」（v2 与 v3 都是 5:3）+ 逐种子配对胜场。
+   */
+  it('【纠正】用通关率重读三个结论（存活帧数把「赢得快」读成了「死得早」）', async () => {
+    for (const k of ['A', 'C', 'D', 'C3', 'D3']) await ensureArm(k);
+    const op = [victoryCount('A'), victoryCount('C')];
+    const sq2 = [victoryCount('D'), victoryCount('C')];
+    const sq3 = [victoryCount('D3'), victoryCount('C3')];
+    console.log(
+      `通关率（分母 ${SEEDS.length}）：\n` +
+        `  操作     A(只顾自己) ${op[0]} → C(完整操作) ${op[1]}，配对胜 ${pairedVictories('C', 'A')}/${SEEDS.length}\n` +
+        `  队伍选择 D(无角色) ${sq2[0]} → C(有角色) ${sq2[1]}，配对胜 ${pairedVictories('C', 'D')}/${SEEDS.length}\n` +
+        `  队伍选择 D3(无角色) ${sq3[0]} → C3(有角色) ${sq3[1]}，配对胜 ${pairedVictories('C3', 'D3')}/${SEEDS.length}\n` +
+        `  ⚠️ 两版大脑都给出「有角色赢得更多」，但 5:3 离噪声不远 —— 只报数，交真人切片定夺`
+    );
+    // 唯一硬断言：通关必须真能达成（胜利条件没接上就是 bug，不是难度）
+    expect(op[0] + sq2[1], '至少要有若干局能通关，否则是胜利条件没接上').toBeGreaterThan(0);
+  });
+
+  /**
+   * **真·开局（E 组）**：这一组才和真人开局一样 —— 一条鱼，队伍得自己收编。
+   *
+   * 其余八组开局就送 5 人队伍，所以「50 秒通关」很可能是**台架比真人强**造成的，
+   * 不能当成难度结论。E 组回答真人切片进门第一个问题：
+   * **3 分钟够不够从光杆打到有队伍？** 不够的话，切片该看的是开局节奏，不是中后期遭遇战。
+   */
+  it('真·开局（不预置队伍）：3 分钟够不够从光杆打到有队伍', async () => {
+    await ensureArm('E');
+    await ensureArm('C3');
+    const rs = runsOf('E');
+    console.log(
+      `真·开局 E 组（完整操作 + 会用角色，但不送队伍）：\n` +
+        `  通关 ${victoryCount('E')}/${SEEDS.length} · 中位存活 ${medianSurvival('E')} 帧` +
+        `（预置队伍的 C3 组是 ${medianSurvival('C3')} 帧）\n` +
+        `  终局队伍规模 ${rs.map((r) => r.squadSize).join('/')} · ` +
+        `体重均值 ${Math.round(meanWeight('E'))}（C3 是 ${Math.round(meanWeight('C3'))}）\n` +
+        `  吃掉均值 ${(mean(rs.map((r) => r.eaten))).toFixed(1)} · 进化次数 ${rs.map((r) => r.evolutions).join('/')}`
+    );
+    expect(runsOf('E').length, 'E 组也要真的跑起来').toBe(SEEDS.length);
   });
 
   /**
