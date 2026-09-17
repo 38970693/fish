@@ -534,19 +534,19 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
       CreatureType.ANGLER_FISH,  // t3 · 诱惑（灯笼鱼）
     ];
     return (
-      // 菜单比视口高时**必须能滚**：
-      // 以前是 `flex items-center justify-center` 且不滚 —— 内容一超出，上下两头直接被裁掉
-      // 而且滚不到（居中布局的经典坑：子元素上下同时溢出，父级滚动条只能滚下方那一半）。
-      // 现在外层负责滚动，内层用 `min-h-full` 包裹：内容矮时居中，内容高时把容器撑开、交给外层滚。
+      // 菜单**横向铺开**，正常视口下不该出现滚动条（用户明确要求「不要滚动」）：
+      // 鱼塘三卡横排、11 条初始鱼放宽到 max-w-6xl 尽量一行、开始/装扮/规则·成就·排行榜合成一行底栏。
+      // 外层仍保留 `overflow-y-auto`，但**只是兜底** —— 只有视口真矮到装不下才滚；
+      // 内层 `min-h-full` 负责矮时居中。别再退回「竖向堆一长条」（旧版被裁掉且滚不到）。
       <div className="absolute inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40">
-        <div className="min-h-full flex items-center justify-center p-3 sm:p-5">
+        <div className="min-h-full flex items-center justify-center p-3 sm:p-4 lg:p-5">
         <div className="flex flex-col items-center text-center">
-            <div className="bg-slate-900/80 p-4 sm:p-5 lg:p-6 rounded-3xl border border-slate-700 shadow-2xl backdrop-blur-md">
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-3 sm:mb-4">欢乐鱼塘</h1>
+            <div className="bg-slate-900/80 p-3 sm:p-5 rounded-3xl border border-slate-700 shadow-2xl backdrop-blur-md">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-2 sm:mb-3">欢乐鱼塘</h1>
 
                 <div className="flex flex-col gap-2 sm:gap-3">
-                    <h2 className="text-lg sm:text-xl text-white font-bold">选择鱼塘</h2>
-                    <div className="flex gap-2 sm:gap-3 justify-center flex-wrap max-w-3xl">
+                    <h2 className="text-base sm:text-lg text-white font-bold">选择鱼塘</h2>
+                    <div className="flex gap-2 sm:gap-3 justify-center flex-wrap max-w-[912px]">
                         {POND_LIST.map(({ id, config }) => {
                             const isSel = selectedPond === id;
                             const specialties = getPondSpecialties(id);
@@ -558,7 +558,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                 <button
                                     key={id}
                                     onClick={() => setSelectedPond(id)}
-                                    className={`w-56 p-3 rounded-2xl border text-left transition-all ${isSel ? 'bg-indigo-900 border-indigo-400 scale-105 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-indigo-400 hover:bg-slate-700'}`}
+                                    className={`w-72 p-2.5 rounded-2xl border text-left transition-all ${isSel ? 'bg-indigo-900 border-indigo-400 scale-105 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-indigo-400 hover:bg-slate-700'}`}
                                 >
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: config.color }} />
@@ -575,8 +575,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         })}
                     </div>
 
-                    <h2 className="text-lg sm:text-xl text-white font-bold">选择你的初始鱼类</h2>
-                    <div className="flex gap-2 sm:gap-3 justify-center flex-wrap max-w-3xl">
+                    <h2 className="text-base sm:text-lg text-white font-bold">选择你的初始鱼类</h2>
+                    <div className="flex gap-1.5 sm:gap-2 justify-center flex-wrap max-w-6xl">
                         {startOptions.map(type => {
                             const config = CREATURES[type];
                             const isSelected = selectedStarter === type;
@@ -584,41 +584,43 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                 <button 
                                     key={type} 
                                     onClick={() => setSelectedStarter(type)} 
-                                    className={`p-2.5 rounded-2xl border transition-all flex flex-col items-center gap-1.5 ${isSelected ? 'bg-cyan-900 border-cyan-400 scale-110 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-cyan-400 hover:bg-slate-700'}`}
+                                    className={`w-[88px] px-1 py-2 rounded-2xl border transition-all flex flex-col items-center gap-1 ${isSelected ? 'bg-cyan-900 border-cyan-400 scale-110 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-cyan-400 hover:bg-slate-700'}`}
                                 >
-                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: config.color }}>
-                                        <Fish size={26} color="white" />
+                                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: config.color }}>
+                                        <Fish size={22} color="white" />
                                     </div>
-                                    <span className="text-white font-bold text-sm">{config.name}</span>
-                                    <span className="text-slate-400 text-[11px]">{config.skillName ? `技能: ${config.skillName}` : '无技能'}</span>
+                                    <span className="text-white font-bold text-xs sm:text-sm">{config.name}</span>
+                                    <span className="text-slate-400 text-[10px] sm:text-[11px]">{config.skillName ? `技能: ${config.skillName}` : '无技能'}</span>
                                 </button>
                             );
                         })}
                     </div>
                     
-                    <button onClick={() => onStart(selectedStarter, selectedPond)} className="mt-1 px-14 sm:px-20 py-3.5 sm:py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-2xl sm:text-3xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-3 mx-auto">
-                        <Play size={32} fill="white" /> 开始游戏
+                    <div className="mt-2.5 sm:mt-3.5 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+                    <button onClick={() => onStart(selectedStarter, selectedPond)} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                        <Play size={26} fill="white" /> 开始游戏
                     </button>
 
-                    <button onClick={() => setShowCosmetics(true)} className="px-6 sm:px-8 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-base sm:text-lg rounded-full border border-slate-600 hover:border-cyan-400 transition-all flex items-center justify-center gap-2 mx-auto">
-                        <Palette size={20} /> 装扮我的鱼
+                    <button onClick={() => setShowCosmetics(true)} className="px-5 sm:px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm sm:text-base rounded-full border border-slate-600 hover:border-cyan-400 transition-all flex items-center justify-center gap-2">
+                        <Palette size={18} /> 装扮我的鱼
                     </button>
 
-                    <div className="flex gap-2 sm:gap-3 justify-center flex-wrap">
-                        <button onClick={() => setShowRules(true)} className="px-5 sm:px-7 py-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-sm sm:text-base rounded-full border border-slate-700 hover:border-cyan-400 transition-all flex items-center justify-center gap-2">
-                            <BookOpen size={18} /> 游戏规则
+                    <div className="flex gap-2 justify-center flex-wrap">
+                        <button onClick={() => setShowRules(true)} className="px-4 sm:px-5 py-1.5 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-full border border-slate-700 hover:border-cyan-400 transition-all flex items-center justify-center gap-2">
+                            <BookOpen size={16} /> 游戏规则
                         </button>
-                        <button onClick={() => setShowAchievements(true)} className="px-5 sm:px-7 py-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-sm sm:text-base rounded-full border border-slate-700 hover:border-yellow-400 transition-all flex items-center justify-center gap-2 relative">
-                            <Trophy size={18} /> 成就
+                        <button onClick={() => setShowAchievements(true)} className="px-4 sm:px-5 py-1.5 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-full border border-slate-700 hover:border-yellow-400 transition-all flex items-center justify-center gap-2 relative">
+                            <Trophy size={16} /> 成就
                             {unlockedCount > 0 && (
                                 <span className="absolute -top-2 -right-2 bg-yellow-500 text-slate-900 text-xs font-black rounded-full px-2 py-0.5">
                                     {unlockedCount}
                                 </span>
                             )}
                         </button>
-                        <button onClick={() => setShowLeaderboard(true)} className="px-5 sm:px-7 py-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-sm sm:text-base rounded-full border border-slate-700 hover:border-amber-400 transition-all flex items-center justify-center gap-2">
-                            <Crown size={18} /> 排行榜
+                        <button onClick={() => setShowLeaderboard(true)} className="px-4 sm:px-5 py-1.5 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-full border border-slate-700 hover:border-amber-400 transition-all flex items-center justify-center gap-2">
+                            <Crown size={16} /> 排行榜
                         </button>
+                    </div>
                     </div>
                 </div>
             </div>

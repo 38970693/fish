@@ -30,36 +30,56 @@ test.describe('游戏关键路径', () => {
   });
 
   /**
-   * 回归：菜单比视口高时**上下两头都不能被裁掉、而且必须滚得到**。
+   * 回归①：**常见视口不该出现滚动条**（用户明确要求「不要滚动」）。
    *
-   * 背景：根容器是 `w-full h-screen overflow-hidden`（App.tsx），菜单原先写成
-   * `flex items-center justify-center` 且**不滚** —— 内容一旦超过视口高度，居中布局会让
-   * 子元素上下同时溢出，而 `overflow-hidden` 的祖先直接把它裁掉，用户既看不见也滚不到
-   * （表现就是「第一个界面上下太高，被切掉」）。修法：外层 `overflow-y-auto` 负责滚、
-   * 内层 `min-h-full` 包裹负责「矮时居中」。
+   * 背景：菜单原先是竖向堆一长条（内容高 940px），根容器是 `w-full h-screen overflow-hidden`
+   * 且布局居中不滚 —— 上下两头被裁掉且滚不到。现在改成**横向铺开**（鱼塘三卡横排、11 条
+   * 初始鱼一行、开始/装扮/规则·成就·排行榜合成一行底栏），内容降到 ~494px，常见视口直接装得下。
    *
-   * 这条用例特意把视口压到 560 高来制造溢出（否则测不到东西），然后要求标题与开始按钮
-   * 都能被滚进视口内 —— 旧布局下 `scrollIntoViewIfNeeded` 救不回来（没有可滚祖先），
-   * 标题的 y 会一直是负的。
+   * 只比几何量、不认 Tailwind 类名，以后换布局写法也测得住。
    */
-  test('矮视口下菜单不裁切：头尾控件都能滚进视口', async ({ page }) => {
-    const VH = 560;
+  test('菜单横向铺开：常见视口不需要滚动', async ({ page }) => {
+    const title = page.getByRole('heading', { name: '欢乐鱼塘' });
+    const startBtn = page.getByRole('button', { name: /开始游戏/ });
+
+    // 1280×560 是「装得下」的下沿；1440×900 是最常见的桌面视口
+    for (const [W, H] of [[1280, 560], [1440, 900]] as const) {
+      await page.setViewportSize({ width: W, height: H });
+      await page.goto('/');
+
+      const titleBox = await title.boundingBox();
+      const startBox = await startBtn.boundingBox();
+      expect(titleBox).not.toBeNull();
+      expect(startBox).not.toBeNull();
+      // 整个菜单（标题顶 → 开始按钮底）必须完整落在视口内，也就是根本不需要滚
+      expect(titleBox!.y).toBeGreaterThanOrEqual(0);
+      expect(startBox!.y + startBox!.height).toBeLessThanOrEqual(H);
+    }
+  });
+
+  /**
+   * 回归②：极端矮视口**仍必须滚得到**。
+   *
+   * ① 只钉「不滚」，② 只钉「可达」—— 少一条就会退化：
+   * 只有①，内容悄悄变高时用户只是多滚一下，回归看不出来；
+   * 只有②，就会重演旧布局那种「没有可滚祖先、`scrollIntoViewIfNeeded` 也救不回来」的死局。
+   */
+  test('极端矮视口仍有滚动兜底：头尾控件都能滚进视口', async ({ page }) => {
+    const VH = 420;
     await page.setViewportSize({ width: 1280, height: VH });
     await page.goto('/');
 
     const title = page.getByRole('heading', { name: '欢乐鱼塘' });
     const startBtn = page.getByRole('button', { name: /开始游戏/ });
 
-    // 先确认「菜单真的比视口高」，否则这条用例是空的（装得下就没有裁切风险）。
-    // 只比几何量、不认 Tailwind 类名，布局改写法也测得住。
+    // 先确认「真的溢出了」，否则这条用例是空的（装得下就没有裁切风险）
     const titleBox0 = await title.boundingBox();
     const startBox0 = await startBtn.boundingBox();
     expect(titleBox0).not.toBeNull();
     expect(startBox0).not.toBeNull();
     expect(startBox0!.y + startBox0!.height - titleBox0!.y).toBeGreaterThan(VH);
 
-    // 溢出成立 ⇒ 头尾都必须能滚进视口。旧布局（居中 + 不滚 + 祖先 overflow-hidden）
-    // 下 scrollIntoViewIfNeeded 救不回来：没有可滚祖先，标题的 y 会一直是负的。
+    // 溢出成立 ⇒ 头尾都必须能滚进视口
     for (const el of [title, startBtn]) {
       await el.scrollIntoViewIfNeeded();
       const box = await el.boundingBox();
