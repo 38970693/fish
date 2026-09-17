@@ -546,7 +546,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
 
                 <div className="flex flex-col gap-2 sm:gap-3">
                     <h2 className="text-base sm:text-lg text-white font-bold">选择鱼塘</h2>
-                    <div className="flex gap-2 sm:gap-3 justify-center flex-wrap max-w-[912px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 w-full max-w-6xl">
                         {POND_LIST.map(({ id, config }) => {
                             const isSel = selectedPond === id;
                             const specialties = getPondSpecialties(id);
@@ -558,7 +558,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                 <button
                                     key={id}
                                     onClick={() => setSelectedPond(id)}
-                                    className={`w-72 p-2.5 rounded-2xl border text-left transition-all ${isSel ? 'bg-indigo-900 border-indigo-400 scale-105 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-indigo-400 hover:bg-slate-700'}`}
+                                    className={`p-2.5 rounded-2xl border text-left transition-all ${isSel ? 'bg-indigo-900 border-indigo-400 scale-105 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-indigo-400 hover:bg-slate-700'}`}
                                 >
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: config.color }} />
@@ -584,7 +584,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                 <button 
                                     key={type} 
                                     onClick={() => setSelectedStarter(type)} 
-                                    className={`w-[88px] px-1 py-2 rounded-2xl border transition-all flex flex-col items-center gap-1 ${isSelected ? 'bg-cyan-900 border-cyan-400 scale-110 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-cyan-400 hover:bg-slate-700'}`}
+                                    className={`w-20 flex-none px-1 py-2 rounded-2xl border transition-all flex flex-col items-center gap-1 ${isSelected ? 'bg-cyan-900 border-cyan-400 scale-110 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-cyan-400 hover:bg-slate-700'}`}
                                 >
                                     <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: config.color }}>
                                         <Fish size={22} color="white" />
@@ -596,16 +596,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         })}
                     </div>
                     
-                    <div className="mt-2.5 sm:mt-3.5 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-                    <button onClick={() => onStart(selectedStarter, selectedPond)} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                    <div className="mt-2.5 sm:mt-3.5 grid grid-cols-1 sm:grid-cols-3 items-center gap-3 sm:gap-4 w-full">
+                    <button onClick={() => onStart(selectedStarter, selectedPond)} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:order-2 sm:justify-self-center">
                         <Play size={26} fill="white" /> 开始游戏
                     </button>
 
-                    <button onClick={() => setShowCosmetics(true)} className="px-5 sm:px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm sm:text-base rounded-full border border-slate-600 hover:border-cyan-400 transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => setShowCosmetics(true)} className="px-5 sm:px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm sm:text-base rounded-full border border-slate-600 hover:border-cyan-400 transition-all flex items-center justify-center gap-2 sm:order-1 sm:justify-self-end">
                         <Palette size={18} /> 装扮我的鱼
                     </button>
 
-                    <div className="flex gap-2 justify-center flex-wrap">
+                    <div className="flex gap-2 justify-center flex-wrap sm:order-3 sm:justify-self-start">
                         <button onClick={() => setShowRules(true)} className="px-4 sm:px-5 py-1.5 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-full border border-slate-700 hover:border-cyan-400 transition-all flex items-center justify-center gap-2">
                             <BookOpen size={16} /> 游戏规则
                         </button>
