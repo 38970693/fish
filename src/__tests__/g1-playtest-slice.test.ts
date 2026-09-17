@@ -22,7 +22,7 @@
  *   4. 对照组 D 每帧抹掉 `coreRole`，但**弱点已经随收编落到身体上了**（血 / 伤害）。
  *      所以 C − D **恰好等于「角色能力包」的净贡献**（弱点两边一样，自动抵消）—— 刻意设计，不是疏漏。
  *
- * 运行：`npm run test:slice`（单独配置，不进默认套件，四组约 55s）
+ * 运行：`npm run test:slice`（单独配置，不进默认套件，8 组 × 8 种子约 14 分钟）
  */
 
 import { describe, it, expect } from 'vitest';
@@ -38,7 +38,7 @@ import {
   __resetSwitchCursor,
 } from '../systems/squad';
 import { __resetTeleportLock, __resetObstacleIndex } from '../systems/world';
-import { SQUAD_ROLE } from '../data/squadRoles';
+import { SQUAD_ROLE, SQUAD_ROLES, SQUAD_ROLE_LIST } from '../data/squadRoles';
 import { canHarm } from '../systems/factions';
 import { createEntity } from '../systems/spawn';
 import { MAP_SHAPE_CONFIG } from '../data/world';
@@ -105,6 +105,13 @@ interface ArmConfig {
    *   ② **残血优先附身护卫**：河豚有盾且最耐揍，逃生时换它的身体比随便换一条划算。
    */
   roleAware: boolean;
+  /**
+   * **弱点缓和系数**（0~1，1 = 把弱点完全抹平）。
+   *
+   * 用途：测「如果把 FQ-06 的弱点数值放松一点，队伍选择的存活维度会不会转正」。
+   * 这是**调优实验**，不是改数值 —— 默认值 0，跑完不留下任何改动。
+   */
+  weaknessRelief?: number;
 }
 
 /**
@@ -288,7 +295,39 @@ const withCleanStorage = <T>(fn: () => T): T => {
   }
 };
 
+/**
+ * 临时把角色弱点往 1 拉（`relief` 越大越接近「没有弱点」），跑完**必定还原**。
+ *
+ * 只动 `SQUAD_ROLES` 里那几个倍率（`SQUAD_ROLE_LIST` 引用的就是同一批对象），
+ * 不改任何文件 —— 这是调优探针，结论出来后由人决定要不要真的改数值。
+ */
+const withWeaknessRelief = <T>(relief: number, fn: () => T): T => {
+  if (relief <= 0) return fn();
+  const backup = SQUAD_ROLE_LIST.map((r) => ({
+    r,
+    speed: r.speedMult,
+    health: r.healthMult,
+    damage: r.damageMult,
+  }));
+  const ease = (m: number): number => 1 - (1 - m) * (1 - relief);
+  for (const r of SQUAD_ROLE_LIST) {
+    r.speedMult = ease(r.speedMult);
+    r.healthMult = ease(r.healthMult);
+    r.damageMult = ease(r.damageMult);
+  }
+  try {
+    return fn();
+  } finally {
+    for (const b of backup) {
+      b.r.speedMult = b.speed;
+      b.r.healthMult = b.health;
+      b.r.damageMult = b.damage;
+    }
+  }
+};
+
 const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
+  withWeaknessRelief(arm.weaknessRelief ?? 0, () =>
   withCleanStorage(() =>
     withSeededRandom(seed, () => {
     resetModuleState();
@@ -423,9 +462,9 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       deaths,
     };
     })
+  )
   );
 
-/* 四个组跑一次共享给所有用例 —— 一组 10800 帧，别每个 it 各跑一遍 */
 const ARMS: Record<string, ArmConfig> = {
   A: { name: '只顾自己（不下令 / 不附身）', commands: false, possess: false, stripRoles: false, roleAware: false },
   B: { name: '+ 指令', commands: true, possess: false, stripRoles: false, roleAware: false },
@@ -434,6 +473,9 @@ const ARMS: Record<string, ArmConfig> = {
   // v3：会用角色的一对 —— 只有这两个能回答「队伍选择到底有没有用」
   C3: { name: '完整操作 + 会用角色（打控制链 / 换护卫）', commands: true, possess: true, stripRoles: false, roleAware: true },
   D3: { name: '同样会玩，但队伍没有核心角色', commands: true, possess: true, stripRoles: true, roleAware: true },
+  // 调优探针：弱点放松一半（电鳗血 0.7→0.85、剑鱼伤害 0.6→0.8、河豚速度 0.85→0.925）
+  C3r: { name: '会用角色 + 弱点放松一半', commands: true, possess: true, stripRoles: false, roleAware: true, weaknessRelief: 0.5 },
+  D3r: { name: '弱点放松一半，但无核心角色', commands: true, possess: true, stripRoles: true, roleAware: true, weaknessRelief: 0.5 },
 };
 
 const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -452,9 +494,48 @@ interface Aggregate {
   吃掉均值: number;
 }
 
-/** 一个组在所有种子上的聚合结果 */
+/** 每个组只跑一次，结果共享给所有用例 —— 一组 8 个种子 × 10800 帧，别每个 it 各跑一遍 */
 const cache: Record<string, SliceResult[]> = {};
-const runsOf = (k: string): SliceResult[] => (cache[k] ??= SEEDS.map((s) => runSlice(ARMS[k], s)));
+
+/**
+ * **每跑完一个种子让出一次事件循环** —— 这是「全绿但退出码非 0」的根治办法。
+ *
+ * 症状：`Tests 18 passed (18)` 却又报 `Error: [vitest-worker]: Timeout calling "onTaskUpdate"`。
+ * 成因不是超时设置太短，而是 **worker 的同步阻塞撞上了 birpc 的 60 秒应答计时**：
+ *
+ *   1. worker 调 `rpc().onTaskUpdate(...)`，birpc 起一个 60s 的 `setTimeout` 等主线程应答；
+ *   2. 主线程其实**早就应答了**，但 worker 正在跑同步循环，消息收不进来；
+ *   3. 循环结束后事件循环恢复 —— **timers 阶段排在 poll（I/O）阶段之前**，
+ *      于是那个早已过期的 60s 定时器**先于**躺在队列里的 IPC 应答触发，直接判超时。
+ *
+ * 所以「把用例拆细」治标不治本：拆到每组 95~123 秒，仍然 > 60 秒，照样超时（实测如此）。
+ * 真正的解法是**别让同步阻塞超过 RPC 应答时限** —— 每跑完一个种子（约 15 秒）喘一口气，
+ * 让待处理的 IPC 应答先落地。
+ *
+ * ⚠️ 只在**种子之间**喘气，不在帧循环里喘：`withSeededRandom` 期间 `Math.random` 是被 mock 的，
+ *    中途让出会让别的代码顶着被污染的随机源跑。
+ */
+const breathe = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+const runArm = async (arm: ArmConfig): Promise<SliceResult[]> => {
+  const out: SliceResult[] = [];
+  for (const s of SEEDS) {
+    out.push(runSlice(arm, s));
+    await breathe();
+  }
+  return out;
+};
+
+/** 先把组跑起来（异步）；跑完后再用同步的 `runsOf` 取结果 */
+const ensureArm = async (k: string): Promise<SliceResult[]> => (cache[k] ??= await runArm(ARMS[k]));
+
+/** 同步取结果 —— 调用前必须 `await ensureArm(k)`，否则是「还没跑就想要数」 */
+const runsOf = (k: string): SliceResult[] => {
+  const rs = cache[k];
+  if (!rs) throw new Error(`组 ${k} 还没跑：这个用例里要先 await ensureArm('${k}')`);
+  return rs;
+};
+
 const aggOf = (k: string): Aggregate => {
   const rs = runsOf(k);
   return {
@@ -496,7 +577,29 @@ const pairedWinsOn = (
 const meanWeight = (k: string): number => mean(runsOf(k).map((r) => r.weight));
 
 describe('G1 放行条件 · 3 分钟切片', () => {
-  it('四个组 × 多个种子跑完，把聚合成绩打出来（人工看趋势用）', () => {
+  /**
+   * **一组一个用例**，不要放进同一个 it 里。
+   *
+   * 踩过的坑：八个组塞进一个 `it`，单用例同步阻塞 505 秒，worker 回不了
+   * vitest 的 RPC（`Timeout calling "onTaskUpdate"`）—— 结果是
+   * **10 个用例全绿，但进程退出码非 0**，一眼看过去像整轮失败。
+   * 拆开之后单次阻塞降到 ~65 秒 —— **但还是不够**：birpc 的应答时限是 60 秒，
+   * 而且拆细治不了根（见 `breathe` 处的说明）。真正的解法是每组内部按种子让出事件循环。
+   */
+  for (const k of Object.keys(ARMS)) {
+    it(`跑完 ${k} 组（${ARMS[k].name}）`, async () => {
+      const rs = await ensureArm(k);
+      console.log(
+        `${k} ${ARMS[k].name}：存活中位 ${median(rs.map((r) => r.framesSurvived))} 帧 · ` +
+          `体重均值 ${Math.round(mean(rs.map((r) => r.weight)))} · ` +
+          `吃掉均值 ${(mean(rs.map((r) => r.eaten))).toFixed(1)}`
+      );
+      for (const r of rs) expect(r.framesSurvived, `${k} 组的切片长度`).toBeGreaterThan(0);
+    });
+  }
+
+  it('把聚合成绩打成一张表（人工看趋势用，各组已在上面跑完并缓存）', async () => {
+    for (const k of Object.keys(ARMS)) await ensureArm(k);
     console.log(
       '\n── G1 放行条件 · 3 分钟切片（' +
         SEEDS.length +
@@ -535,7 +638,9 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    * 卡到实测值上等于埋一颗「下次动任何数值就红」的雷（而且红了分不清是回归还是噪声）。
    * 真要判断有没有回退，看上面那张**逐种子矩阵**，别只盯这一个比值。
    */
-  it('操作能改变结果：完整操作组的中位存活高于「只顾自己」', () => {
+  it('操作能改变结果：完整操作组的中位存活高于「只顾自己」', async () => {
+    await ensureArm('C');
+    await ensureArm('A');
     const ratio = medianSurvival('C') / medianSurvival('A');
     console.log(
       `操作收益：中位存活 ${medianSurvival('A')} → ${medianSurvival('C')} 帧（×${ratio.toFixed(2)}），` +
@@ -561,7 +666,9 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    *
    * 结论：**这条交给真人切片判**，台架只负责把两个维度的数字摆出来。
    */
-  it('队伍选择：只报数，不断言方向（信号随大脑翻转，交真人切片）', () => {
+  it('队伍选择：只报数，不断言方向（信号随大脑翻转，交真人切片）', async () => {
+    await ensureArm('C');
+    await ensureArm('D');
     const survRatio = medianSurvival('C') / medianSurvival('D');
     const weightC = mean(runsOf('C').map((r) => r.weight));
     const weightD = mean(runsOf('D').map((r) => r.weight));
@@ -588,7 +695,8 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    * 躲大的 / 追小的两条规则，比真人笨得多，所以不能直接判定「游戏太难」；
    * 但**这是一个必须由真人切片回答的问题：三分钟能不能打完一局？**
    */
-  it('【发现】台架四组都活不满 3 分钟 —— 留给人工切片确认', () => {
+  it('【发现】台架四组都活不满 3 分钟 —— 留给人工切片确认', async () => {
+    for (const k of Object.keys(ARMS)) await ensureArm(k);
     const full = Object.keys(ARMS).map((k) => `${k}:${A(k).活满三分钟}/${SEEDS.length}`);
     console.log(`活满三分钟 ${full.join('  ')} —— 台架大脑只有两条规则，比真人笨，` +
       `这不等于「游戏太难」，但真人切片必须专门看一眼生存曲线。`);
@@ -601,8 +709,9 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    * 反向验证时发现「C 与 D 配置相同却跑出不同结果」，说明有漏网的非确定性来源；
    * 这条用例就是把那个来源钉住：不先证明它，配对胜场只是噪声。
    */
-  it('同一种子跑两遍必须逐字段一致（否则上面的配对比较全是噪声）', () => {
+  it('同一种子跑两遍必须逐字段一致（否则上面的配对比较全是噪声）', async () => {
     const first = runSlice(ARMS.C, SEEDS[0]);
+    await breathe();
     const second = runSlice(ARMS.C, SEEDS[0]);
     expect(second, '同种子两次运行结果不一致 → 有非确定性来源').toEqual(first);
   });
@@ -616,7 +725,8 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    *   · 全是**同级或低级** → 是数值问题（战斗手感，G1 / FQ-04）
    *   · 保护期内还死 → **保护根本没生效**，那是 bug 不是难度
    */
-  it('死因分析：把「活不过三分钟」拆成可以下手的结论', () => {
+  it('死因分析：把「活不过三分钟」拆成可以下手的结论', async () => {
+    for (const k of Object.keys(ARMS)) await ensureArm(k);
     const all = Object.keys(ARMS).flatMap((k) => runsOf(k).flatMap((r) => r.deaths));
     const byKiller = new Map<string, number>();
     let protectedDeaths = 0;
@@ -628,7 +738,7 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     }
     const top = [...byKiller.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
 
-    console.log('\n── 死因分析（四组合计）──');
+    console.log(`\n── 死因分析（${Object.keys(ARMS).length} 组合计）──`);
     console.log(`总死亡 ${all.length} 次 · 保护期内死亡 ${protectedDeaths} 次`);
     console.log(`凶手等级 − 玩家等级：中位 ${median(tierGaps)}（正=被更大的鱼打死）`);
     console.log('最常见的凶手：', top.map(([n, c]) => `${n}×${c}`).join('  ') || '（没抓到凶手 id）');
@@ -649,7 +759,9 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    * 逻辑：v2 的 C/D 判不了，是因为大脑「带着角色却不会用」。
    * v3 让它打控制链 + 残血换护卫；如果角色真有价值，这一对应当体现出差距。
    */
-  it('会用角色时，队伍选择是否体现出差距（C3 / D3）', () => {
+  it('会用角色时，队伍选择是否体现出差距（C3 / D3）', async () => {
+    await ensureArm('C3');
+    await ensureArm('D3');
     const survRatio = medianSurvival('C3') / medianSurvival('D3');
     const wins = pairedWins('C3', 'D3');
     const weightC = mean(runsOf('C3').map((r) => r.weight));
@@ -686,7 +798,8 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    * 结论：**核心角色买的是「打得动」**（控制链 + 集火让击杀变多），
    * 代价是存活上略吃亏（剑鱼冲得猛、河豚跑得慢、电鳗血薄）。
    */
-  it('队伍选择的稳定结论：有核心角色，成长显著更好（两版大脑都复现）', () => {
+  it('队伍选择的稳定结论：有核心角色，成长显著更好（两版大脑都复现）', async () => {
+    for (const k of ['C', 'D', 'C3', 'D3']) await ensureArm(k);
     const ratio2 = meanWeight('C') / meanWeight('D');
     const ratio3 = meanWeight('C3') / meanWeight('D3');
     const wins2 = pairedWinsOn('C', 'D', (r) => r.weight);
@@ -704,7 +817,37 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     expect(Math.min(wins2, wins3), '两版大脑的成长配对胜场都要过半').toBeGreaterThanOrEqual(5);
   });
 
-  it('预置队伍真的落到了三个核心位上（否则 C / D 的对比是空的）', () => {
+  /**
+   * **调优探针**：把 FQ-06 的弱点放松一半，看队伍选择的**存活**维度能不能转正。
+   *
+   * 这是给「要不要动弱点数值」这个问题配的数据，不是改数值 ——
+   * 跑完 `withWeaknessRelief` 会把倍率还原，仓库里一个字都不会变。
+   *
+   * ⚠️ 只报数、不断言：这是**决策输入**，拍板权在人。
+   */
+  it('调优探针：弱点放松一半后，队伍选择的存活维度会不会转正', async () => {
+    for (const k of ['C3', 'D3', 'C3r', 'D3r']) await ensureArm(k);
+    const before = medianSurvival('C3') / medianSurvival('D3');
+    const after = medianSurvival('C3r') / medianSurvival('D3r');
+    const wBefore = meanWeight('C3') / meanWeight('D3');
+    const wAfter = meanWeight('C3r') / meanWeight('D3r');
+
+    console.log(
+      `弱点放松一半（电鳗血 0.7→0.85 · 剑鱼伤害 0.6→0.8 · 河豚速度 0.85→0.925）：\n` +
+        `  存活：×${before.toFixed(2)} → ×${after.toFixed(2)}` +
+        `（配对胜 ${pairedWins('C3', 'D3')} → ${pairedWins('C3r', 'D3r')}/${SEEDS.length}）\n` +
+        `  成长：×${wBefore.toFixed(2)} → ×${wAfter.toFixed(2)}\n` +
+        `  ⚠️ 只报数，不替人拍板：改不改数值由真人切片的手感决定`
+    );
+
+    // 唯一断言：探针必须真的把数值改回去了（污染了后面的用例就全完了）
+    expect(SQUAD_ROLES.CONTROL.healthMult, '探针结束后弱点必须还原').toBe(0.7);
+    expect(SQUAD_ROLES.SCOUT.damageMult, '探针结束后弱点必须还原').toBe(0.6);
+  });
+
+  it('预置队伍真的落到了三个核心位上（否则 C / D 的对比是空的）', async () => {
+    await ensureArm('C');
+    await ensureArm('D');
     for (const r of runsOf('C')) {
       expect(r.squadSizeAtStart, 'C 组开局队伍规模').toBe(SEED_SQUAD.length);
       expect(r.coreSizeAtStart, 'C 组开局核心位数').toBe(3);

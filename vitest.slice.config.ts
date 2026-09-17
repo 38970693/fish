@@ -1,8 +1,8 @@
 /**
  * 只跑「3 分钟切片」台架的配置（G1 放行条件）。
  *
- * 为什么不并进默认 `vitest run`：四个组各跑 10800 帧，合计约 55 秒，
- * 而默认全量套件只有 15 秒 —— 混进去会让日常回归慢 4 倍，结果就是没人跑。
+ * 为什么不并进默认 `vitest run`：八个组各跑 10800 帧 × 8 个种子，实测约 14 分钟，
+ * 而默认全量套件只有 15 秒 —— 混进去会让日常回归慢几十倍，结果就是没人跑。
  * 于是单独给一份配置，`npm run test:slice` 时再跑（放行前 / 动了战斗与队伍数值时）。
  *
  * ⚠️ 两份配置的 environment / setupFiles / alias 必须一致，
@@ -20,9 +20,13 @@ export default defineConfig({
     include: ['src/__tests__/**/g1-playtest-slice.test.ts'],
     setupFiles: ['./src/test/setup.ts'],
     css: true,
-    // 四组 × 8 种子 × 10800 帧，实测约 2~3 分钟；留足余量，别让超时变成假红
-    testTimeout: 600_000,
-    hookTimeout: 600_000,
+    // ⚠️ 超时本身就是一种「假红」：组数会随实验增加（4 组 → 6 组 → 8 组），
+    //    实测 8 组 × 8 种子 ≈ 14 分钟。留 30 分钟，别让「跑不完」被误读成「不通过」。
+    //
+    // 另一个超时（birpc 的 60 秒 RPC 应答时限）**不在这里配**，只能靠台架自己
+    // 在种子之间让出事件循环解决 —— 见 g1-playtest-slice.test.ts 的 `breathe`。
+    testTimeout: 1_800_000,
+    hookTimeout: 1_800_000,
   },
   resolve: {
     alias: {
