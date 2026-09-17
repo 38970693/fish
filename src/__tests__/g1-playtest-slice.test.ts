@@ -165,6 +165,17 @@ interface SliceResult {
   /** 开局那一帧的队伍规模 —— 「预置成功了吗」要在这里看，跑完三分钟队员早换过几轮了 */
   squadSizeAtStart: number;
   coreSizeAtStart: number;
+  /**
+   * **这一局一共收编过多少人**（`state.squad.recruitedTotal`）。
+   *
+   * 「终局队伍规模 0」有两种完全相反的成因，光看终局数分不出来：
+   *   ① **从来就没收到人**（开局吃的是浮游生物，`RECRUIT_MIN_TIER=1` 不收编 → 节奏问题）
+   *   ② 收到过、但后来全打光了（→ 生存问题）
+   * 这是给真人切片带路的关键分叉，必须记。
+   */
+  recruitedTotal: number;
+  /** 队伍规模的**峰值** —— 同上，「曾经有过几个人」比「最后剩几个」更能说明收编顺不顺 */
+  squadSizePeak: number;
   eaten: number;
   evolutions: number;
   possessions: number;
@@ -370,6 +381,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
     let commandsIssued = 0;
     let framesSurvived = 0;
     let endReason: EndReason = 'SURVIVED';
+    let squadSizePeak = getSquadMembers(state).length;
     const deaths: DeathInfo[] = [];
 
     for (let f = 0; f < SLICE_FRAMES; f += 1) {
@@ -450,6 +462,8 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
         for (const m of members) m.coreRole = undefined;
       }
 
+      squadSizePeak = Math.max(squadSizePeak, members.length);
+
       const hpBefore = p.health;
       const protectedNow = (p.invulnerableTimer ?? 0) > 0;
       const squadAliveBefore = members.length;
@@ -494,6 +508,8 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       coreSize: members.filter((m) => !!m.coreRole).length,
       squadSizeAtStart,
       coreSizeAtStart,
+      recruitedTotal: state.squad.recruitedTotal,
+      squadSizePeak,
       eaten,
       evolutions,
       possessions: state.squad.possessCount,
@@ -929,20 +945,31 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    * **真·开局（E 组）**：这一组才和真人开局一样 —— 一条鱼，队伍得自己收编。
    *
    * 其余八组开局就送 5 人队伍，所以「50 秒通关」很可能是**台架比真人强**造成的，
-   * 不能当成难度结论。E 组回答真人切片进门第一个问题：
-   * **3 分钟够不够从光杆打到有队伍？** 不够的话，切片该看的是开局节奏，不是中后期遭遇战。
+   * 不能当成难度结论。
+   *
+   * ⚠️ 本组最初的题目是「**3 分钟够不够从光杆打到有队伍**」，跑出来发现**问错了**：
+   *    累计收编 `16/1/2/2/5/3/2/1` —— **8 局全部都收编成功过**，没有一局收不到人。
+   *    终局却是 `5/0/0/0/0/0/0/0` —— **人收得到，留不住**。
+   *    所以真人切片该看的不是「收编快不快」，而是**队伍为什么留不住**。
    */
-  it('真·开局（不预置队伍）：3 分钟够不够从光杆打到有队伍', async () => {
+  it('真·开局（不预置队伍）：收得到人，但留得住吗', async () => {
     await ensureArm('E');
     await ensureArm('C3');
     const rs = runsOf('E');
+    const neverRecruited = rs.filter((r) => r.recruitedTotal === 0).length;
     console.log(
       `真·开局 E 组（完整操作 + 会用角色，但不送队伍）：\n` +
         `  通关 ${victoryCount('E')}/${SEEDS.length} · 中位存活 ${medianSurvival('E')} 帧` +
         `（预置队伍的 C3 组是 ${medianSurvival('C3')} 帧）\n` +
         `  终局队伍规模 ${rs.map((r) => r.squadSize).join('/')} · ` +
-        `体重均值 ${Math.round(meanWeight('E'))}（C3 是 ${Math.round(meanWeight('C3'))}）\n` +
-        `  吃掉均值 ${(mean(rs.map((r) => r.eaten))).toFixed(1)} · 进化次数 ${rs.map((r) => r.evolutions).join('/')}`
+        `峰值 ${rs.map((r) => r.squadSizePeak).join('/')} · ` +
+        `累计收编 ${rs.map((r) => r.recruitedTotal).join('/')}\n` +
+        `  体重均值 ${Math.round(meanWeight('E'))}（C3 是 ${Math.round(meanWeight('C3'))}）· ` +
+        `吃掉均值 ${(mean(rs.map((r) => r.eaten))).toFixed(1)} · ` +
+        `进化次数 ${rs.map((r) => r.evolutions).join('/')}\n` +
+        `  ⚠️ 「终局 0 人」要分两种成因，对策完全相反，必须分开数：\n` +
+        `     从没收编过 ${neverRecruited}/${SEEDS.length} 局（→ 开局节奏问题：先长大才收得到人）\n` +
+        `     收编过但打光了 ${SEEDS.length - neverRecruited}/${SEEDS.length} 局（→ 队伍生存问题）`
     );
     expect(runsOf('E').length, 'E 组也要真的跑起来').toBe(SEEDS.length);
   });
