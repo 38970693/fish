@@ -98,6 +98,34 @@ const ENEMY_TYPES: CreatureType[] = [
 /** 敌对阵营 id（`factions.ts`：非 WILD 的不同阵营互相可伤害） */
 const RIVAL_OWNER = 'rival';
 
+/**
+ * **「围杀」编成** —— 默认那套（10 只 t2 锦鲤 / 海马）对玩家**毫无威胁**
+ * （每一组都 100% 血），所以「撤离能不能保命」在里面根本量不出来。
+ *
+ * 扫了 6 套编成之后选它（8 只帝王蟹，t2 / 攻击型 / 伤害 8）：
+ *
+ * | 编成 | 站着不动 | 一起撤 |
+ * |---|---|---|
+ * | 5锦鲤+5海马（原） | 100% 血 | 100% 血 ← 无区分度 |
+ * | 6×剑鱼(t3) | 100% 血、队活 0 | 85% |
+ * | 4×双髻鲨(t3) | **0% GAME_OVER** | 74% ← 太凶，撤也救不回 |
+ * | **8×帝王蟹(t2)** | **13% 血、队活 0** | **100% 血、队活 1** ← 用它 |
+ *
+ * 选它的理由：**站着濒死、撤了就活**，区分度最大且**不会一边倒**
+ * （玩家站着也没死，所以「决策」还有意义；t3 那两套站着直接 GAME_OVER，
+ * 战斗在玩家能反应之前就结束了，量不出决策）。
+ */
+const SWARM_ENEMIES: CreatureType[] = [
+  CreatureType.CRAB,
+  CreatureType.CRAB,
+  CreatureType.CRAB,
+  CreatureType.CRAB,
+  CreatureType.CRAB,
+  CreatureType.CRAB,
+  CreatureType.CRAB,
+  CreatureType.CRAB,
+];
+
 /** 玩家与敌人、队员的站位半径 */
 const ENEMY_RING = 260;
 const MEMBER_RING = 70;
@@ -127,6 +155,14 @@ interface EncounterConfig {
   playerFlees?: boolean;
   /** 第 `possessAtFrame` 帧附身到「血最多的队员」身上（离散输入走队列，下一帧生效） */
   possessAtFrame?: number;
+  /**
+   * 这一场的敌人编成（默认 `ENEMY_TYPES`）。
+   *
+   * 加这个参数是因为**一个场景只能回答一类问题**：默认那套（10 只 t2 锦鲤 / 海马）
+   * 对玩家**毫无威胁**（每一组都 100% 血），于是「撤离能不能保命」「玩家会不会被围死」
+   * 这类问题在里面**根本量不出来**。要回答它们，得换一套真能打死玩家的敌人。
+   */
+  enemies?: CreatureType[];
 }
 
 interface EncounterResult {
@@ -271,8 +307,9 @@ const runEncounter = (cfg: EncounterConfig, seed = 20260920): EncounterResult =>
     });
 
     // ② 预置敌人（敌对阵营 + FRENZY 心境，保证「这真的是一场战斗」）
-    ENEMY_TYPES.forEach((type, i) => {
-      const a = (i / ENEMY_TYPES.length) * Math.PI * 2 + 0.3;
+    const enemyTypes = cfg.enemies ?? ENEMY_TYPES;
+    enemyTypes.forEach((type, i) => {
+      const a = (i / enemyTypes.length) * Math.PI * 2 + 0.3;
       const e = createEntity(type, p.x + Math.cos(a) * ENEMY_RING, p.y + Math.sin(a) * ENEMY_RING);
       e.semiGhostTimer = 0;
       e.ownerId = RIVAL_OWNER;
@@ -418,7 +455,7 @@ const runEncounter = (cfg: EncounterConfig, seed = 20260920): EncounterResult =>
         : members.reduce((a, m) => a + Math.hypot(m.x - p.x, m.y - p.y), 0) / members.length;
 
     return {
-      enemiesKilled: ENEMY_TYPES.length - remaining.length,
+      enemiesKilled: enemyTypes.length - remaining.length,
       wipeFrame,
       squadAlive: members.length,
       playerHpRatio: p.maxHealth > 0 ? p.health / p.maxHealth : 0,
@@ -656,5 +693,46 @@ describe('G1 放行条件 · 固定队伍对战场景', () => {
     //    所以那时其实**只有一种**决策真的成立。补附身后才重新满足「至少两种」。
     expect(focusChanged, '「集火」这个决策必须改变这场战斗的结果').toBe(true);
     expect(possessChanged, '「附身」这个决策必须改变这场战斗的结果').toBe(true);
+  });
+
+  /**
+   * **放行条件之一·补上缺失的那一半：撤离能不能保命。**
+   *
+   * 上面几条只能证明「撤退令在敌群里不产生可测量的变化」，证明不了
+   * 「玩家能不能靠撤离活下来」—— 因为原场景对玩家毫无威胁（每一组都 100% 血）。
+   * 换成 `SWARM_ENEMIES`（8 只帝王蟹）之后：
+   *
+   *   站着不动 → 剩血 13%、队伍全灭；一起撤 → 剩血 100%、队伍还剩 1 人。
+   *
+   * 这才是放行条件「**能主动撤离**」真正要的那句话：**撤是一个有效的生存手段**。
+   * ⚠️ 注意归因：这里两组都下的是 GUARD，差别只有**玩家自己游不游** ——
+   *    所以保命的是**玩家的移动**，与上一条的结论一致（队伍指令没有额外贡献）。
+   */
+  it('撤离能保命：站着濒死（13% 血），一起撤就活（100% 血）', () => {
+    const stand = runEncounter({ name: '站着不动（GUARD）', enemies: SWARM_ENEMIES });
+    const flee = runEncounter({ name: '一起撤（GUARD）', enemies: SWARM_ENEMIES, playerFlees: true });
+    const fleeRetreat = runEncounter({
+      name: '一起撤（RETREAT）',
+      enemies: SWARM_ENEMIES,
+      playerFlees: true,
+      retreatAtFrame: 300,
+    });
+    console.log(
+      `「围杀」场景（8× 帝王蟹 · 同一世界 · 只改「玩家游不游」）：\n` +
+        `  站着不动        ：剩血 ${Math.round(stand.playerHpRatio * 100)}%` +
+        ` · 残局队活 ${stand.squadAlive} · 击杀 ${stand.enemiesKilled} · ${stand.endStatus}\n` +
+        `  一起撤 + 只守着 ：剩血 ${Math.round(flee.playerHpRatio * 100)}%` +
+        ` · 残局队活 ${flee.squadAlive} · 击杀 ${flee.enemiesKilled} · ${flee.endStatus}\n` +
+        `  一起撤 + 撤退令 ：剩血 ${Math.round(fleeRetreat.playerHpRatio * 100)}%` +
+        ` · 残局队活 ${fleeRetreat.squadAlive} · 击杀 ${fleeRetreat.enemiesKilled} · ${fleeRetreat.endStatus}\n` +
+        `  → 保命的是**玩家自己游**（两组都下 GUARD，差别只有玩家动不动）——\n` +
+        `    与「撤得掉靠的是玩家自己」那条结论一致。`
+    );
+
+    // 站着濒死（这条同时守住「场景没退化成一击必杀」：玩家站着也没死，决策才有意义）
+    expect(stand.playerHpRatio, '站着不动应当濒死但没死（场景要留出决策空间）').toBeLessThan(0.3);
+    expect(stand.playerHpRatio, '站着不动不该直接死 —— 否则玩家来不及做决策').toBeGreaterThan(0);
+    // 撤了就活 —— 这就是「能主动撤离」的正面证据
+    expect(flee.playerHpRatio, '一起撤应当基本无伤（撤是一个有效的生存手段）').toBeGreaterThan(0.9);
   });
 });
