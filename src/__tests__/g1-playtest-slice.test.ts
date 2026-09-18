@@ -76,6 +76,11 @@ const COMMAND_INTERVAL = 60;
 const FOCUS_MAX_RANGE = 500;
 const POSSESS_HP_RATIO = 0.35;
 const RETREAT_HP_RATIO = 0.5;
+/**
+ * 「脱队」判定距离：队员死时离玩家超过它，就算脱队后被吃。
+ * 取 400（`FOLLOW_DEADZONE` 是 260）—— 死区之外再翻一倍，已经不是队形抖动而是真的掉队了。
+ */
+const DETACHED_DIST = 400;
 
 /**
  * 预置队伍：三个角色位 + 两个普通成员。
@@ -155,6 +160,27 @@ type EndReason =
   | 'VICTORY' // 击杀 BOSS，提前通关
   | 'EVOLVE_STUCK'; // 进了进化面板却没有候选（台架卡死，属于 bug 不是难度）
 
+/**
+ * **一个队员是怎么没的** —— 「队伍留不住」是本轮最该下手的现象，
+ * 但「少了个人」本身说不出原因，得逐次记下来才能分叉。
+ *
+ * 三种成因的**对策完全不同**，混在一起就白测了：
+ *   · **阵亡（被同级/更小）** → 数值 / 战斗手感问题（FQ-04）
+ *   · **阵亡（被大鱼顺手吃掉）** → 信息层级问题（看不看得见危险，FQ-09）
+ *   · **脱队后被吃**（死时离玩家很远）→ 队形 / 跟随问题（FQ-05）
+ */
+interface MemberDeathInfo {
+  frame: number;
+  type: string;
+  tier: number;
+  killerType?: string;
+  killerTier?: number;
+  /** 死时离玩家多远 —— 判「脱队」用它 */
+  distToPlayer: number;
+  /** 死时队伍还剩几个人 */
+  squadAlive: number;
+}
+
 interface SliceResult {
   endReason: EndReason;
   framesSurvived: number;
@@ -176,6 +202,8 @@ interface SliceResult {
   recruitedTotal: number;
   /** 队伍规模的**峰值** —— 同上，「曾经有过几个人」比「最后剩几个」更能说明收编顺不顺 */
   squadSizePeak: number;
+  /** 每一个队员的消失记录（含凶手与死时位置） */
+  memberDeaths: MemberDeathInfo[];
   eaten: number;
   evolutions: number;
   possessions: number;
@@ -383,6 +411,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
     let endReason: EndReason = 'SURVIVED';
     let squadSizePeak = getSquadMembers(state).length;
     const deaths: DeathInfo[] = [];
+    const memberDeaths: MemberDeathInfo[] = [];
 
     for (let f = 0; f < SLICE_FRAMES; f += 1) {
       // 进化面板：替玩家选第一个候选（走生产同一条 applyEvolutionChoice，不复制数值）
@@ -471,9 +500,33 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       const levelBefore = p.level;
       const possessBefore = state.squad.possessCount;
 
+      // 记下这一帧的队员（对象引用），下一帧比对谁不见了
+      const trackedMembers = members.map((m) => ({ id: m.id, ref: m }));
+
       const { mouse, boost } = think(state, controlled);
       updateGame(state, mouse, boost, false, false, SCREEN_W, SCREEN_H);
       framesSurvived = f + 1;
+
+      // 队员少了谁？—— 夺舍（亡语接管）不算损失，它是玩家换了个身体继续活
+      const possessNow = state.squad.possessCount > possessBefore;
+      if (!possessNow) {
+        const aliveIds = new Set(
+          getSquadMembers(state).filter((m) => m.health > 0).map((m) => m.id)
+        );
+        for (const t of trackedMembers) {
+          if (aliveIds.has(t.id)) continue;
+          const killer = state.entities.find((e) => e.id === t.ref.lastHitById);
+          memberDeaths.push({
+            frame: f,
+            type: t.ref.config.name,
+            tier: t.ref.config.tier,
+            killerType: killer?.config.name,
+            killerTier: killer?.config.tier,
+            distToPlayer: Math.round(Math.hypot(t.ref.x - p.x, t.ref.y - p.y)),
+            squadAlive: aliveIds.size,
+          });
+        }
+      }
 
       // 死亡判定：血见底，或亡语夺舍把人换走了（后者的血已经是新身体的，看不出死过）
       const died =
@@ -510,6 +563,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       coreSizeAtStart,
       recruitedTotal: state.squad.recruitedTotal,
       squadSizePeak,
+      memberDeaths,
       eaten,
       evolutions,
       possessions: state.squad.possessCount,
@@ -797,6 +851,62 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     console.log('台架大脑只有两条规则，比真人笨 —— 这不等于「游戏太难」，' +
       '但真人切片必须专门看一眼生存曲线（以及：赢得太快也是个问题）。');
     expect(SEEDS.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * **队员是怎么没的** —— 「队伍留不住」的具体分叉。
+   *
+   * 三种成因的对策完全不同，混在一起看就白测了：
+   *   · **脱队后被吃**（死时离玩家 > `DETACHED_DIST`）→ 队形 / 跟随问题（FQ-05）
+   *   · **被更大的鱼顺手吃掉**（凶手 tier > 队员 tier）→ 信息层级问题（FQ-09）
+   *   · **被同级或更小的鱼打死**（凶手 tier ≤ 队员 tier）→ 数值 / 战斗手感问题（FQ-04）
+   *
+   * 只报数不断言：这是**给真人切片带路**的诊断，不是判据。
+   */
+  it('队员是怎么没的：脱队 / 被大鱼顺手吃 / 被同级打死', async () => {
+    // E 是**真·开局**（不收编就没队伍），才是清单上「8/8 收编过但打光了」的那一组；
+    // C3 开局白送一支队伍，拿来做对照：如果两组的损失形态一致，
+    // 说明「留不住」不是「没队伍可留」，而是留人机制本身的问题。
+    for (const k of ['E', 'C3']) await ensureArm(k);
+
+    const describe = (k: string): string => {
+      const rs = runsOf(k);
+      const all = rs.flatMap((r) => r.memberDeaths);
+      const detached = all.filter((d) => d.distToPlayer > DETACHED_DIST).length;
+      const known = all.filter((d) => d.killerTier !== undefined);
+      const byBigger = known.filter((d) => (d.killerTier as number) > d.tier).length;
+      const byEqualOrLess = known.filter((d) => (d.killerTier as number) <= d.tier).length;
+      const noKiller = all.length - known.length;
+      const killers = (() => {
+        const m = new Map<string, number>();
+        for (const d of all) if (d.killerType) m.set(d.killerType, (m.get(d.killerType) ?? 0) + 1);
+        return (
+          [...m.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6)
+            .map(([n, c]) => `${n}×${c}`)
+            .join('  ') || '（无）'
+        );
+      })();
+      // 距离分布只看前 12 个，且**按比例**读：绝对人次受局数与队伍规模影响，不可跨组直接比
+      const dists = all.slice(0, 12).map((d) => d.distToPlayer);
+      return (
+        `${k} 组（${rs.length} 局，收编累计 ${rs.reduce((n, r) => n + r.recruitedTotal, 0)}）：共 **${all.length}** 人次\n` +
+        `    脱队后被吃（死时离玩家 > ${DETACHED_DIST}px）：${detached}/${all.length}` +
+        `${all.length ? `（${Math.round((detached / all.length) * 100)}%）` : ''}\n` +
+        `    被更大的鱼顺手吃（凶手 tier 更高）：${byBigger}/${known.length}\n` +
+        `    被同级或更小的鱼打死：${byEqualOrLess}/${known.length}\n` +
+        `    没记到凶手：${noKiller}/${all.length}\n` +
+        `    死时离玩家的距离分布（前 12 个）：${dists.join('/')}${all.length > 12 ? ' …' : ''}\n` +
+        `    常见凶手：${killers}`
+      );
+    };
+
+    console.log(`队员损失诊断\n  ${describe('E')}\n  ${describe('C3')}`);
+
+    const eTotal = runsOf('E').flatMap((r) => r.memberDeaths).length;
+    // 唯一硬断言：诊断数据必须真的采到了（采不到就说明追踪逻辑坏了，别让它静默变成 0）
+    expect(eTotal, 'E 组应当有队员损失记录，否则追踪逻辑没生效').toBeGreaterThan(0);
   });
 
   /**

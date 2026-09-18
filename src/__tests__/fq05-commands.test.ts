@@ -497,3 +497,62 @@ describe('FQ-05 · 三指令的行为差异', () => {
     expect(dist(retreatMember, prey)).toBeGreaterThan(90);
   });
 });
+
+/* ══════════════ 队员的自保能力（G1 切片带出来的缺口） ══════════════ */
+
+/**
+ * **⚠️ 队员完全没有自保：走位里没有任何「血量」输入。**
+ *
+ * 这条不是猜的，是 3 分钟切片台架逼出来的：真·开局 8 局共损失 26 人次，
+ * 其中**只有 3 人次（12%）死在离玩家 400px 以外** —— 也就是说「脱队」不是主因，
+ * 队员是**贴着玩家一起死的**（死时离玩家中位 73px）。
+ * 那为什么跑不掉？查代码：`ai.ts` 对 `ownerId === 'player'` 直接 `continue`，
+ * 成员行为全归 `squad.ts` 管；而 `squad.ts` 里从头到尾**没有一处读 `member.health`**
+ * （`findGuardPrey` 只看位置和感知）。于是残血队员会继续按队形站位、
+ * 甚至继续扑向身边的猎物，直到被吃掉。
+ *
+ * 这条用例把「残血 = 满血」钉成断言：**一旦有人给队员加上逃跑 / 撤退 / 求援逻辑，
+ * 它会立刻变红**，逼着改的人回来把这条注释和《开发路线图》里的缺口描述一起更新。
+ *
+ * 对照的威胁是**电鳗**（t2 里唯一的进攻型、伤害 15，是 t2 最高的）：
+ * 真·开局那 26 人次里它一只就占了 9 次，是头号杀手。
+ */
+describe('FQ-05 · 队员的自保能力（已知缺口）', () => {
+  /** 同一场景下跑 60 帧，逐帧记下队员坐标 */
+  const traceMember = (memberHealth: number): string[] => {
+    const state = makePlayingState();
+    const member = addMember(state, CreatureType.CLOWN_FISH, state.player.x + 300, state.player.y);
+    member.health = memberHealth;
+    // 一条会主动咬人的电鳗贴在队员身边：自保逻辑存在的话，这里就该看见差别
+    addEnemy(state, CreatureType.ELECTRIC_EEL, member.x + 40, member.y);
+
+    const trace: string[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      squadSystem(state, makeCtx());
+      trace.push(`${member.x.toFixed(4)},${member.y.toFixed(4)}`);
+    }
+    return trace;
+  };
+
+  it('残血（1 血）与满血的走位**逐帧完全一致** —— 成员移动里没有血量输入', () => {
+    const full = traceMember(9999);
+    const low = traceMember(1);
+
+    expect(low).toEqual(full);
+  });
+
+  it('残血队员不但不逃，还会继续朝身边的猎物扑过去', () => {
+    const state = makePlayingState();
+    const member = addMember(state, CreatureType.CLOWN_FISH, state.player.x + 300, state.player.y);
+    member.health = 1;
+    // 放在**接触圈之外**（约 (r₁+r₂)×1.1）：在圈内它本来就不会动，断言会变成空转
+    const eel = addEnemy(state, CreatureType.ELECTRIC_EEL, member.x + 150, member.y);
+
+    const before = dist(member, eel);
+    runFrames(state, 60);
+    const after = dist(member, eel);
+
+    // 1 血、身边是 t2 里最凶的一条 —— 它不但没拉开，反而扑上去了
+    expect(after).toBeLessThan(before - 50);
+  });
+});
