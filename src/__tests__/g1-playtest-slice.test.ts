@@ -179,6 +179,23 @@ interface MemberDeathInfo {
   distToPlayer: number;
   /** 死时队伍还剩几个人 */
   squadAlive: number;
+  /**
+   * ── 下面这组是回答「**跑得掉吗**」用的（决定「队员该不该自保」的前提）──
+   *
+   * 「给队员加自保」是个设计取舍，但**前提是自保真的有用**。
+   * 如果死时凶手本来就比队员快，那「逃跑」这个选项物理上不存在，
+   * 加多少逃跑逻辑都是白加 —— 该往队形 / 预警 / 数值上使劲。
+   */
+  /** 队员的**基础**速度。注意 `updateMovement` 追击时会 ×1.25，比较时要还原 */
+  memberSpeed: number;
+  memberMaxHealth: number;
+  /** **这一帧开始时**的血量 —— 死时血量必然是 0，只有这个数能说明「是不是残血被补掉」 */
+  hpBefore: number;
+  /** 凶手的基础速度（野鱼可能另有 FRENZY / 生物群系倍率，这里只是代理指标） */
+  killerSpeed?: number;
+  /** 凶手行为：BOSS 意味着「基本跑不掉」 */
+  killerBehavior?: string;
+  killerDamage?: number;
 }
 
 interface SliceResult {
@@ -500,8 +517,8 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       const levelBefore = p.level;
       const possessBefore = state.squad.possessCount;
 
-      // 记下这一帧的队员（对象引用），下一帧比对谁不见了
-      const trackedMembers = members.map((m) => ({ id: m.id, ref: m }));
+      // 记下这一帧的队员（对象引用 + 帧初血量），下一帧比对谁不见了
+      const trackedMembers = members.map((m) => ({ id: m.id, ref: m, hp: m.health }));
 
       const { mouse, boost } = think(state, controlled);
       updateGame(state, mouse, boost, false, false, SCREEN_W, SCREEN_H);
@@ -524,6 +541,12 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
             killerTier: killer?.config.tier,
             distToPlayer: Math.round(Math.hypot(t.ref.x - p.x, t.ref.y - p.y)),
             squadAlive: aliveIds.size,
+            memberSpeed: t.ref.speed,
+            memberMaxHealth: t.ref.maxHealth,
+            hpBefore: t.hp,
+            killerSpeed: killer?.speed,
+            killerBehavior: killer?.config.behavior,
+            killerDamage: killer?.config.damage,
           });
         }
       }
@@ -907,6 +930,50 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     const eTotal = runsOf('E').flatMap((r) => r.memberDeaths).length;
     // 唯一硬断言：诊断数据必须真的采到了（采不到就说明追踪逻辑坏了，别让它静默变成 0）
     expect(eTotal, 'E 组应当有队员损失记录，否则追踪逻辑没生效').toBeGreaterThan(0);
+  });
+
+  /**
+   * **队员死的时候，「逃跑」到底是不是一个可行的选项？**
+   *
+   * 这条是「**该不该给队员加自保**」的**前提**，比结论本身重要：
+   *   · 凶手本来就比队员慢 → 逃跑物理上可行，自保是个真杠杆，值得做
+   *   · 凶手更快 / 是 BOSS   → 加多少逃跑逻辑都是白加，
+   *     该往队形（FQ-05）、预警（FQ-09）、数值（FQ-04）上使劲
+   *
+   * 另记**死时血量占比**：中位接近 100% = 多是被一口带走（自保也来不及反应，
+   * 要的是「提前预警」）；中位偏低 = 是被磨死的（自保才真能救下来）。
+   *
+   * 只报数不断言（唯一硬断言是「数据真的采到了」）。
+   */
+  it('队员死时跑得掉吗：凶手速度 vs 队员速度（决定「该不该加自保」的前提）', async () => {
+    // `squad.ts` 的 updateMovement 追击时会把速度乘这个系数，比较时必须还原
+    const CHASE_MULT = 1.25;
+    for (const k of ['E', 'C3']) await ensureArm(k);
+
+    const describe = (k: string): string => {
+      const all = runsOf(k).flatMap((r) => r.memberDeaths);
+      const known = all.filter((d) => d.killerSpeed !== undefined);
+      const escapable = known.filter(
+        (d) => d.killerBehavior !== 'BOSS' && d.memberSpeed * CHASE_MULT > (d.killerSpeed as number)
+      ).length;
+      const bosses = all.filter((d) => d.killerBehavior === 'BOSS').length;
+      const hpRatios = all
+        .filter((d) => d.memberMaxHealth > 0)
+        .map((d) => d.hpBefore / d.memberMaxHealth)
+        .sort((a, b) => a - b);
+      const medianHp = hpRatios.length ? hpRatios[Math.floor(hpRatios.length / 2)] : 0;
+      const lowHp = hpRatios.filter((r) => r < 0.3).length;
+      return (
+        `${k} 组（损失 ${all.length} 人次）：\n` +
+        `    可逃（队员 1.25× 追击速度仍快过凶手，且凶手不是 BOSS）：${escapable}/${known.length}\n` +
+        `    凶手是 BOSS（基本不可逃）：${bosses}/${all.length}\n` +
+        `    死时已残血（< 30% 血）：${lowHp}/${all.length}` +
+        ` · 死时血量占比中位 ${(medianHp * 100).toFixed(0)}%`
+      );
+    };
+
+    console.log(`队员「跑得掉吗」诊断（速度是代理指标：野鱼另有 FRENZY / 生物群系倍率，未计入）\n  ${describe('E')}\n  ${describe('C3')}`);
+    expect(runsOf('E').flatMap((r) => r.memberDeaths).length).toBeGreaterThan(0);
   });
 
   /**
