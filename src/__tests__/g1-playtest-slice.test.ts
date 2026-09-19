@@ -40,6 +40,7 @@ import {
 import { __resetTeleportLock, __resetObstacleIndex } from '../systems/world';
 import { SQUAD_ROLE, SQUAD_ROLES, SQUAD_ROLE_LIST } from '../data/squadRoles';
 import { canHarm } from '../systems/factions';
+import { classifyByRadius, isThreatByRadius, isPreyByRadius } from '../test/brainVision';
 import { createEntity } from '../systems/spawn';
 import { MAP_SHAPE_CONFIG } from '../data/world';
 import { CreatureType } from '../data/creatures';
@@ -144,6 +145,16 @@ interface DeathInfo {
   squadAlive: number;
   /** 死的时候新手保护还在不在（PROTECTION）—— 在还被打死说明保护没生效 */
   protectedNow: boolean;
+  /**
+   * ── 「**大脑当时看得见凶手吗**」用的（见 `test/brainVision.ts`）──
+   *
+   * 台架大脑只看**半径差**：> 1.05× 算威胁（躲），< 0.95× 算猎物（追），
+   * **中间 ±5% 那条带子既不躲也不追**。所以「被同级鱼磨死」这个说法
+   * 有一半可能是**规则写死的**，而不是游戏难。
+   * 死时双方半径记下来，才能把「台架看不见」和「数值太凶」分开。
+   */
+  playerRadius?: number;
+  killerRadius?: number;
 }
 
 /**
@@ -196,6 +207,14 @@ interface MemberDeathInfo {
   /** 凶手行为：BOSS 意味着「基本跑不掉」 */
   killerBehavior?: string;
   killerDamage?: number;
+  /**
+   * 死时双方的**半径** —— 判「大脑看不看得见凶手」用它（见 `test/brainVision.ts`）。
+   *
+   * 队员的行为全在 `squad.ts` 里，而 `squad.ts` **完全不看半径也不看血量**，
+   * 所以这一组数对队员只是「现场记录」；它的主战场是**玩家**那一侧。
+   */
+  memberRadius?: number;
+  killerRadius?: number;
 }
 
 interface SliceResult {
@@ -263,11 +282,13 @@ const scan = (
     if (e.health <= 0) continue;
     const d = Math.hypot(e.x - p.x, e.y - p.y);
     // 阵营收口用 canHarm：自己人永远不算威胁（FQ-03）
-    if (d < threatD && canHarm(e, p) && e.radius > p.radius * 1.05) {
+    // 半径那一半的判据在 brainVision.ts —— 中间 ±5% 那条带子既不躲也不追，
+    // 是「被同级鱼磨死」这类读数的真正来源，所以它现在有独立用例钉着（不再是裸字面量）。
+    if (d < threatD && canHarm(e, p) && isThreatByRadius(p.radius, e.radius)) {
       threat = e;
       threatD = d;
     }
-    if (d < preyD && canHarm(p, e) && e.radius < p.radius * 0.95) {
+    if (d < preyD && canHarm(p, e) && isPreyByRadius(p.radius, e.radius)) {
       prey = e;
       preyD = d;
     }
@@ -515,6 +536,9 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       const squadAliveBefore = members.length;
       const tierBefore = p.config.tier;
       const levelBefore = p.level;
+      // 半径要**帧初**取：夺舍之后 `p` 已经换了身体，半径是新那条鱼的，
+      // 而「大脑当时看得见凶手吗」问的是**死掉的那个身体**（见 test/brainVision.ts）
+      const radiusBefore = p.radius;
       const possessBefore = state.squad.possessCount;
 
       // 记下这一帧的队员（对象引用 + 帧初血量），下一帧比对谁不见了
@@ -547,6 +571,8 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
             killerSpeed: killer?.speed,
             killerBehavior: killer?.config.behavior,
             killerDamage: killer?.config.damage,
+            memberRadius: t.ref.radius,
+            killerRadius: killer?.radius,
           });
         }
       }
@@ -567,6 +593,8 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
           playerLevel: levelBefore,
           squadAlive: squadAliveBefore,
           protectedNow,
+          playerRadius: radiusBefore,
+          killerRadius: killer?.radius,
         });
       }
     }
@@ -1020,6 +1048,88 @@ describe('G1 放行条件 · 3 分钟切片', () => {
 
     // ⚠️ 这条是**唯一**的硬断言：保护期内还被打死 = 保护没生效，那是 bug
     expect(protectedDeaths, '新手保护生效时不该被打死').toBe(0);
+  });
+
+  /**
+   * **「弱玩家阶段被同级鱼磨死（46%）· 头号凶手电鳗」这句话，说的是谁？**
+   *
+   * 起因：《开发任务清单》把它记成了一条**给玩家**的问题 ——
+   * 「看真人开局前 60 秒：是『电鳗太凶』还是『玩家没学会躲』？」
+   * 但那个 46% 与「电鳗×9」出自 **§22.11 的队员损失表**（`memberDeaths`），
+   * 而 `deaths`（玩家死亡）是**另一个数组**。两个种群混在一起数，
+   * 就会把一条**队员**结论当成**玩家**证据用 —— 和之前两条假证据同一类错误，
+   * 而且它会让真人带着「电鳗是主要威胁」的预设进场。
+   *
+   * 顺带把 `test/brainVision.ts` 那条 **±5% 盲带**量出来：
+   * 凶手落在盲带里 = 大脑**既不躲也不追**，这种死亡跟「数值太凶」无关，是**规则**的结果。
+   * 凶手落在「猎物」桶里更糟 —— 那是大脑**主动朝凶手游过去**。
+   *
+   * 只报数不断言（硬断言只有「半径真的采到了」）。
+   */
+  it('「被同级鱼磨死」是谁的结论：玩家死亡与队员损失必须分开数（含大脑盲带）', async () => {
+    for (const k of Object.keys(ARMS)) await ensureArm(k);
+
+    const playerDeaths = Object.keys(ARMS).flatMap((k) => runsOf(k).flatMap((r) => r.deaths));
+    const memberDeaths = ['E', 'C3'].flatMap((k) => runsOf(k).flatMap((r) => r.memberDeaths));
+
+    /** 两边都有的字段 —— 用交集类型接住 `DeathInfo` / `MemberDeathInfo` 两种记录 */
+    type AnyDeath = {
+      killerType?: string;
+      killerRadius?: number;
+      playerRadius?: number;
+      memberRadius?: number;
+    };
+
+    const topKillers = (types: Array<string | undefined>): string => {
+      const m = new Map<string, number>();
+      for (const t of types) if (t) m.set(t, (m.get(t) ?? 0) + 1);
+      return (
+        [...m.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([n, c]) => `${n}×${c}`)
+          .join('  ') || '（无）'
+      );
+    };
+
+    const describeSide = (label: string, ds: AnyDeath[]): string => {
+      const known = ds.filter(
+        (d) => (d.playerRadius ?? d.memberRadius) !== undefined && d.killerRadius !== undefined
+      );
+      const counts = { threat: 0, prey: 0, ignored: 0 };
+      for (const d of known) {
+        const v = classifyByRadius(
+          (d.playerRadius ?? d.memberRadius) as number,
+          d.killerRadius as number
+        );
+        counts[v] += 1;
+      }
+      const pct = (n: number): string =>
+        known.length ? `${Math.round((n / known.length) * 100)}%` : '—';
+      return (
+        `${label}（${ds.length} 次，可判定 ${known.length}）：\n` +
+        `    凶手是威胁（大脑会躲）：${counts.threat}（${pct(counts.threat)}）\n` +
+        `    凶手在盲带（大脑看不见）：${counts.ignored}（${pct(counts.ignored)}）\n` +
+        `    凶手是猎物（大脑**主动扑**）：${counts.prey}（${pct(counts.prey)}）\n` +
+        `    常见凶手：${topKillers(ds.map((d) => d.killerType))}`
+      );
+    };
+
+    console.log(
+      `「被同级鱼磨死」是谁的结论（凶手按 brainVision 的半径规则分类）\n` +
+        `  ${describeSide('玩家死亡（全 9 组）', playerDeaths)}\n` +
+        `  ${describeSide('队员损失（E + C3）', memberDeaths)}`
+    );
+
+    // 硬断言：半径必须真的采到了 —— 采不到就说明追踪逻辑坏了，别让它静默变成 0
+    expect(
+      playerDeaths.filter((d) => d.killerRadius !== undefined).length,
+      '玩家死亡记录里应当采到凶手半径'
+    ).toBeGreaterThan(0);
+    expect(
+      memberDeaths.filter((d) => d.killerRadius !== undefined).length,
+      '队员损失记录里应当采到凶手半径'
+    ).toBeGreaterThan(0);
   });
 
   /**
