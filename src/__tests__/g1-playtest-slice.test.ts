@@ -40,7 +40,8 @@ import {
 import { __resetTeleportLock, __resetObstacleIndex } from '../systems/world';
 import { SQUAD_ROLE, SQUAD_ROLES, SQUAD_ROLE_LIST } from '../data/squadRoles';
 import { canHarm } from '../systems/factions';
-import { classifyByRadius, isThreatByRadius, isPreyByRadius } from '../test/brainVision';
+import { classifyByRadius, isThreatByRadius, isPreyByRadius, THREAT_RADIUS_MULT } from '../test/brainVision';
+import type { BrainTuning } from '../test/brainVision';
 import { createEntity } from '../systems/spawn';
 import { MAP_SHAPE_CONFIG } from '../data/world';
 import { CreatureType } from '../data/creatures';
@@ -135,6 +136,14 @@ interface ArmConfig {
    * **3 分钟够不够「从光杆打到有队伍」？**
    */
   noSeedSquad?: boolean;
+  /**
+   * **换一版「视野参数」跑同一组**（默认 = 台架一直用的 ±5% 盲带）。
+   *
+   * 存在的理由就是 §22.2 那条规矩：扛着放行结论的大脑必须能**换参数重跑**，
+   * 结论还在才算数。§22.13 又量出这条规则在制造假现象（49% 的玩家死亡，
+   * 凶手是大脑**主动扑上去**的猎物），所以「更谨慎的猎物选择」这一版必须跑。
+   */
+  brain?: BrainTuning;
 }
 
 /**
@@ -314,7 +323,8 @@ const findControlled = (state: GameState): Entity | undefined => {
 
 /** 找最近的威胁与猎物。威胁 = 能打到玩家且更大；猎物 = 玩家能打且更小 */
 const scan = (
-  state: GameState
+  state: GameState,
+  tuning?: BrainTuning
 ): { threat?: Entity; threatD: number; prey?: Entity; preyD: number } => {
   const p = state.player;
   let threat: Entity | undefined;
@@ -328,11 +338,11 @@ const scan = (
     // 阵营收口用 canHarm：自己人永远不算威胁（FQ-03）
     // 半径那一半的判据在 brainVision.ts —— 中间 ±5% 那条带子既不躲也不追，
     // 是「被同级鱼磨死」这类读数的真正来源，所以它现在有独立用例钉着（不再是裸字面量）。
-    if (d < threatD && canHarm(e, p) && isThreatByRadius(p.radius, e.radius)) {
+    if (d < threatD && canHarm(e, p) && isThreatByRadius(p.radius, e.radius, tuning)) {
       threat = e;
       threatD = d;
     }
-    if (d < preyD && canHarm(p, e) && isPreyByRadius(p.radius, e.radius)) {
+    if (d < preyD && canHarm(p, e) && isPreyByRadius(p.radius, e.radius, tuning)) {
       prey = e;
       preyD = d;
     }
@@ -347,10 +357,11 @@ const scan = (
  */
 const think = (
   state: GameState,
-  prefer?: Entity
+  prefer?: Entity,
+  tuning?: BrainTuning
 ): { mouse: { x: number; y: number }; boost: boolean } => {
   const p = state.player;
-  const { threat, threatD, prey } = scan(state);
+  const { threat, threatD, prey } = scan(state, tuning);
 
   let dx: number;
   let dy: number;
@@ -633,7 +644,7 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       // 记下这一帧的队员（对象引用 + 帧初血量），下一帧比对谁不见了
       const trackedMembers = members.map((m) => ({ id: m.id, ref: m, hp: m.health }));
 
-      const { mouse, boost } = think(state, controlled);
+      const { mouse, boost } = think(state, controlled, arm.brain);
       updateGame(state, mouse, boost, false, false, SCREEN_W, SCREEN_H);
       framesSurvived = f + 1;
 
@@ -741,6 +752,48 @@ const ARMS: Record<string, ArmConfig> = {
   E: { name: '真·开局（不预置队伍，完整操作 + 会用角色）', commands: true, possess: true, stripRoles: false, roleAware: true, noSeedSquad: true },
 };
 
+/**
+ * **变体大脑 v4：更谨慎的猎物选择。**
+ *
+ * 动机来自 §22.13 的实测：玩家死亡里 **49%** 的凶手，是大脑自己判定为「猎物」
+ * 并**主动朝它游过去**的那一类。也就是说台架的死亡统计里混着它自己的进攻策略，
+ * 不是游戏难度 —— 而 §22.2 的规矩正是「换个合理的大脑参数重跑，结论还在不在」。
+ *
+ * 真人会挑软的打，所以这一版把「猎物」门槛从 `0.95×` 收紧到 `0.75×`：
+ * **只打明显比自己小的，和自己差不多的不碰**（顺带把那条 ±5% 盲带变成「一律不追」）。
+ * 威胁那一侧**一点没动**（仍然是 `1.05×`）—— 一次只改一个轴，否则分不清是哪个在起作用。
+ *
+ * ⚠️ 只改**参数**，不改规则：规则仍然只有 `brainVision.ts` 那一份。
+ */
+const CAUTIOUS_BRAIN: BrainTuning = { threatMult: THREAT_RADIUS_MULT, preyMult: 0.75 };
+
+/**
+ * **变体臂**：换一版大脑参数重跑，但**刻意不进 `ARMS`**。
+ *
+ * ⚠️ 为什么不放进 `ARMS`：`ARMS` 是「全 9 组」这个**分母本身** ——
+ * 死因分析、队员损失诊断、§22.13 的凶手分类、§22.14 的 BOSS 密度全都对它求和。
+ * 往里面塞一组，上面所有**已经写进文档**的比例会静默改变，而文档里写死的是旧分母。
+ * 变体只服务于它自己那条用例。
+ */
+const BRAIN_VARIANT_ARMS: Record<string, ArmConfig> = {
+  A4: {
+    name: '变体大脑 · 只顾自己（更谨慎的猎物选择）',
+    commands: false,
+    possess: false,
+    stripRoles: false,
+    roleAware: false,
+    brain: CAUTIOUS_BRAIN,
+  },
+  C4: {
+    name: '变体大脑 · 完整操作（更谨慎的猎物选择）',
+    commands: true,
+    possess: true,
+    stripRoles: false,
+    roleAware: false,
+    brain: CAUTIOUS_BRAIN,
+  },
+};
+
 const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
 const median = (xs: number[]): number => {
   const s = [...xs].sort((a, b) => a - b);
@@ -795,6 +848,10 @@ const runArm = async (arm: ArmConfig): Promise<SliceResult[]> => {
 
 /** 先把组跑起来（异步）；跑完后再用同步的 `runsOf` 取结果 */
 const ensureArm = async (k: string): Promise<SliceResult[]> => (cache[k] ??= await runArm(ARMS[k]));
+
+/** 同上，但跑的是**变体臂**（不进 `ARMS`，见 `BRAIN_VARIANT_ARMS` 的说明） */
+const ensureVariantArm = async (k: string): Promise<SliceResult[]> =>
+  (cache[k] ??= await runArm(BRAIN_VARIANT_ARMS[k]));
 
 /** 同步取结果 —— 调用前必须 `await ensureArm(k)`，否则是「还没跑就想要数」 */
 const runsOf = (k: string): SliceResult[] => {
@@ -916,16 +973,18 @@ describe('G1 放行条件 · 3 分钟切片', () => {
   });
 
   /**
-   * 放行条件之一：**操作能改变结果**。
+   * 放行条件之一：**操作能改变结果**（默认大脑下）。
    *
-   * 这条**稳定**：大脑 v1（固定逃跑距离）与 v2（按体型缩放）两版都是 **×1.30 / 配对 5/8**，
-   * 不随大脑翻转，所以可以断言。
+   * ⚠️ **这条已经不能当放行判据了（2026-09-19）** —— 见下面那条鲁棒性用例：
+   *    换成「更谨慎的猎物选择」的大脑（v4，而且是一版**更强**的大脑：
+   *    中位存活 4104 > 2513、体重 649 > 515），同一对比从 ×1.30 / 配对 5/8
+   *    **翻转成 ×0.86 / 配对 2/8**。按 §22.2 的规矩（「结论不在，就别拿它判放行」），
+   *    这条断言降级为**默认大脑的回归守卫** —— 它仍然要绿，但**不许再写进放行结论**。
    *
    * 阈值卡 **1.15** 而不是实测的 1.30，是刻意留余量：8 个种子的中位数本身会漂，
    * 卡到实测值上等于埋一颗「下次动任何数值就红」的雷（而且红了分不清是回归还是噪声）。
-   * 真要判断有没有回退，看上面那张**逐种子矩阵**，别只盯这一个比值。
    */
-  it('操作能改变结果：完整操作组的中位存活高于「只顾自己」', async () => {
+  it('操作能改变结果（默认大脑）：完整操作组的中位存活高于「只顾自己」', async () => {
     await ensureArm('C');
     await ensureArm('A');
     const ratio = medianSurvival('C') / medianSurvival('A');
@@ -935,6 +994,53 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     );
     expect(ratio, '完整操作 / 只顾自己 的中位存活比').toBeGreaterThan(1.15);
     expect(pairedWins('C', 'A'), '同种子配对胜场').toBeGreaterThanOrEqual(5);
+  });
+
+  /**
+   * **放行结论的鲁棒性：换成「更谨慎的猎物选择」的大脑，×1.30 还成立吗？**
+   *
+   * §22.2 定下的规矩是「**换个合理的大脑参数重跑，结论还在不在**；不在，就别拿它判放行」。
+   * 上面那条「操作能改变结果」是**唯一活下来的放行断言**，此前只用过两版大脑
+   * （v1 固定逃跑距离 / v2 按体型缩放）。而 §22.13 刚给出一个**新的、更硬的理由**去怀疑它：
+   * 玩家死亡里 **49%** 的凶手是大脑**主动朝它游过去**的猎物 ——
+   * 台架的进攻策略本身在制造死亡，而「下不下令」恰好会改变这个策略。
+   *
+   * 所以只改**一个轴**：猎物门槛 `0.95× → 0.75×`（只打明显比自己小的），
+   * 威胁侧一点没动 —— 一次改一个轴，否则分不清是哪个在起作用。
+   *
+   * ⚠️ **先写死后跑分**：判定标准预先定死 ——
+   *    「中位存活比 ≥ 1.15 **且** 同种子配对胜 ≥ 5/8」两条都满足，才算结论仍在。
+   *    只中一条、或方向反过来，就说明这条放行结论**依赖大脑的进攻性**，不能单独拿它判放行。
+   */
+  it('放行结论鲁棒性：换成「更谨慎」的大脑，操作还能改变结果吗', async () => {
+    await ensureArm('A');
+    await ensureArm('C');
+    await ensureVariantArm('A4');
+    await ensureVariantArm('C4');
+
+    const baseRatio = medianSurvival('C') / medianSurvival('A');
+    const baseWins = pairedWins('C', 'A');
+    const v4Ratio = medianSurvival('C4') / medianSurvival('A4');
+    const v4Wins = pairedWins('C4', 'A4');
+    // 成长维度也要看：更谨慎会不会把「吃得到东西」一起赔进去
+    const baseWeight = meanWeight('C') / meanWeight('A');
+    const v4Weight = meanWeight('C4') / meanWeight('A4');
+
+    const holds = v4Ratio >= 1.15 && v4Wins >= 5;
+    console.log(
+      `操作收益的鲁棒性（同一对比，只换大脑的猎物门槛 0.95× → 0.75×）：\n` +
+        `  默认大脑：中位存活 A ${medianSurvival('A')} → C ${medianSurvival('C')} 帧（×${baseRatio.toFixed(2)}）` +
+        ` · 配对胜 ${baseWins}/${SEEDS.length} · 体重 A ${Math.round(meanWeight('A'))} → C ${Math.round(meanWeight('C'))}（×${baseWeight.toFixed(2)}）\n` +
+        `  谨慎大脑：中位存活 A4 ${medianSurvival('A4')} → C4 ${medianSurvival('C4')} 帧（×${v4Ratio.toFixed(2)}）` +
+        ` · 配对胜 ${v4Wins}/${SEEDS.length} · 体重 A4 ${Math.round(meanWeight('A4'))} → C4 ${Math.round(meanWeight('C4'))}（×${v4Weight.toFixed(2)}）\n` +
+        `  判定标准（预先定死）：存活比 ≥ 1.15 且配对胜 ≥ 5/8\n` +
+        (holds
+          ? '  → 结论仍在：换这版大脑，「操作能改变结果」照样成立'
+          : '  → ⚠️ 结论没扛住：这条放行断言依赖大脑的进攻性，不能单独拿它判放行')
+    );
+
+    // 只报判定，不写死方向 —— 达不到就照实说「没扛住」，别把断言改成观测值
+    expect(typeof holds).toBe('boolean');
   });
 
   /**
@@ -1193,33 +1299,48 @@ describe('G1 放行条件 · 3 分钟切片', () => {
       );
     };
 
-    const describeSide = (label: string, ds: AnyDeath[]): string => {
+    /**
+     * ⚠️ **受审者的半径必须由调用方显式给出，不能用 `d.playerRadius ?? d.memberRadius` 兜底。**
+     *
+     * 这里踩过一次真坑：`DeathInfo` 与 `MemberDeathInfo` **两个类型都有 `playerRadius`**
+     * （前者=玩家自己，后者=死时玩家在哪），于是给队员那条记录补上 `playerRadius` 之后，
+     * `??` 的左边突然有了值 —— 分类基准**从「队员的半径」静默变成「玩家的半径」**，
+     * 队员那一栏从 92/5/5 变成 51/10/41，而**总数 102 一个没变**，
+     * 用例照样全绿。是拿两次运行的输出逐行对比才发现的。
+     * → 所以这里把「谁是受审者」变成**签名的一部分**，让选错字段这件事写不出来。
+     */
+    const describeSide = (
+      label: string,
+      ds: AnyDeath[],
+      victimRadius: (d: AnyDeath) => number | undefined
+    ): string => {
       const known = ds.filter(
-        (d) => (d.playerRadius ?? d.memberRadius) !== undefined && d.killerRadius !== undefined
+        (d) => victimRadius(d) !== undefined && d.killerRadius !== undefined
       );
+      const verdictOf = (d: AnyDeath): string =>
+        classifyByRadius(victimRadius(d) as number, d.killerRadius as number);
       const counts = { threat: 0, prey: 0, ignored: 0 };
-      for (const d of known) {
-        const v = classifyByRadius(
-          (d.playerRadius ?? d.memberRadius) as number,
-          d.killerRadius as number
-        );
-        counts[v] += 1;
-      }
+      for (const d of known) counts[verdictOf(d) as 'threat' | 'prey' | 'ignored'] += 1;
       const pct = (n: number): string =>
         known.length ? `${Math.round((n / known.length) * 100)}%` : '—';
+      const killersIn = (v: string): string =>
+        topKillers(known.filter((d) => verdictOf(d) === v).map((d) => d.killerType));
       return (
         `${label}（${ds.length} 次，可判定 ${known.length}）：\n` +
-        `    凶手是威胁（大脑会躲）：${counts.threat}（${pct(counts.threat)}）\n` +
-        `    凶手在盲带（大脑看不见）：${counts.ignored}（${pct(counts.ignored)}）\n` +
-        `    凶手是猎物（大脑**主动扑**）：${counts.prey}（${pct(counts.prey)}）\n` +
-        `    常见凶手：${topKillers(ds.map((d) => d.killerType))}`
+        `    凶手是威胁（大脑会躲）：${counts.threat}（${pct(counts.threat)}）` +
+        ` — ${killersIn('threat')}\n` +
+        `    凶手在盲带（大脑看不见）：${counts.ignored}（${pct(counts.ignored)}）` +
+        ` — ${killersIn('ignored')}\n` +
+        `    凶手是猎物（大脑**主动扑**）：${counts.prey}（${pct(counts.prey)}）` +
+        ` — ${killersIn('prey')}\n` +
+        `    常见凶手（合计）：${topKillers(ds.map((d) => d.killerType))}`
       );
     };
 
     console.log(
       `「被同级鱼磨死」是谁的结论（凶手按 brainVision 的半径规则分类）\n` +
-        `  ${describeSide('玩家死亡（全 9 组）', playerDeaths)}\n` +
-        `  ${describeSide('队员损失（E + C3）', memberDeaths)}`
+        `  ${describeSide('玩家死亡（全 9 组）', playerDeaths, (d) => d.playerRadius)}\n` +
+        `  ${describeSide('队员损失（E + C3）', memberDeaths, (d) => d.memberRadius)}`
     );
 
     // 硬断言：半径必须真的采到了 —— 采不到就说明追踪逻辑坏了，别让它静默变成 0

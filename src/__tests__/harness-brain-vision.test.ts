@@ -118,6 +118,23 @@ describe('台架大脑的视野规则（brainVision）', () => {
     expect(checked, '穷举应当真的跑过一遍').toBeGreaterThan(150000);
   });
 
+  it('可以换**参数**跑变体（不是再抄一份规则）', () => {
+    // v4 变体：只打明显比自己小的（猎物门槛 0.95 → 0.75），威胁侧一点不动 ——
+    // 一次只改一个轴，否则分不清是哪个在起作用。
+    const v4 = { threatMult: THREAT_RADIUS_MULT, preyMult: 0.75 };
+
+    expect(classifyByRadius(100, 80, v4), '0.75× 之后 80 不再是猎物').toBe('ignored');
+    expect(classifyByRadius(100, 80), '默认参数下它仍然算猎物').toBe('prey');
+    expect(classifyByRadius(100, 74, v4)).toBe('prey');
+
+    expect(classifyByRadius(100, 106, v4), '威胁侧必须原样').toBe('threat');
+    expect(classifyByRadius(100, 105, v4)).toBe('ignored');
+
+    const bands = radiusVerdictBands(100, v4);
+    expect(bands.ignoredFrom).toBeCloseTo(95.24, 1);
+    expect(bands.ignoredTo).toBeCloseTo(133.33, 1);
+  });
+
   it('退化输入按原样落下去（不加兜底）—— NaN 落盲带、半径 0 看谁都是威胁', () => {
     // 这些是**大脑的真实行为**，不是「合理」的行为。如实钉住，免得有人后来
     // 顺手加个 `if (radius <= 0) return 'ignored'` 把台架读数改掉。

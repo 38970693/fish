@@ -36,6 +36,25 @@ export const THREAT_RADIUS_MULT = 1.05;
 export const PREY_RADIUS_MULT = 0.95;
 
 /**
+ * 大脑的「视野参数」—— 允许台架跑**变体**，而不用把规则再抄一份。
+ *
+ * 为什么需要它：§22.2 定下的规矩是「**换个合理的大脑参数重跑，结论还在不在**；
+ * 不在，就别拿它判放行」。而 §22.13 又量出这条规则本身在制造假现象
+ * （49% 的玩家死亡，凶手是大脑**主动扑上去**的猎物）。
+ * 于是必须能换一版「更谨慎的猎物选择」重跑 —— 但换的是**参数**，不是规则副本。
+ */
+export interface BrainTuning {
+  threatMult: number;
+  preyMult: number;
+}
+
+/** 台架一直用的那套（±5% 盲带） */
+export const DEFAULT_BRAIN_TUNING: BrainTuning = {
+  threatMult: THREAT_RADIUS_MULT,
+  preyMult: PREY_RADIUS_MULT,
+};
+
+/**
  * 一个实体相对自身的分类。
  *
  * `selfRadius` 是**观察者**的半径（玩家 / 队员），`otherRadius` 是被看的那个。
@@ -50,17 +69,27 @@ export const PREY_RADIUS_MULT = 0.95;
  */
 export type RadiusVerdict = 'threat' | 'prey' | 'ignored';
 
-export const classifyByRadius = (selfRadius: number, otherRadius: number): RadiusVerdict => {
-  if (otherRadius > selfRadius * THREAT_RADIUS_MULT) return 'threat';
-  if (otherRadius < selfRadius * PREY_RADIUS_MULT) return 'prey';
+export const classifyByRadius = (
+  selfRadius: number,
+  otherRadius: number,
+  tuning: BrainTuning = DEFAULT_BRAIN_TUNING
+): RadiusVerdict => {
+  if (otherRadius > selfRadius * tuning.threatMult) return 'threat';
+  if (otherRadius < selfRadius * tuning.preyMult) return 'prey';
   return 'ignored';
 };
 
-export const isThreatByRadius = (selfRadius: number, otherRadius: number): boolean =>
-  classifyByRadius(selfRadius, otherRadius) === 'threat';
+export const isThreatByRadius = (
+  selfRadius: number,
+  otherRadius: number,
+  tuning?: BrainTuning
+): boolean => classifyByRadius(selfRadius, otherRadius, tuning) === 'threat';
 
-export const isPreyByRadius = (selfRadius: number, otherRadius: number): boolean =>
-  classifyByRadius(selfRadius, otherRadius) === 'prey';
+export const isPreyByRadius = (
+  selfRadius: number,
+  otherRadius: number,
+  tuning?: BrainTuning
+): boolean => classifyByRadius(selfRadius, otherRadius, tuning) === 'prey';
 
 /**
  * 给定自身半径与一个**固定半径**的对手，算出它在哪一段里是 threat / ignored / prey。
@@ -70,13 +99,14 @@ export const isPreyByRadius = (selfRadius: number, otherRadius: number): boolean
  * 错一位整段结论就反了。用函数算，测试也钉在函数上。
  */
 export const radiusVerdictBands = (
-  otherRadius: number
+  otherRadius: number,
+  tuning: BrainTuning = DEFAULT_BRAIN_TUNING
 ): { threatBelow: number; ignoredFrom: number; ignoredTo: number; preyAbove: number } => ({
   /** 自身半径小于这个值 → 对方是威胁 */
-  threatBelow: otherRadius / THREAT_RADIUS_MULT,
+  threatBelow: otherRadius / tuning.threatMult,
   /** 自身半径落在这个闭区间 → 对方既不是威胁也不是猎物（看不见） */
-  ignoredFrom: otherRadius / THREAT_RADIUS_MULT,
-  ignoredTo: otherRadius / PREY_RADIUS_MULT,
+  ignoredFrom: otherRadius / tuning.threatMult,
+  ignoredTo: otherRadius / tuning.preyMult,
   /** 自身半径大于这个值 → 对方变成猎物 */
-  preyAbove: otherRadius / PREY_RADIUS_MULT,
+  preyAbove: otherRadius / tuning.preyMult,
 });
