@@ -72,6 +72,13 @@ const SCREEN_H = 720;
  * （见 think() 里的说明：深海巨怪 radius 120，固定值会把反应余量压到 50px）
  */
 const DANGER_RANGE = 190;
+/**
+ * 「BOSS 已经贴到队员身边了」的判定余量 —— 加在双方半径之上。
+ *
+ * 取 250px：比 `DANGER_RANGE`(190) 宽一点，意思是「已经进了危险区、但还没到接触」。
+ * 从这一刻起计时，到队员真的死掉为止，就是**预警窗口**。
+ */
+const BOSS_WARN_DIST = 250;
 const COMMAND_INTERVAL = 60;
 /** 集火射程：猎物比这更远就别让队伍追过去（见 runSlice 里的说明） */
 const FOCUS_MAX_RANGE = 500;
@@ -215,6 +222,24 @@ interface MemberDeathInfo {
    */
   memberRadius?: number;
   killerRadius?: number;
+  /**
+   * ── 下面这组回答「**是谁把队员带进 BOSS 圈的**」──
+   *
+   * §22.11 记下「强玩家阶段 49% 的队员死于 t4 BOSS」，但那一句说不出**对策**：
+   * 是 BOSS 太密（→ 调刷新）、预警不够（→ 做提示，FQ-09），
+   * 还是**队员跟着玩家一起走进了 BOSS 圈**（→ 队形 / 自保，与 §22.11 同源）？
+   * 三者的改法完全不同，所以要把「死时玩家在哪儿」和「有没有提前量」记下来。
+   */
+  /** 死时**玩家**离凶手多远 —— 玩家也在圈内 = 是跟着玩家进去的 */
+  playerDistToKiller?: number;
+  /** 死时玩家的半径（判「玩家在不在 BOSS 圈内」要用它） */
+  playerRadius?: number;
+  /**
+   * 死之前，BOSS 已经在队员身边**连续**待了多少帧。
+   * `undefined` = 死时附近本来就没有 BOSS（不是 BOSS 杀的，或凶手是别的东西）。
+   * 这是「预警来不来得及」的唯一机械证据：几帧 = 根本来不及，几百帧 = 有时间反应。
+   */
+  bossLeadFrames?: number;
 }
 
 interface SliceResult {
@@ -240,6 +265,25 @@ interface SliceResult {
   squadSizePeak: number;
   /** 每一个队员的消失记录（含凶手与死时位置） */
   memberDeaths: MemberDeathInfo[];
+  /**
+   * **BOSS 密度**：有 BOSS 存活的帧数，以及同时存活的峰值。
+   *
+   * 「队员 49% 死于 BOSS」有两种完全不同的读法，光看比例分不出来：
+   *   · 场上一共就没几个 BOSS，队员却总能撞上 → **队形 / 跟随**把队员送过去的
+   *   · BOSS 本来就有好几条同时在场 → 那是**刷新密度**问题
+   * 所以把分母记下来。
+   */
+  bossFrames: number;
+  maxLiveBosses: number;
+  /**
+   * 每帧存活 BOSS 数的**总和** —— 除以 `framesSurvived` 就是「平均场上有几条 BOSS」。
+   *
+   * 光有峰值会骗人（峰值 68 可能只是一瞬间），光有「有 BOSS 的帧占比」也不够
+   * （1 条和 60 条算同一个数）。两个都要，才能说清「密」到什么程度。
+   */
+  bossEntityFrames: number;
+  /** 整局里 t4 生物**离场**的次数 —— 「只进不出」的直接证据（见 `tier4Removed`） */
+  tier4Removed: number;
   eaten: number;
   evolutions: number;
   possessions: number;
@@ -450,6 +494,24 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
     let squadSizePeak = getSquadMembers(state).length;
     const deaths: DeathInfo[] = [];
     const memberDeaths: MemberDeathInfo[] = [];
+    let bossFrames = 0;
+    let maxLiveBosses = 0;
+    let bossEntityFrames = 0;
+    /**
+     * 整局里「t4 生物从场上消失」的次数。
+     *
+     * 「BOSS 会堆到 68 条」这个读数最容易被质疑的一点是「也许它们在不断被吃掉，
+     * 只是刷得更快」。这个计数器直接回答它：**离场的到底有几条**。
+     */
+    let tier4Removed = 0;
+    let prevT4Ids = new Set<string>();
+    /**
+     * 每个队员「BOSS 从哪一帧开始贴在身边」。
+     *
+     * 用**连续窗口**而不是「第一次靠近」：队员可能路过一条 BOSS 又跑开，
+     * 记「第一次」会把那段无关的时长算进提前量里，把预警窗口读大。
+     */
+    const bossCloseSince = new Map<string, number>();
 
     for (let f = 0; f < SLICE_FRAMES; f += 1) {
       // 进化面板：替玩家选第一个候选（走生产同一条 applyEvolutionChoice，不复制数值）
@@ -479,6 +541,33 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       const p = state.player;
       const members = getSquadMembers(state);
       const hpRatio = p.maxHealth > 0 ? p.health / p.maxHealth : 1;
+
+      // ── BOSS 密度 + 「BOSS 已经贴到队员身边多久了」 ──
+      // 全实体只扫**一次**（不是每个队员各扫一次），顺便把 t4 的存活集合建出来 ——
+      // 「只进不出」这个说法必须靠「整局有几条 t4 真的离场了」来证，不能靠推理。
+      const liveBossList: Entity[] = [];
+      const liveT4Ids = new Set<string>();
+      for (const e of state.entities) {
+        if (e.health <= 0 || e.config.tier !== 4) continue;
+        liveT4Ids.add(e.id);
+        if (e.config.behavior === 'BOSS') liveBossList.push(e);
+      }
+      if (liveBossList.length > 0) bossFrames += 1;
+      if (liveBossList.length > maxLiveBosses) maxLiveBosses = liveBossList.length;
+      bossEntityFrames += liveBossList.length;
+      for (const id of prevT4Ids) if (!liveT4Ids.has(id)) tier4Removed += 1;
+      prevT4Ids = liveT4Ids;
+      for (const m of members) {
+        const near = liveBossList.some(
+          (b) => Math.hypot(b.x - m.x, b.y - m.y) < b.radius + m.radius + BOSS_WARN_DIST
+        );
+        if (near) {
+          if (!bossCloseSince.has(m.id)) bossCloseSince.set(m.id, f);
+        } else {
+          // 连续窗口：跑开了就重新计时，否则会把无关的时长算进提前量
+          bossCloseSince.delete(m.id);
+        }
+      }
 
       // ① 打控制链：有人被麻痹住就是活靶子，转火它（「控制」兑现成收益的唯一方式）
       const controlled = arm.roleAware ? findControlled(state) : undefined;
@@ -573,6 +662,14 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
             killerDamage: killer?.config.damage,
             memberRadius: t.ref.radius,
             killerRadius: killer?.radius,
+            // 「是谁把队员带进 BOSS 圈的」：玩家也在圈内 = 跟着玩家进去的
+            playerDistToKiller: killer
+              ? Math.round(Math.hypot(killer.x - p.x, killer.y - p.y))
+              : undefined,
+            playerRadius: p.radius,
+            bossLeadFrames: bossCloseSince.has(t.id)
+              ? f - (bossCloseSince.get(t.id) as number)
+              : undefined,
           });
         }
       }
@@ -615,6 +712,10 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       recruitedTotal: state.squad.recruitedTotal,
       squadSizePeak,
       memberDeaths,
+      bossFrames,
+      maxLiveBosses,
+      bossEntityFrames,
+      tier4Removed,
       eaten,
       evolutions,
       possessions: state.squad.possessCount,
@@ -1129,6 +1230,83 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     expect(
       memberDeaths.filter((d) => d.killerRadius !== undefined).length,
       '队员损失记录里应当采到凶手半径'
+    ).toBeGreaterThan(0);
+  });
+
+  /**
+   * **强玩家阶段的队员死在 BOSS 手上（49%）—— 是谁把他们带进去的？**
+   *
+   * §22.11 记下了这个比例，但它说不出**对策**：三种成因的改法完全不同 ——
+   *   · BOSS **太密** → 调刷新（`spawn.ts` 的等级上限 / `MAX_ENTITIES`）
+   *   · **预警不够** → 做提示（FQ-09）；但如果提前量本来就只有几帧，提示也救不了
+   *   · **队员跟着玩家一起走进 BOSS 圈** → 队形 / 自保（与 §22.11 同源）
+   *
+   * 所以记三个量：BOSS 密度（分母）、死时**玩家**离凶手多远、死前 BOSS 已贴了多久。
+   * 判据：「玩家也在 BOSS 圈内」= 玩家到凶手的距离 < 凶手半径 + 玩家半径。
+   *
+   * 只报数不断言（硬断言只有「数据真的采到了」）。
+   */
+  it('队员死在 BOSS 手上：是 BOSS 太密、预警不够，还是跟着玩家走进去的', async () => {
+    for (const k of ['C3', 'E']) await ensureArm(k);
+
+    const describe = (k: string): string => {
+      const rs = runsOf(k);
+      const all = rs.flatMap((r) => r.memberDeaths);
+      const byBoss = all.filter((d) => d.killerBehavior === 'BOSS');
+      const withDist = byBoss.filter(
+        (d) =>
+          d.playerDistToKiller !== undefined &&
+          d.playerRadius !== undefined &&
+          d.killerRadius !== undefined
+      );
+      const playerInside = withDist.filter(
+        (d) =>
+          (d.playerDistToKiller as number) <
+          (d.killerRadius as number) + (d.playerRadius as number)
+      ).length;
+      const lead = byBoss
+        .map((d) => d.bossLeadFrames)
+        .filter((n): n is number => n !== undefined)
+        .sort((a, b) => a - b);
+      const medianLead = lead.length ? lead[Math.floor(lead.length / 2)] : 0;
+      const quick = lead.filter((n) => n < 60).length; // 不到 1 秒
+      const dens = rs.map((r) => (r.framesSurvived > 0 ? r.bossFrames / r.framesSurvived : 0));
+      const meanDens = dens.length ? dens.reduce((a, b) => a + b, 0) / dens.length : 0;
+      const maxLive = rs.length ? Math.max(...rs.map((r) => r.maxLiveBosses)) : 0;
+      const totalFrames = rs.reduce((n, r) => n + r.framesSurvived, 0);
+      const meanLive = totalFrames ? rs.reduce((n, r) => n + r.bossEntityFrames, 0) / totalFrames : 0;
+      const t4Removed = rs.map((r) => r.tier4Removed).sort((a, b) => a - b);
+      const medianT4Removed = t4Removed.length ? t4Removed[Math.floor(t4Removed.length / 2)] : 0;
+      const totalT4Removed = t4Removed.reduce((a, b) => a + b, 0);
+
+      // ⚠️ 「玩家在不在 BOSS 接触圈内」是个**过严**的口径：队形本来就摊开
+      //    90~260px，玩家可以**擦着**一条半径 120 的深海巨怪绕过去，
+      //    自己没进接触圈（160px），队形槽位却已经在它嘴里了。
+      //    所以真正判「是不是玩家带进去的」要看**死时还在不在队形里**（≤ DETACHED_DIST）。
+      const bossDists = byBoss.map((d) => d.distToPlayer).sort((a, b) => a - b);
+      const medianBossDist = bossDists.length ? bossDists[Math.floor(bossDists.length / 2)] : 0;
+      const inFormation = byBoss.filter((d) => d.distToPlayer <= DETACHED_DIST).length;
+
+      return (
+        `${k} 组（${rs.length} 局）：\n` +
+        `    BOSS 密度：平均场上 ${meanLive.toFixed(1)} 条 · 有 BOSS 的帧占比 ` +
+        `${(meanDens * 100).toFixed(0)}% · 同时存活峰值 ${maxLive}\n` +
+        `    t4 **离场**：整局中位 ${medianT4Removed} 条 · ${rs.length} 局合计 ${totalT4Removed} 条\n` +
+        `    死于 BOSS：${byBoss.length}/${all.length}` +
+        `${all.length ? `（${Math.round((byBoss.length / all.length) * 100)}%）` : ''}\n` +
+        `    死时**玩家也在 BOSS 接触圈内**（过严口径）：${playerInside}/${withDist.length}\n` +
+        `    死时**还在队形里**（离玩家 ≤ ${DETACHED_DIST}px）：${inFormation}/${byBoss.length}` +
+        ` · 离玩家中位 ${medianBossDist}px\n` +
+        `    死前 BOSS 已贴身：中位 ${medianLead} 帧（${(medianLead / 60).toFixed(1)} 秒）` +
+        ` · 不到 1 秒的 ${quick}/${lead.length}`
+      );
+    };
+
+    console.log(`队员死于 BOSS 的成因分叉\n  ${describe('C3')}\n  ${describe('E')}`);
+    expect(
+      runsOf('C3').flatMap((r) => r.memberDeaths).filter((d) => d.killerBehavior === 'BOSS')
+        .length,
+      'C3 组应当有「死于 BOSS」的记录，否则追踪逻辑没生效'
     ).toBeGreaterThan(0);
   });
 
