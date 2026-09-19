@@ -295,7 +295,32 @@ interface SliceResult {
   tier4Removed: number;
   eaten: number;
   evolutions: number;
-  possessions: number;
+  /**
+   * **亡语夺舍**次数（`tryPossessOnDeath`，玩家死亡时自动接管队里半径最大的成员）。
+   *
+   * ⚠️ 这个字段原来叫 `possessions`，被当成「台架主动附身的次数」在用 —— **是错的**。
+   *    `state.squad.possessCount` 只在 `possessMember(..., { revive: true })` 里自增，
+   *    而 `revive: true` 的**唯一调用方**就是亡语；台架自己用的 `requestPossess`
+   *    走的是 `revive: false`（交换身体），**一次都不会动这个计数器**。
+   *    实测证据：`possess: false` 的 A 组照样有 3/8 局读到非零值。
+   *    两个机制共用一个计数器名，就会得出「附身没起作用」这种**测错对象**的结论。
+   */
+  deathEchoCount: number;
+  /** 台架**主动附身**（`requestPossess`）成功的次数 —— 这才是 `arm.possess` 真正生效的证据 */
+  voluntaryPossessCount: number;
+  /* ── 「附身窗口」漏斗：逐层回答「为什么主动附身几乎不触发」 ── */
+  /** 玩家**活着**且血量低于 `POSSESS_HP_RATIO` 的帧数 */
+  lowHpFrames: number;
+  /** 上一层的帧里，**队里还有人**的帧数（没有 → 是游戏设计问题：队员先死光） */
+  lowHpWithSquadFrames: number;
+  /** 再叠上台架自己的 `f % 30 === 0` 采样门之后的帧数（掉到 0 → 是台架毛病） */
+  gateFrames: number;
+  /** 门开了、且找到了合格目标（半径 ≥ 0.8× 且血更多）的帧数 */
+  candidateFrames: number;
+  /** 门开了、且**单看半径**有合格成员的帧数（把 ④ 的两个条件拆开） */
+  radiusOkFrames: number;
+  /** 门开了、且**单看血量**有合格成员的帧数（把 ④ 的两个条件拆开） */
+  healthOkFrames: number;
   commandsIssued: number;
   deaths: DeathInfo[];
 }
@@ -500,6 +525,16 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
 
     let evolutions = 0;
     let commandsIssued = 0;
+    // 台架**自己**成功附身的次数。`state.squad.possessCount` 只数亡语，数不到这个（见接口注释）
+    let voluntaryPossessCount = 0;
+    /* 附身窗口漏斗（见循环里的注释）：逐层回答「为什么几乎不触发」 */
+    let lowHpFrames = 0;
+    let lowHpWithSquadFrames = 0;
+    let gateFrames = 0;
+    let candidateFrames = 0;
+    /* ④ 层内部再拆：两个条件各自单独数（见循环里的注释） */
+    let radiusOkFrames = 0;
+    let healthOkFrames = 0;
     let framesSurvived = 0;
     let endReason: EndReason = 'SURVIVED';
     let squadSizePeak = getSquadMembers(state).length;
@@ -608,7 +643,41 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
         }
       }
 
+      /**
+       * **「附身窗口」的逐层漏斗** —— 回答「为什么主动附身几乎不触发」。
+       *
+       * 动机：实测 C 组只有 2/8 局触发过主动附身，`B ≡ C` 在 6/8 个种子上是**同一条时间线**。
+       * 于是 `B → C` 的 ×1.00 **不是**「附身无效」，而是「附身基本没发生」。
+       * 但「没发生」有三种完全不同的原因，对策也完全不同，必须逐层分开数：
+       *   ① `lowHpFrames == 0`          → 玩家**从没**在活着的时候掉到 35% 以下（被一击带走）
+       *   ② `lowHpWithSquadFrames == 0` → 掉到 35% 时**队里已经没人了**（游戏设计：队员先死光）
+       *   ③ `gateFrames == 0` 而 ② > 0  → 窗口开着，但被 `f % 30 === 0` 的采样错过（**台架**毛病）
+       *   ④ `gateFrames > 0` 却没成功     → 卡在目标筛选（半径 ≥ 0.8× / 血更多）或 `requestPossess` 拒绝
+       * 这四层数字决定这条发现该记在**游戏**头上还是**台架**头上。
+       */
+      if (hpRatio < POSSESS_HP_RATIO) {
+        lowHpFrames += 1;
+        if (members.length > 0) {
+          lowHpWithSquadFrames += 1;
+          if (f % 30 === 0) gateFrames += 1;
+        }
+      }
+
       if (arm.possess && hpRatio < POSSESS_HP_RATIO && members.length > 0 && f % 30 === 0) {
+        /**
+         * ④ 层内部要拆成两个条件分别数 —— 它们指向两条完全不同的改法：
+         *   · 卡在**半径** → 「玩家长大后，队里没有一条鱼的身体大到值得换」→ 要么放开缩水、要么让队员也长
+         *   · 卡在**血量** → 「队员和你一样残」→ 那是队员自保 / 治疗的问题
+         *
+         * ⚠️⚠️ **必须先数、后附身。** `requestPossess` 是**当场换身体**的，
+         *    它一执行 `p.radius` / `p.health` 立刻就变成**新身体**的值。
+         *    这两个计数器原来写在附身之后，于是量到的是「换完之后的玩家」，
+         *    出现 `candidateFrames(7) > radiusOkFrames(6)` 这种**逻辑上不可能**的数。
+         *    抓到它的是下面那条 `cand <= radiusOk` 不变量断言 —— 不是靠肉眼看数字。
+         */
+        if (members.some((m) => m.radius >= p.radius * 0.8)) radiusOkFrames += 1;
+        if (members.some((m) => m.health > p.health)) healthOkFrames += 1;
+
         // 换身体是**拿体型换命**：只接受「不会缩水太多」的成员，
         // 否则为了活命换成一条小鱼，结果是谁都吃不了，反而更早出局。
         let best: Entity | undefined;
@@ -621,7 +690,15 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
           }
           if (!best || m.health > best.health) best = m;
         }
-        if (best && best.health > p.health) requestPossess(state, best.id);
+        /**
+         * `candidateFrames` = **两个条件同时满足**的帧（真正可执行的窗口）。
+         * ⚠️ 原来这里写的是 `if (best)` —— 那只是「半径过关」，和 `radiusOkFrames`
+         *    是同一个数，等于没拆。必须带上血量条件，它才是 ④ 的交集。
+         */
+        if (best && best.health > p.health) {
+          candidateFrames += 1;
+          if (requestPossess(state, best.id)) voluntaryPossessCount += 1;
+        }
       }
 
       if (arm.stripRoles) {
@@ -729,7 +806,14 @@ const runSlice = (arm: ArmConfig, seed: number): SliceResult =>
       tier4Removed,
       eaten,
       evolutions,
-      possessions: state.squad.possessCount,
+      deathEchoCount: state.squad.possessCount,
+      voluntaryPossessCount,
+      lowHpFrames,
+      lowHpWithSquadFrames,
+      gateFrames,
+      candidateFrames,
+      radiusOkFrames,
+      healthOkFrames,
       commandsIssued,
       deaths,
     };
@@ -779,6 +863,20 @@ const BRAIN_VARIANT_ARMS: Record<string, ArmConfig> = {
   A4: {
     name: '变体大脑 · 只顾自己（更谨慎的猎物选择）',
     commands: false,
+    possess: false,
+    stripRoles: false,
+    roleAware: false,
+    brain: CAUTIOUS_BRAIN,
+  },
+  /**
+   * `B4` 是**为了把「操作」拆开**才存在的：默认大脑那边本来就有 A → B → C 三档
+   * （A 什么都不做 / B 只下令 / C 下令+附身），所以「操作」的收益能定位到**哪一步**。
+   * v4 只跑了 A4 / C4，于是 §22.15 只能报「整体翻负」，说不出是**指令**还是**附身**翻的。
+   * 补上这一档，两版大脑就能逐段对照。
+   */
+  B4: {
+    name: '变体大脑 · 只下令（更谨慎的猎物选择）',
+    commands: true,
     possess: false,
     stripRoles: false,
     roleAware: false,
@@ -902,6 +1000,60 @@ const pairedWinsOn = (
 };
 const meanWeight = (k: string): number => mean(runsOf(k).map((r) => r.weight));
 
+/** 任意指标的均值 */
+const meanOf = (k: string, pick: (r: SliceResult) => number): number =>
+  mean(runsOf(k).map(pick));
+
+/**
+ * **有多少局真的用上了这个能力。**
+ *
+ * ⚠️ 均值分不出两件完全不同的事：「从没触发过」和「触发了但没影响结果」。
+ *    `B → C` 的 ×1.00 就是这两种情况的共同表象 —— 一个是**台架没跑起来**，
+ *    一个是**游戏设计上附身确实无效**，对策完全相反，必须拆开看。
+ */
+const runsUsing = (k: string, pick: (r: SliceResult) => number): number =>
+  runsOf(k).filter((r) => pick(r) > 0).length;
+
+/**
+ * **有多少个种子上，两组的整局结果一模一样。**
+ *
+ * 这是「比值 = ×1.00」的**第三种**可能性的直接证据：不是「无效」，也不是「没发生」，
+ * 而是**两组跑出来根本是同一条时间线**（开关没接线 / 能力从未触发）。
+ * 与 `pairedWins` 配合看：若 `identical == 8`，则 `pairedWins` 必然为 0，
+ * 那个比值就是在拿一组和它自己比。
+ */
+const identicalRuns = (k1: string, k2: string): number => {
+  const a = runsOf(k1);
+  const b = runsOf(k2);
+  let n = 0;
+  for (let i = 0; i < SEEDS.length; i += 1) {
+    if (
+      a[i].framesSurvived === b[i].framesSurvived &&
+      a[i].weight === b[i].weight &&
+      a[i].eaten === b[i].eaten &&
+      a[i].deathEchoCount === b[i].deathEchoCount
+    ) {
+      n += 1;
+    }
+  }
+  return n;
+};
+
+/**
+ * 「这一组里，能力到底有没有被执行」——一行报清均值 + 触发局数。
+ *
+ * ⚠️ **主动附身与亡语必须分开报**，它们同名不同物（见 `SliceResult.deathEchoCount`）：
+ *    主动附身是台架**选择**做的（`arm.possess`），亡语是玩家死亡时游戏**自动**做的，
+ *    每一组都有。混在一起报，就会把「附身没生效」和「附身根本没发生」读成同一件事。
+ */
+const firingLine = (k: string): string =>
+  `下令 ${meanOf(k, (r) => r.commandsIssued).toFixed(1)}/局` +
+  `（${runsUsing(k, (r) => r.commandsIssued)}/${SEEDS.length} 局触发）` +
+  ` · 主动附身 ${meanOf(k, (r) => r.voluntaryPossessCount).toFixed(2)}/局` +
+  `（${runsUsing(k, (r) => r.voluntaryPossessCount)}/${SEEDS.length} 局触发）` +
+  ` · 亡语 ${meanOf(k, (r) => r.deathEchoCount).toFixed(2)}/局` +
+  `（${runsUsing(k, (r) => r.deathEchoCount)}/${SEEDS.length} 局触发）`;
+
 /**
  * **通关率才是「结果」，存活帧数不是。**
  *
@@ -1012,10 +1164,12 @@ describe('G1 放行条件 · 3 分钟切片', () => {
    *    「中位存活比 ≥ 1.15 **且** 同种子配对胜 ≥ 5/8」两条都满足，才算结论仍在。
    *    只中一条、或方向反过来，就说明这条放行结论**依赖大脑的进攻性**，不能单独拿它判放行。
    */
-  it('放行结论鲁棒性：换成「更谨慎」的大脑，操作还能改变结果吗', async () => {
+  it('放行结论鲁棒性：换成「更谨慎」的大脑，操作还能改变结果吗（并拆开指令 / 附身）', async () => {
     await ensureArm('A');
+    await ensureArm('B');
     await ensureArm('C');
     await ensureVariantArm('A4');
+    await ensureVariantArm('B4');
     await ensureVariantArm('C4');
 
     const baseRatio = medianSurvival('C') / medianSurvival('A');
@@ -1026,21 +1180,164 @@ describe('G1 放行条件 · 3 分钟切片', () => {
     const baseWeight = meanWeight('C') / meanWeight('A');
     const v4Weight = meanWeight('C4') / meanWeight('A4');
 
+    /**
+     * 把「操作」拆成两步 —— A→B 是**只加指令**，B→C 是**再加附身**。
+     *
+     * 为什么要拆：§22.15 只跑了 A4 / C4，于是只能报「整体翻负」，
+     * **说不出是「指令」还是「附身」翻的**。而这两者的对策完全相反 ——
+     * 指令问题是队形 / 目标选择，附身问题是「残血换身体是不是一次降级」。
+     */
+    const step = (from: string, to: string): string =>
+      `${medianSurvival(from)} → ${medianSurvival(to)}` +
+      `（×${(medianSurvival(to) / medianSurvival(from)).toFixed(2)}）` +
+      ` 配对胜 ${pairedWins(to, from)}/${SEEDS.length}`;
+
     const holds = v4Ratio >= 1.15 && v4Wins >= 5;
     console.log(
-      `操作收益的鲁棒性（同一对比，只换大脑的猎物门槛 0.95× → 0.75×）：\n` +
-        `  默认大脑：中位存活 A ${medianSurvival('A')} → C ${medianSurvival('C')} 帧（×${baseRatio.toFixed(2)}）` +
-        ` · 配对胜 ${baseWins}/${SEEDS.length} · 体重 A ${Math.round(meanWeight('A'))} → C ${Math.round(meanWeight('C'))}（×${baseWeight.toFixed(2)}）\n` +
-        `  谨慎大脑：中位存活 A4 ${medianSurvival('A4')} → C4 ${medianSurvival('C4')} 帧（×${v4Ratio.toFixed(2)}）` +
-        ` · 配对胜 ${v4Wins}/${SEEDS.length} · 体重 A4 ${Math.round(meanWeight('A4'))} → C4 ${Math.round(meanWeight('C4'))}（×${v4Weight.toFixed(2)}）\n` +
-        `  判定标准（预先定死）：存活比 ≥ 1.15 且配对胜 ≥ 5/8\n` +
+      `操作收益的鲁棒性（只换大脑的猎物门槛 0.95× → 0.75×）· 并拆开「指令」与「附身」：\n` +
+        `  默认大脑：只顾自己 → 只下令      ${step('A', 'B')}\n` +
+        `            只下令   → 下令+附身   ${step('B', 'C')}\n` +
+        `            合计（只顾自己 → 完整操作）${step('A', 'C')}` +
+        ` · 体重 ${Math.round(meanWeight('A'))} → ${Math.round(meanWeight('C'))}（×${baseWeight.toFixed(2)}）\n` +
+        `  谨慎大脑：A4 → B4               ${step('A4', 'B4')}\n` +
+        `            B4 → C4               ${step('B4', 'C4')}\n` +
+        `            合计（A4 → C4）        ${step('A4', 'C4')}` +
+        ` · 体重 ${Math.round(meanWeight('A4'))} → ${Math.round(meanWeight('C4'))}（×${v4Weight.toFixed(2)}）\n` +
+        // ⚠️ 上面那三个比值只有在**能力真的被执行过**时才有意义。下面这四行是它们的
+        //    「前提是否成立」——没有这四行，×1.00 既可能是「附身无效」，
+        //    也可能是「附身一次都没发生」，两者对策完全相反（见 firingLine 的说明）。
+        `  能力实际触发情况（比值的前提）：\n` +
+        `    B  ${firingLine('B')}\n` +
+        `    C  ${firingLine('C')}\n` +
+        `    B4 ${firingLine('B4')}\n` +
+        `    C4 ${firingLine('C4')}\n` +
+        // ⚠️ 只报「有没有触发」还不够：还要知道**多少个种子上两组跑出的是同一条时间线**。
+        //    同一条时间线 = 那一步在那些种子上等于没做，比值是被剩下的种子拽出来的。
+        `  两组跑出同一条时间线的种子数（B/C、B4/C4）：` +
+        `B≡C ${identicalRuns('B', 'C')}/${SEEDS.length}` +
+        ` · B4≡C4 ${identicalRuns('B4', 'C4')}/${SEEDS.length}\n` +
+        `  判定标准（预先定死）：中位存活比 ≥ 1.15 且 配对胜 ≥ 5/8\n` +
         (holds
           ? '  → 结论仍在：换这版大脑，「操作能改变结果」照样成立'
           : '  → ⚠️ 结论没扛住：这条放行断言依赖大脑的进攻性，不能单独拿它判放行')
     );
 
+    /**
+     * **臂开关的接线自检**（不是放行判定，是台架正确性）。
+     *
+     * 为什么必须有：如果 `commands` / `possess` 这两个开关**接线断了**，
+     * A / B / C 会静默变成同一组，所有比值一律读成 ×1.00，
+     * 而**每一条用例都照样是绿的** —— 这正是本项目踩过的坑
+     * （见 guard 37：`d.playerRadius ?? d.memberRadius` 静默换了受害者，
+     * 分类 92/5/5 → 51/10/41 而总数和测试全都没变）。
+     *
+     * ⚠️ 这一版断言**踩过一次坑才写对**：第一版断言的是 `state.squad.possessCount`，
+     *    结果 `possess: false` 的 A 组照样报 0.375 —— 因为那个计数器只数**亡语**。
+     *    所以这里必须断言 `voluntaryPossessCount`（台架自己的 `requestPossess`），
+     *    它才是 `arm.possess` 的直接证据。断言测错字段 = 白测。
+     */
+    expect(meanOf('A', (r) => r.commandsIssued), 'A 组（不下令）不该发出任何指令').toBe(0);
+    expect(meanOf('B', (r) => r.commandsIssued), 'B 组（下令）必须真的下过令').toBeGreaterThan(0);
+    expect(meanOf('A', (r) => r.voluntaryPossessCount), 'A 组（不附身）不该主动附身').toBe(0);
+    expect(meanOf('B', (r) => r.voluntaryPossessCount), 'B 组（不附身）不该主动附身').toBe(0);
+    expect(meanOf('B4', (r) => r.voluntaryPossessCount), 'B4 组（不附身）不该主动附身').toBe(0);
+    /**
+     * ⚠️ 这一条是**本次真正想知道的东西**，也是最可能红的一条：
+     *    如果 C / C4 的主动附身**一次都没成功**，那么 `B → C` 的 ×1.00 就不是
+     *    「附身无效」，而是「**附身根本没发生**」—— 上面那个比值测的是空气。
+     *    真红了就照实记「这条比值不成立」，**不许把断言改成观测值**。
+     */
+    expect(
+      meanOf('C', (r) => r.voluntaryPossessCount),
+      'C 组必须真的主动附身过 —— 否则 B→C 的比值测的是空气'
+    ).toBeGreaterThan(0);
+    expect(
+      meanOf('C4', (r) => r.voluntaryPossessCount),
+      'C4 组必须真的主动附身过 —— 否则 B4→C4 的比值测的是空气'
+    ).toBeGreaterThan(0);
+    // 亡语是每一组都有的自动机制，不该被当成「台架的操作」来读
+    expect(
+      meanOf('A', (r) => r.deathEchoCount),
+      'A 组（不附身）也应当有亡语 —— 它由游戏自动触发，与 arm.possess 无关'
+    ).toBeGreaterThan(0);
+
     // 只报判定，不写死方向 —— 达不到就照实说「没扛住」，别把断言改成观测值
     expect(typeof holds).toBe('boolean');
+  });
+
+  /**
+   * **主动附身为什么几乎不触发？** —— 把「附身窗口」拆成四层漏斗。
+   *
+   * 背景（上一轮实测）：C 组只有 **2/8** 局触发过主动附身，`B ≡ C` 在 **6/8** 个种子上
+   * 是**同一条时间线**。所以 `B → C` 的 ×1.00 **不是**「附身无效」，而是
+   * 「**附身基本没发生**」—— 那个比值在 6/8 的种子上是在拿一组和它自己比。
+   * 于是 §22.15 留下的那句「最可疑的是附身」**当场被否掉**：一个只在 2/8 局里
+   * 发生过的动作，解释不了一个中位数级别的翻转。
+   *
+   * 但「没发生」本身有三种原因，**责任方完全不同**，必须逐层数清：
+   *   ① `lowHpFrames == 0`          → 玩家从没在活着时掉到 35% 以下 → **游戏**（被一击带走）
+   *   ② `lowHpWithSquadFrames == 0` → 掉到 35% 时队里已经没人 → **游戏**（队员先死光，附身没有载体）
+   *   ③ `gateFrames == 0` 而 ② > 0  → 窗口开着却被 `f % 30 === 0` 采样错过 → **台架**毛病，可修
+   *   ④ `gateFrames > 0` 却没成功     → 卡在目标筛选（半径 ≥ 0.8× / 血更多）→ **设计**（换身体不划算）
+   *
+   * 只跑 C 一组（8 种子，约 90 秒）：要回答的是「窗口为什么不开」，
+   * 而窗口是由游戏状态决定的，换大脑只改变长度、不改变机制。
+   */
+  it('主动附身为什么几乎不触发：窗口没开、队员先死光，还是台架自己错过了', async () => {
+    await ensureArm('C');
+    const rs = runsOf('C');
+    const sum = (pick: (r: SliceResult) => number): number =>
+      rs.reduce((a, r) => a + pick(r), 0);
+
+    const low = sum((r) => r.lowHpFrames);
+    const lowSquad = sum((r) => r.lowHpWithSquadFrames);
+    const gate = sum((r) => r.gateFrames);
+    const cand = sum((r) => r.candidateFrames);
+    const fired = sum((r) => r.voluntaryPossessCount);
+    const echo = sum((r) => r.deathEchoCount);
+    const radiusOk = sum((r) => r.radiusOkFrames);
+    const healthOk = sum((r) => r.healthOkFrames);
+    const totalFrames = sum((r) => r.framesSurvived);
+    /** 有多少局**从来没进过**这一层 —— 比总数更能说明「是普遍现象还是个别局」 */
+    const runsAt = (pick: (r: SliceResult) => number): number =>
+      rs.filter((r) => pick(r) > 0).length;
+    const pct = (n: number): string => `${((n / (totalFrames || 1)) * 100).toFixed(1)}%`;
+
+    console.log(
+      `主动附身的窗口漏斗（C 组 · 8 局 · 合计 ${totalFrames} 帧，每局上限 10800）：\n` +
+        `  ① 活着且血 < 35% 的帧          ${low} 帧（${pct(low)} 的存活时间 · ${runsAt((r) => r.lowHpFrames)}/8 局出现过）\n` +
+        `  ② 其中「队里还有人」的帧        ${lowSquad} 帧（占 ① 的 ${((lowSquad / (low || 1)) * 100).toFixed(0)}% · ${runsAt((r) => r.lowHpWithSquadFrames)}/8 局）\n` +
+        `  ③ 再叠上台架 f%30 采样门        ${gate} 帧（占 ② 的 ${((gate / (lowSquad || 1)) * 100).toFixed(1)}% · ${runsAt((r) => r.gateFrames)}/8 局）\n` +
+        `  ④ 其中找得到合格目标            ${cand} 帧（占 ③ 的 ${((cand / (gate || 1)) * 100).toFixed(0)}% · ${runsAt((r) => r.candidateFrames)}/8 局）\n` +
+        `     ④ 拆开看两个条件（各自单独数，都拿 ③ 当分母）：\n` +
+        `        单看半径（有成员 ≥ 0.8× 玩家体型）${radiusOk} 帧（${((radiusOk / (gate || 1)) * 100).toFixed(0)}% 的 ③）\n` +
+        `        单看血量（有成员血比玩家多）      ${healthOk} 帧（${((healthOk / (gate || 1)) * 100).toFixed(0)}% 的 ③）\n` +
+        `  → 真正附身成功 ${fired} 次 · 亡语（自动）${echo} 次\n` +
+        `  读法：哪一层掉得最狠，责任就在那一层 —— ① / ② 记游戏头上，③ 记台架头上，④ 记设计头上；\n` +
+        `        ④ 内部再按「半径 vs 血量」分：半径是「玩家长大后没身体可换」，血量是「队员也残」`
+    );
+
+    /**
+     * **漏斗必须单调**：这是纯粹的结构不变量（后一层的计数条件严格强于前一层），
+     * 不是对游戏内容的判断，所以可以断言。它同时保证这四个计数器没有接错线 ——
+     * 如果 `gateFrames` 忘了带 `lowHpWithSquadFrames` 的条件，这里会立刻红。
+     */
+    expect(cand, '④ 必须 ⊆ ③').toBeLessThanOrEqual(gate);
+    expect(gate, '③ 必须 ⊆ ②').toBeLessThanOrEqual(lowSquad);
+    expect(lowSquad, '② 必须 ⊆ ①').toBeLessThanOrEqual(low);
+    // 两个单独条件各自都**必须 ≥ 合并后的 candidateFrames**：合并是两个条件的交集，
+    // 交集不会比任何一侧大。接错线（比如把 some 写成 every）会立刻违反这条。
+    expect(cand, '④（交集）不可能大于「单看半径」').toBeLessThanOrEqual(radiusOk);
+    expect(cand, '④（交集）不可能大于「单看血量」').toBeLessThanOrEqual(healthOk);
+    expect(radiusOk, '单看半径 ⊆ ③').toBeLessThanOrEqual(gate);
+    expect(healthOk, '单看血量 ⊆ ③').toBeLessThanOrEqual(gate);
+
+    /**
+     * 附身成功次数不能超过「门开了且有目标」的帧数 —— 每个成功都必须有一次候选帧。
+     * ⚠️ 反过来说：若 `cand > 0` 而 `fired === 0`，说明卡在 `best.health > p.health`
+     *    或 `requestPossess` 的拒绝上，那是**另一条**要单独查的线索，不能混进上面四层。
+     */
+    expect(fired, '成功次数必须 ≤ 候选帧数').toBeLessThanOrEqual(cand);
   });
 
   /**
