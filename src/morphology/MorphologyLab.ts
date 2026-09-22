@@ -6,6 +6,7 @@ import { CreatureDisplay, type LodTextureAsset } from '../rendering/pixi/Creatur
 import { MORPHOLOGY_PARTS } from './registry';
 import { PATTERN_SAMPLE_MATERIALS } from './materials/patternGrammar';
 import { resolveMorphology } from './resolveMorphology';
+import { resolveMorphologyMotion } from './motion/resolveMotionState';
 import type { FishAppearanceV2, MorphologyGene, PartSlot } from './types';
 
 const geneLabels: Record<MorphologyGene, string> = {
@@ -42,6 +43,18 @@ let soloLayerId: string | undefined;
 let showPattern = true;
 let volumeOnly = false;
 let rareVariant = true;
+type MotionPreset = 'IDLE' | 'CRUISE' | 'TURN' | 'BRAKE' | 'BOOST' | 'HIT';
+let motionPreset: MotionPreset = 'IDLE';
+
+const applyMotionPreset = (preset: MotionPreset) => {
+  motionPreset = preset; fish.angle = 0; fish.vy = 0; fish.speedBoostTimer = 0; fish.hitReactionTimer = 0; fish.isIdle = false;
+  if (preset === 'IDLE') { fish.vx = 0; fish.isIdle = true; }
+  else if (preset === 'CRUISE') fish.vx = fish.speed;
+  else if (preset === 'TURN') { fish.vx = 0; fish.vy = fish.speed; }
+  else if (preset === 'BRAKE') fish.vx = fish.speed * 0.15;
+  else if (preset === 'BOOST') { fish.vx = fish.speed * 1.8; fish.speedBoostTimer = 60; }
+  else { fish.vx = 0; fish.isIdle = true; fish.hitReactionTimer = 8; }
+};
 
 const geneInputs = new Map<MorphologyGene, HTMLInputElement>();
 // 成对插槽只编辑左侧定义；解析器会生成并校验右侧镜像。
@@ -88,6 +101,13 @@ const renderControls = () => {
     renderControls(); refreshJson();
   });
   patternRow.append(patternSelect); controls.append(patternRow);
+  const motionRow = document.createElement('div'); motionRow.className = 'selectrow'; motionRow.innerHTML = '<label>动作预设</label>';
+  const motionSelect = document.createElement('select'); motionSelect.id = 'motion-preset-select';
+  for (const preset of ['IDLE', 'CRUISE', 'TURN', 'BRAKE', 'BOOST', 'HIT'] as const) {
+    const option = new Option(preset, preset); option.selected = motionPreset === preset; motionSelect.add(option);
+  }
+  motionSelect.addEventListener('change', () => applyMotionPreset(motionSelect.value as MotionPreset));
+  motionRow.append(motionSelect); controls.append(motionRow);
   controls.insertAdjacentHTML('beforeend', '<h2>形态基因</h2>');
   const resolved = resolveMorphology(fish);
   for (const [key, label] of Object.entries(geneLabels) as [MorphologyGene, string][]) {
@@ -214,6 +234,7 @@ const frame = (time: number) => {
     },
   } : fish;
   const morphology = resolveMorphology(previewFish);
+  const motion = resolveMorphologyMotion(previewFish, morphology);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawCuteFish(ctx, previewFish, frozenTime / 16.667, false, { showPattern, volumeOnly, lod });
   if (showMask || showBounds) {
@@ -256,6 +277,7 @@ const frame = (time: number) => {
     `花纹层: ${morphology.patternLayers.map(layer => `${layer.id}:${layer.kind}[${layer.primitives.length}]/LOD${layer.lodPriority}`).join(', ') || 'NONE'}`,
     `视图: ${volumeOnly ? '仅体积' : showPattern ? '完整外观' : '无花纹'}`,
     `调试: ${soloLayerId ? `仅层 ${soloLayerId}` : '全部层'} / 遮罩 ${showMask ? '开' : '关'} / 边界 ${showBounds ? '开' : '关'} / LOD ${lod}`,
+    `动作: ${motionPreset} / speed ${motion.speedRatio.toFixed(2)} / turn ${motion.turn.toFixed(2)} / fins ${motion.leftFin.toFixed(3)}=${motion.rightFin.toFixed(3)} / brake ${motion.braking ? '开' : '关'} / hit ${motion.hitReaction.toFixed(2)}`,
     `部件: ${Object.entries(morphology.parts).map(([slot, id]) => `${slot}=${id}`).join(', ')}`,
     morphology.warnings.length ? `警告:\n${morphology.warnings.join('\n')}` : '校验: 通过',
   ].join('\n');

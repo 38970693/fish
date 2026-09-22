@@ -97,8 +97,25 @@ try {
   await page.getByRole('button', { name: '显示图元边界' }).click();
   await page.waitForFunction(() => document.querySelector('#diagnostics')?.textContent?.includes('遮罩 开 / 边界 开'));
   await page.screenshot({ path: 'scripts/v3-03-layer-controls.png', fullPage: true });
+  await spotLayer.locator('[data-layer-control="solo"]').click();
+  const motionStates = ['IDLE', 'CRUISE', 'TURN', 'BRAKE', 'BOOST', 'HIT'];
+  for (const state of motionStates) {
+    await page.locator('#motion-preset-select').selectOption(state);
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('#diagnostics')?.textContent ?? '';
+      const match = text.match(/fins (-?\d+\.\d+)=(-?\d+\.\d+)/);
+      return text.includes(`动作: ${expected}`) && match && match[1] === match[2];
+    }, state);
+    await page.screenshot({ path: `scripts/v3-04-motion-${state.toLowerCase()}.png`, fullPage: true });
+  }
+  const brakeText = await page.locator('#diagnostics').innerText();
+  await page.locator('#motion-preset-select').selectOption('BRAKE');
+  await page.waitForFunction(() => document.querySelector('#diagnostics')?.textContent?.includes('brake 开'));
+  await page.locator('#motion-preset-select').selectOption('HIT');
+  await page.waitForFunction(() => document.querySelector('#diagnostics')?.textContent?.includes('hit 1.00'));
+  if (!brakeText.includes('fins ')) throw new Error('Motion diagnostics missing mirrored fin amplitudes');
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('Morphology Lab passed: layer overrides, JSON roundtrip, six samples, dual renderers, paired organs and LOD 0/1/2.');
+  console.log('Morphology Lab passed: pattern layers, JSON roundtrip, mirrored motion presets, dual renderers and LOD 0/1/2.');
 } finally {
   await browser.close();
 }
