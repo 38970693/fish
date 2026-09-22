@@ -1,4 +1,5 @@
 import { MORPHOLOGY_PARTS, MORPHOLOGY_RECIPES } from './registry';
+import type { PartDefinition } from './types';
 
 export const validateMorphologyRegistry = (): string[] => {
   const errors: string[] = [];
@@ -15,12 +16,19 @@ export const validateMorphologyRegistry = (): string[] => {
     }
   }
   for (const [partId, part] of Object.entries(MORPHOLOGY_PARTS)) {
+    const definition = part as PartDefinition;
     if (part.id !== partId) errors.push(`部件键 ${partId} 与 id ${part.id} 不一致`);
     const fallback = MORPHOLOGY_PARTS[part.fallbackId as keyof typeof MORPHOLOGY_PARTS];
     if (!fallback) errors.push(`部件 ${partId} 的回退 ${part.fallbackId} 不存在`);
     else if (fallback.slot !== part.slot) errors.push(`部件 ${partId} 的回退插槽不一致`);
     if (part.boundsScale <= 0 || part.geometry.length <= 0 || part.geometry.spread <= 0) errors.push(`部件 ${partId} 的几何参数无效`);
+    if (part.geometry.rootWidth <= 0 || part.geometry.blendDepth <= 0) errors.push(`部件 ${partId} 的根部融合参数无效`);
+    if (definition.pairId) {
+      const pair = MORPHOLOGY_PARTS[definition.pairId as keyof typeof MORPHOLOGY_PARTS] as PartDefinition | undefined;
+      if (!pair) errors.push(`部件 ${partId} 的镜像部件 ${definition.pairId} 不存在`);
+      else if (pair.pairId !== partId) errors.push(`部件 ${partId} 与 ${pair.id} 的 pairId 不互指`);
+      else if (pair.geometry.kind !== part.geometry.kind || pair.geometry.length !== part.geometry.length || pair.geometry.spread !== part.geometry.spread) errors.push(`部件 ${partId} 与 ${pair.id} 的镜像几何不一致`);
+    }
   }
   return errors;
 };
-

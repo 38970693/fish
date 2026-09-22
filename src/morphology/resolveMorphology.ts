@@ -3,7 +3,8 @@ import { buildMorphologyGeometry } from './geometry/buildGeometry';
 import { MORPHOLOGY_PARTS, MORPHOLOGY_RECIPES, morphologyRecipeForCreature, type MorphologyRecipeId } from './registry';
 import { appearanceSeedFromString, createAppearanceRandom, stableAppearanceJson } from './seed';
 import { buildVolumeProfile, MORPHOLOGY_SURFACE_REVISION } from './surface/volumeProfile';
-import type { FishAppearanceV2, MaterialSelection, MorphologyGene, MorphologyGenes, PartSlot, ResolvedMorphology } from './types';
+import { buildPatternLayers, MORPHOLOGY_PATTERN_REVISION } from './materials/patternGrammar';
+import type { FishAppearanceV2, MaterialSelection, MorphologyGene, MorphologyGenes, PartDefinition, PartSlot, ResolvedMorphology } from './types';
 
 export interface MorphologyEntityInput {
   id: string;
@@ -43,7 +44,7 @@ const rareOverrides = (variant: Cosmetics['rareVariant']): {
 } => variant === 'STARRY_CLOWN'
   ? {
       genes: { dorsalFinHeight: 0.82, pectoralFinSize: 0.78, tailFork: 0.58 },
-      parts: { dorsal: 'dorsal.long', pectoralLeft: 'pectoral.long', pectoralRight: 'pectoral.long.right', tailFin: 'tail.ribbon' },
+      parts: { dorsal: 'dorsal.long', pectoralLeft: 'pectoral.long', pelvicLeft: 'pelvic.ribbon', tailFin: 'tail.ribbon' },
       material: { primaryColor: '#243b80', secondaryColor: '#5be6ef', patternId: 'STARRY_CLOWN', glow: 0.42 },
     }
   : { genes: {}, parts: {}, material: {} };
@@ -66,6 +67,11 @@ const resolvePart = (
   warnings.push(`插槽 ${slot} 没有可用部件`);
   return '';
 };
+
+const pairedSlots = [
+  ['pectoralLeft', 'pectoralRight'],
+  ['pelvicLeft', 'pelvicRight'],
+] as const satisfies readonly (readonly [PartSlot, PartSlot])[];
 
 export const resolveMorphology = (entity: MorphologyEntityInput): ResolvedMorphology => {
   const requestedRecipe = entity.appearanceV2?.recipeId ?? morphologyRecipeForCreature(entity.type, entity.config.shape);
@@ -91,6 +97,21 @@ export const resolveMorphology = (entity: MorphologyEntityInput): ResolvedMorpho
     const resolved = resolvePart(requested, slot, recipe.allowedTags, warnings, mode);
     if (resolved) parts[slot] = resolved;
   }
+  // 配方和存档通常只保存左侧定义；解析结果始终补出严格镜像的右侧。
+  for (const [leftSlot, rightSlot] of pairedSlots) {
+    const leftId = parts[leftSlot];
+    const rightId = parts[rightSlot];
+    if (leftId) {
+      const pairId = (MORPHOLOGY_PARTS[leftId as keyof typeof MORPHOLOGY_PARTS] as PartDefinition | undefined)?.pairId;
+      if (pairId) {
+        if (rightId && rightId !== pairId) warnings.push(`成对插槽 ${rightSlot} 已按 ${leftId} 自动镜像为 ${pairId}`);
+        parts[rightSlot] = resolvePart(pairId, rightSlot, recipe.allowedTags, warnings, mode);
+      }
+    } else if (rightId) {
+      const pairId = (MORPHOLOGY_PARTS[rightId as keyof typeof MORPHOLOGY_PARTS] as PartDefinition | undefined)?.pairId;
+      if (pairId) parts[leftSlot] = resolvePart(pairId, leftSlot, recipe.allowedTags, warnings, mode);
+    }
+  }
   const selectedColor = entity.appearanceV2
     ? recipe.material.primaryColor
     : entity.cosmetics?.skinColor && entity.cosmetics.skinColor !== 'DEFAULT'
@@ -107,14 +128,15 @@ export const resolveMorphology = (entity: MorphologyEntityInput): ResolvedMorpho
   const geometry = buildMorphologyGeometry(recipe.archetype, genes);
   const surfaceLayers = recipe.surfaceLayers;
   const volume = buildVolumeProfile(geometry, genes);
+  const patternLayers = buildPatternLayers(seed, material, geometry, entity.appearanceV2?.patternLayers);
   const signaturePayload = {
     v: 2, recipe: recipe.id, seed, genes, parts, material,
-    surfaceLayers, volume, motion: recipe.motion, extent: recipe.maxVisualExtent,
+    surfaceLayers, patternLayers, volume, motion: recipe.motion, extent: recipe.maxVisualExtent,
   };
   return {
     schemaVersion: 2, recipeId: recipe.id, archetype: recipe.archetype, seed,
     genes: Object.freeze(genes), parts: Object.freeze(parts), material: Object.freeze(material),
-    surfaceLayers, volume,
+    surfaceLayers, patternLayers, volume,
     motion: recipe.motion, geometry, maxVisualExtent: recipe.maxVisualExtent,
     signature: stableAppearanceJson(signaturePayload), warnings: Object.freeze(warnings),
   };
@@ -124,6 +146,7 @@ export const morphologyAppearanceSignature = (entity: MorphologyEntityInput): st
   stableAppearanceJson({
     v: 2,
     surfaceRevision: MORPHOLOGY_SURFACE_REVISION,
+    patternRevision: MORPHOLOGY_PATTERN_REVISION,
     id: entity.id,
     type: entity.type,
     shape: entity.config.shape ?? 'FISH',

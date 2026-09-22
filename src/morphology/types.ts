@@ -27,17 +27,21 @@ export type PartSlot =
   | 'dorsal'
   | 'pectoralLeft'
   | 'pectoralRight'
+  | 'pelvicLeft'
+  | 'pelvicRight'
   | 'tailFin'
   | 'foreheadAccessory';
 
 export type RenderLayer = 'REAR' | 'BODY' | 'DETAIL' | 'FRONT' | 'EFFECT';
 
 export interface PartGeometry {
-  kind: 'DORSAL' | 'PECTORAL' | 'TAIL';
+  kind: 'DORSAL' | 'PECTORAL' | 'PELVIC' | 'TAIL';
   length: number;
   spread: number;
   fork: number;
   softness: number;
+  rootWidth: number;
+  blendDepth: number;
 }
 
 export interface PartDefinition {
@@ -50,6 +54,7 @@ export interface PartDefinition {
   layer: RenderLayer;
   boundsScale: number;
   fallbackId: string;
+  pairId?: string;
 }
 
 export interface MaterialSelection {
@@ -67,6 +72,7 @@ export type SurfaceLayerKind =
   | 'TAIL_PEDUNCLE'
   | 'GILL'
   | 'LATERAL_LINE'
+  | 'NOSTRIL'
   | 'SCALES'
   | 'PATTERN';
 
@@ -108,6 +114,22 @@ export interface MotionProfile {
   idleBreath: number;
 }
 
+/** 每帧由实体运动解析出的渲染中立动作状态。 */
+export interface ResolvedMotionState {
+  speedRatio: number;
+  turn: number;
+  boosting: boolean;
+  braking: boolean;
+  hitReaction: number;
+  tailAmplitude: number;
+  tailFrequency: number;
+  finAmplitude: number;
+  leftFin: number;
+  rightFin: number;
+  breathAmplitude: number;
+  bodyStretch: number;
+}
+
 export interface MorphologyRecipe {
   id: string;
   archetype: MorphologyArchetype;
@@ -130,6 +152,78 @@ export interface PatternMark {
   alpha: number;
 }
 
+export type PatternLayerKind = 'BANDS' | 'SPOTS' | 'LATERAL' | 'EDGE' | 'SCALES';
+export type PatternMask = 'BODY' | 'HEAD' | 'FLANKS' | 'FINS' | 'TAIL';
+export type PatternSymmetry = 'MIRROR' | 'CENTER' | 'ASYMMETRIC';
+
+export interface BandPatternPrimitive {
+  kind: 'BAND';
+  x: number;
+  height: number;
+  bend: number;
+  width: number;
+  color: string;
+  alpha: number;
+  outlineColor?: string;
+  outlineWidth?: number;
+  highlightColor?: string;
+  highlightWidth?: number;
+}
+
+export interface CirclePatternPrimitive {
+  kind: 'CIRCLE';
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  alpha: number;
+  ringWidth?: number;
+  sparkle?: boolean;
+}
+
+export interface PathPatternPrimitive {
+  kind: 'PATH';
+  points: readonly MorphologyPoint[];
+  width: number;
+  color: string;
+  alpha: number;
+  closed?: boolean;
+}
+
+export interface EllipsePatternPrimitive {
+  kind: 'ELLIPSE';
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+  color: string;
+  alpha: number;
+  width: number;
+}
+
+export type PatternPrimitive = BandPatternPrimitive | CirclePatternPrimitive | PathPatternPrimitive | EllipsePatternPrimitive;
+
+/** 解析后的渲染中立花纹层；Canvas/PixiJS 只消费图元，不再保存物种坐标。 */
+export interface ResolvedPatternLayer {
+  id: string;
+  kind: PatternLayerKind;
+  mask: PatternMask;
+  symmetry: PatternSymmetry;
+  lodPriority: 0 | 1 | 2;
+  primitives: readonly PatternPrimitive[];
+}
+
+export interface PatternLayerOverride {
+  id: string;
+  enabled?: boolean;
+  order?: number;
+  density?: number;
+  scale?: number;
+  color?: string;
+  symmetry?: PatternSymmetry;
+  seedOffset?: number;
+}
+
 export interface FishAppearanceV2 {
   schemaVersion: 2;
   recipeId: string;
@@ -137,6 +231,7 @@ export interface FishAppearanceV2 {
   genes?: Partial<MorphologyGenes>;
   parts?: Partial<Record<PartSlot, string>>;
   material?: Partial<MaterialSelection>;
+  patternLayers?: PatternLayerOverride[];
   mode?: 'SPECIES' | 'CREATIVE' | 'DEVELOPER';
 }
 
@@ -157,7 +252,11 @@ export interface MorphologyPoint {
 
 export interface StandardFishGeometry {
   outline: readonly MorphologyPoint[];
-  anchors: Readonly<Record<'eyeLeft' | 'eyeRight' | 'mouth' | 'dorsal' | 'pectoralLeft' | 'pectoralRight' | 'tailRoot', MorphologyAnchor>>;
+  anchors: Readonly<Record<
+    | 'eyeLeft' | 'eyeRight' | 'mouth' | 'dorsal'
+    | 'pectoralLeft' | 'pectoralRight' | 'pelvicLeft' | 'pelvicRight' | 'tailRoot',
+    MorphologyAnchor
+  >>;
   bounds: { minX: number; minY: number; maxX: number; maxY: number; radius: number };
 }
 
@@ -170,6 +269,7 @@ export interface ResolvedMorphology {
   parts: Readonly<Partial<Record<PartSlot, string>>>;
   material: Readonly<MaterialSelection>;
   surfaceLayers: readonly Readonly<SurfaceLayer>[];
+  patternLayers: readonly Readonly<ResolvedPatternLayer>[];
   volume: Readonly<VolumeProfile>;
   motion: Readonly<MotionProfile>;
   geometry: StandardFishGeometry;

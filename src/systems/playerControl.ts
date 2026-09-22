@@ -87,6 +87,7 @@ export const playerControlSystem = (state: GameState, ctx: FrameContext): void =
   }
   if (p.invulnerableTimer > 0) p.invulnerableTimer--;
   if (p.shieldTimer > 0) p.shieldTimer--;
+  if (p.hitReactionTimer && p.hitReactionTimer > 0) p.hitReactionTimer--;
   if (p.ambushTimer > 0) {
     p.ambushTimer--;
     if (p.ambushTimer <= 0) {

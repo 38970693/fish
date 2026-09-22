@@ -638,6 +638,7 @@ const tickTimers = (
   if (entity.vulnerableTimer && entity.vulnerableTimer > 0) entity.vulnerableTimer--;
   if (entity.fearTimer && entity.fearTimer > 0) entity.fearTimer--;
   if (entity.happyTimer && entity.happyTimer > 0) entity.happyTimer--;
+  if (entity.hitReactionTimer && entity.hitReactionTimer > 0) entity.hitReactionTimer--;
   if (entity.speechBubble && entity.speechBubble.timer > 0) {
     entity.speechBubble.timer--;
     if (entity.speechBubble.timer <= 0) entity.speechBubble = null;

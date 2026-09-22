@@ -189,6 +189,8 @@ export interface Entity {
   renderScale: number;
   isInvulnerable?: boolean;
   speedBoostTimer?: number;
+  /** 受击视觉反馈剩余帧；只影响渲染，不参与伤害或无敌判定。 */
+  hitReactionTimer?: number;
 
   happyTimer?: number;
   fearTimer?: number;

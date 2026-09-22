@@ -78,7 +78,8 @@ describe('鱼类形态 V2', () => {
     expect(resolved.archetype).toBe('STANDARD_FISH');
     expect(resolved.parts).toMatchObject({
       dorsal: 'dorsal.long', pectoralLeft: 'pectoral.long',
-      pectoralRight: 'pectoral.long.right', tailFin: 'tail.ribbon',
+      pectoralRight: 'pectoral.long.right', pelvicLeft: 'pelvic.ribbon',
+      pelvicRight: 'pelvic.ribbon.right', tailFin: 'tail.ribbon',
     });
     expect(resolved.material).toMatchObject({ primaryColor: '#243b80', patternId: 'STARRY_CLOWN', glow: 0.42 });
   });
@@ -119,6 +120,8 @@ describe('鱼类形态 V2', () => {
       expect(geometry.anchors.eyeLeft.y).toBeCloseTo(-geometry.anchors.eyeRight.y, 9);
       expect(geometry.anchors.pectoralLeft.x).toBeCloseTo(geometry.anchors.pectoralRight.x, 9);
       expect(geometry.anchors.pectoralLeft.y).toBeCloseTo(-geometry.anchors.pectoralRight.y, 9);
+      expect(geometry.anchors.pelvicLeft.x).toBeCloseTo(geometry.anchors.pelvicRight.x, 9);
+      expect(geometry.anchors.pelvicLeft.y).toBeCloseTo(-geometry.anchors.pelvicRight.y, 9);
       expect(geometry.anchors.dorsal.y).toBe(0);
     }
   });

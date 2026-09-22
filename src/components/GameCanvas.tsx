@@ -9,8 +9,8 @@ import type { CreatureShapeId } from '../data/creatureShapes';
 import { CanvasGameRenderer } from '../rendering/canvas/CanvasGameRenderer';
 import { createViewport } from '../rendering/types';
 import type { WaterCurrentZone } from '../data/habitats';
-import { getCachedPatternMarks, resolveMorphology, type ResolvedMorphology } from '../morphology';
-import { drawMorphologyBodyDetails, drawMorphologyFrontParts, drawMorphologyRearParts, traceMorphologyBody } from '../rendering/canvas/MorphologyCanvasRenderer';
+import { getCachedPatternMarks, resolveMorphology, resolveMorphologyMotion, type ResolvedMorphology } from '../morphology';
+import { drawMorphologyBodyDetails, drawMorphologyFrontParts, drawMorphologyPatterns, drawMorphologyRearParts, traceMorphologyBody } from '../rendering/canvas/MorphologyCanvasRenderer';
 import { drawObstacleCanvas } from '../rendering/canvas/ObstacleCanvasRenderer';
 import { OBSTACLE_ECOLOGY } from '../data/obstacleEcology';
 
@@ -119,6 +119,7 @@ const drawTrail = (ctx: CanvasRenderingContext2D, trailType: TrailType | undefin
 export interface FishRenderOptions {
     showPattern?: boolean;
     volumeOnly?: boolean;
+    lod?: 0 | 1 | 2;
 }
 
 export const drawCuteFish = (
@@ -140,6 +141,7 @@ export const drawCuteFish = (
     const morphology: ResolvedMorphology | undefined = isFish && type !== CreatureType.PLANKTON
         ? resolveMorphology(entity)
         : undefined;
+    const morphologyMotion = morphology ? resolveMorphologyMotion(entity, morphology) : undefined;
 
     // 吉祥物
     if (type === CreatureType.MASCOT) {
@@ -211,8 +213,8 @@ export const drawCuteFish = (
 
     ctx.rotate(entity.angle);
     if (morphology) {
-        const breath = 1 + Math.sin(visualTime * 0.035 + animOffset) * morphology.motion.idleBreath;
-        ctx.scale(1, breath);
+        const breath = 1 + Math.sin(visualTime * 0.035 + animOffset) * morphologyMotion!.breathAmplitude;
+        ctx.scale(morphologyMotion!.bodyStretch, breath);
     }
 
     // 核心绘制逻辑
@@ -231,6 +233,7 @@ export const drawCuteFish = (
     const isStarryClown = type === CreatureType.CLOWN_FISH && cosmetics?.rareVariant === 'STARRY_CLOWN';
     const volumeOnly = renderOptions.volumeOnly === true;
     const showPattern = renderOptions.showPattern !== false && !volumeOnly;
+    const morphologyLod = renderOptions.lod ?? 0;
     const bodyFill = morphology?.material.primaryColor
       ?? (cosmetics?.skinColor === 'DEFAULT' ? entity.config.color : cosmetics?.skinColor || entity.config.color);
 
@@ -272,7 +275,7 @@ export const drawCuteFish = (
     if (!isFish && type !== CreatureType.PLANKTON) {
         drawShapeBack(ctx, shape, radius, visualTime, animOffset, bodyFill);
     } else if (morphology) {
-        drawMorphologyRearParts(ctx, morphology, radius, visualTime, bodyFill);
+        drawMorphologyRearParts(ctx, morphology, radius, visualTime, bodyFill, morphologyMotion);
     }
 
     // 绘制口腔内壁（只有轮廓缺口嘴的鱼形才有「口腔」）
@@ -306,11 +309,20 @@ export const drawCuteFish = (
     }
     ctx.restore();
 
+    if (morphology && showPattern && morphology.patternLayers.length) {
+        ctx.save(); defineBodyPath(); ctx.clip();
+        drawMorphologyPatterns(ctx, morphology, radius, morphologyLod);
+        ctx.restore();
+    }
+
     if (morphology) {
         ctx.save(); defineBodyPath(); ctx.clip();
-        drawMorphologyBodyDetails(ctx, morphology, radius, entity.angle);
+        drawMorphologyBodyDetails(ctx, morphology, radius, entity.angle, morphologyLod);
         ctx.restore();
-        if (!volumeOnly) drawMorphologyFrontParts(ctx, morphology, radius, bodyFill);
+        if (!volumeOnly) {
+            drawMorphologyFrontParts(ctx, morphology, radius, bodyFill, morphologyMotion);
+            if (showPattern) drawMorphologyPatterns(ctx, morphology, radius, morphologyLod, 'EXTERIOR');
+        }
         if (!volumeOnly) {
             const mouth = morphology.geometry.anchors.mouth;
             ctx.save();
@@ -340,7 +352,9 @@ export const drawCuteFish = (
 
     // 绘制花纹/图案
     const resolvedPattern = morphology?.material.patternId ?? cosmetics?.pattern ?? 'NONE';
-    if (showPattern && isStarryClown) {
+    if (showPattern && morphology?.patternLayers.length) {
+        // 共享花纹已在体积层之前绘制，使明暗自然覆盖在身体材质上。
+    } else if (showPattern && isStarryClown) {
         ctx.save(); defineBodyPath(); ctx.clip();
         drawStarryClownPattern(ctx, radius, morphology);
         ctx.restore();

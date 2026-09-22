@@ -53,6 +53,8 @@ export const buildStandardFishGeometry = (genes: MorphologyGenes): StandardFishG
       dorsal: anchor(-halfLength * 0.03, 0, 0, -1, 0.35 + genes.dorsalFinHeight * 0.55),
       pectoralLeft: anchor(halfLength * 0.03, -depth * 0.58, 0, -1, 0.25 + genes.pectoralFinSize * 0.55),
       pectoralRight: anchor(halfLength * 0.03, depth * 0.58, 0, 1, 0.25 + genes.pectoralFinSize * 0.55),
+      pelvicLeft: anchor(-halfLength * 0.28, -depth * 0.46, 0, -1, 0.18 + genes.pectoralFinSize * 0.34),
+      pelvicRight: anchor(-halfLength * 0.28, depth * 0.46, 0, 1, 0.18 + genes.pectoralFinSize * 0.34),
       tailRoot: anchor(-halfLength, 0, -1, 0, tailDepth * 2),
     },
     bounds: { minX, minY, maxX, maxY, radius: Math.max(Math.abs(minX), Math.abs(maxX), Math.abs(minY), Math.abs(maxY)) },

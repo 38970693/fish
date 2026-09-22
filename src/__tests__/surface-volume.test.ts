@@ -17,10 +17,10 @@ describe('V3-01 共享鱼体体积层', () => {
     expect(repeat.surfaceLayers).toEqual(first.surfaceLayers);
     expect(repeat.signature).toBe(first.signature);
     expect(first.surfaceLayers.map(layer => layer.kind)).toEqual([
-      'FLANK_SHADE', 'DORSAL_VOLUME', 'HEAD_DOME', 'TAIL_PEDUNCLE',
+      'FLANK_SHADE', 'DORSAL_VOLUME', 'HEAD_DOME', 'TAIL_PEDUNCLE', 'GILL', 'LATERAL_LINE', 'NOSTRIL',
     ]);
     expect(first.surfaceLayers.map(layer => layer.symmetry)).toEqual([
-      'MIRROR', 'LIGHTING', 'LIGHTING', 'CENTER',
+      'MIRROR', 'LIGHTING', 'LIGHTING', 'CENTER', 'MIRROR', 'MIRROR', 'MIRROR',
     ]);
   });
 
@@ -58,7 +58,7 @@ describe('V3-01 共享鱼体体积层', () => {
     const linear = { addColorStop: vi.fn() };
     const radial = { addColorStop: vi.fn() };
     const ctx = {
-      save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), ellipse: vi.fn(), fill: vi.fn(),
+      save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), ellipse: vi.fn(), arc: vi.fn(), fill: vi.fn(),
       moveTo: vi.fn(), quadraticCurveTo: vi.fn(), stroke: vi.fn(), closePath: vi.fn(),
       createLinearGradient: vi.fn(() => linear), createRadialGradient: vi.fn(() => radial),
       fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt', globalAlpha: 1,

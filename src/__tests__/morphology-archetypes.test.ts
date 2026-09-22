@@ -25,7 +25,7 @@ describe('形态原型与程序材质', () => {
     for (const recipeId of Object.keys(MORPHOLOGY_RECIPES)) {
       const resolved = resolveRecipe(recipeId);
       expect(resolved.geometry.outline.every(point => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true);
-      expect(Object.keys(resolved.parts).length).toBeGreaterThanOrEqual(4);
+      expect(Object.keys(resolved.parts).length).toBeGreaterThanOrEqual(6);
       expect(resolved.geometry.bounds.radius).toBeLessThan(resolved.maxVisualExtent);
     }
   });

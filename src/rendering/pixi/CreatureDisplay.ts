@@ -3,7 +3,7 @@ import { CreatureType, type BodyType, type Entity } from '../../types';
 import type { CreatureShapeId } from '../../data/creatureShapes';
 import { buildAppendageRig, type AppendageRigSpec } from './AppendageRig';
 import { lodJointCount, type CreatureLod } from './CreatureLod';
-import { getCachedPatternMarks, getMorphologyPart, morphologyAppearanceSignature, resolveMorphology, type ResolvedMorphology, type SurfaceLayerKind } from '../../morphology';
+import { getCachedPatternMarks, getMorphologyPart, morphologyAppearanceSignature, resolveMorphology, resolveMorphologyMotion, type ResolvedMorphology, type ResolvedMotionState, type SurfaceLayerKind } from '../../morphology';
 import { buildSpineMeshData, type SpineMeshData } from './MorphologyMesh';
 
 export interface LodTextureAsset {
@@ -51,6 +51,7 @@ export class CreatureDisplay {
   readonly root = new Container();
   private rear = new Graphics();
   private body = new Graphics();
+  private pattern = new Graphics();
   private surface = new Graphics();
   private dorsalLight = new Graphics();
   private headLight = new Graphics();
@@ -73,7 +74,7 @@ export class CreatureDisplay {
     this.root.label = `creature:${id}`;
     this.lodSprite.anchor.set(0.5);
     this.lodSprite.visible = false;
-    this.root.addChild(this.effects, this.rear, this.body, this.surface, this.dorsalLight, this.headLight, this.details, this.frontAnimated);
+    this.root.addChild(this.effects, this.rear, this.body, this.pattern, this.surface, this.dorsalLight, this.headLight, this.details, this.frontAnimated);
   }
 
   rebind(id: string): void {
@@ -96,13 +97,14 @@ export class CreatureDisplay {
       this.rebuild(entity);
     }
     const scale = Number.isFinite(entity.renderScale) ? entity.renderScale : 1;
+    const motion = this.morphology ? resolveMorphologyMotion(entity, this.morphology) : undefined;
     this.root.position.set(entity.x, entity.y);
     this.root.rotation = entity.angle;
     // 两个高光节点围绕各自体积中心反向旋转，因此光源在世界中保持左上方向。
     this.dorsalLight.rotation = -entity.angle;
     this.headLight.rotation = -entity.angle;
-    const breath = this.morphology ? 1 + Math.sin(now * 0.0021 + entity.animOffset) * this.morphology.motion.idleBreath : 1;
-    this.root.scale.set(scale, scale * breath);
+    const breath = motion ? 1 + Math.sin(now * 0.0021 + entity.animOffset) * motion.breathAmplitude : 1;
+    this.root.scale.set(scale * (motion?.bodyStretch ?? 1), scale * breath);
     this.root.alpha = entity.semiGhostTimer && entity.semiGhostTimer > 0
       ? 0.45 + Math.sin(now * 0.018 + entity.animOffset) * 0.12
       : entity.camoActive || entity.inCover ? (isPlayer ? 0.52 : 0.42) : 1;
@@ -110,6 +112,7 @@ export class CreatureDisplay {
     this.syncSurfaceNodes(lod);
     if (lod < 2 && this.lodSprite.parent) this.lodSprite.removeFromParent();
     this.details.visible = lod === 0;
+    this.pattern.visible = lod < 2 && this.presentationMode === 'FULL';
     this.surface.visible = lod < 2;
     this.dorsalLight.visible = lod < 2;
     this.headLight.visible = lod === 0;
@@ -118,8 +121,8 @@ export class CreatureDisplay {
     this.body.visible = lod < 2;
     this.effects.visible = lod < 2;
     this.lodSprite.visible = lod === 2 && !!this.lodSprite.texture;
-    this.updateFlexibleBody(entity, now, lod);
-    if (!skipAnimation && lod < 2) this.drawAnimated(entity, now, isPlayer);
+    this.updateFlexibleBody(entity, now, lod, motion);
+    if (!skipAnimation && lod < 2) this.drawAnimated(entity, now, isPlayer, motion);
   }
 
   useLodTexture(asset: LodTextureAsset): void {
@@ -129,6 +132,7 @@ export class CreatureDisplay {
     this.lodSprite.visible = this.lod === 2;
     this.rear.visible = false;
     this.body.visible = false;
+    this.pattern.visible = false;
     this.surface.visible = false;
     this.dorsalLight.visible = false;
     this.headLight.visible = false;
@@ -147,7 +151,7 @@ export class CreatureDisplay {
       return graphic;
     };
     target.addChild(
-      clone(this.rear), clone(this.body), clone(this.surface), clone(this.dorsalLight),
+      clone(this.rear), clone(this.body), clone(this.pattern), clone(this.surface), clone(this.dorsalLight),
       clone(this.headLight), clone(this.details), clone(this.frontAnimated)
     );
     const bounds = target.getLocalBounds();
@@ -167,7 +171,7 @@ export class CreatureDisplay {
   }
 
   destroy(): void {
-    for (const node of [this.surface, this.dorsalLight, this.headLight]) {
+    for (const node of [this.pattern, this.surface, this.dorsalLight, this.headLight]) {
       node.removeFromParent();
       node.destroy();
     }
@@ -177,8 +181,15 @@ export class CreatureDisplay {
   private syncSurfaceNodes(lod: CreatureLod): void {
     const nodes = [this.surface, this.dorsalLight, this.headLight];
     if (lod === 2) {
+      this.pattern.removeFromParent();
       for (const node of nodes) node.removeFromParent();
       return;
+    }
+    if (!this.pattern.parent) {
+      const patternIndex = this.flexMesh?.parent
+        ? this.root.getChildIndex(this.flexMesh) + 1
+        : this.root.getChildIndex(this.body) + 1;
+      this.root.addChildAt(this.pattern, patternIndex);
     }
     for (const node of nodes) {
       if (node.parent) continue;
@@ -194,6 +205,7 @@ export class CreatureDisplay {
     const cosmetics = entity.cosmetics;
     const scale = bodyScale[cosmetics?.bodyType ?? 'DEFAULT'];
     this.body.clear();
+    this.pattern.clear();
     this.surface.clear();
     this.dorsalLight.clear();
     this.headLight.clear();
@@ -203,6 +215,7 @@ export class CreatureDisplay {
     this.flexMeshLod = -1;
     this.flexMeshData = undefined;
     this.body.scale.set(this.morphology ? 1 : scale.x, this.morphology ? 1 : scale.y);
+    this.pattern.scale.set(this.morphology ? 1 : scale.x, this.morphology ? 1 : scale.y);
     this.details.scale.set(this.morphology ? 1 : scale.x, this.morphology ? 1 : scale.y);
 
     if (entity.type === CreatureType.PLANKTON) {
@@ -220,23 +233,52 @@ export class CreatureDisplay {
 
     const outline = this.morphology!.geometry.outline.flatMap(point => [point.x * r, point.y * r]);
     this.body.poly(outline, true).fill({ color: this.color }).stroke({ color: '#0f172a', width: Math.max(1, r * 0.06), alpha: 0.45 });
-    if (this.presentationMode !== 'VOLUME_ONLY') for (const side of [-1, 1] as const) {
-      const pectoral = side < 0 ? this.morphology!.geometry.anchors.pectoralLeft : this.morphology!.geometry.anchors.pectoralRight;
-      const partId = side < 0 ? this.morphology!.parts.pectoralLeft : this.morphology!.parts.pectoralRight;
-      const fallback = side < 0 ? 'pectoral.classic' : 'pectoral.classic.right';
-      const pectoralPart = getMorphologyPart(partId, fallback).geometry;
-      const finLength = pectoral.scale * pectoralPart.length;
-      this.details.moveTo(pectoral.x * r, pectoral.y * r)
-        .quadraticCurveTo((pectoral.x - pectoralPart.spread * 0.43) * r, (pectoral.y + side * finLength) * r, (pectoral.x + pectoralPart.spread * 0.52) * r, (pectoral.y + side * 0.08) * r)
-        .closePath().fill({ color: this.color, alpha: 0.78 })
-        .stroke({ color: this.morphology!.material.secondaryColor, width: Math.max(0.8, r * 0.025), alpha: 0.34 });
-      this.details.ellipse(pectoral.x * r, pectoral.y * r, r * pectoral.scale * 0.44, r * pectoral.scale * 0.2)
-        .fill({ color: this.morphology!.material.secondaryColor, alpha: 0.16 });
-      for (const offset of [-0.15, 0.04, 0.2]) {
-        this.details.moveTo(pectoral.x * r, pectoral.y * r)
-          .quadraticCurveTo((pectoral.x - pectoralPart.spread * (0.3 + offset)) * r, (pectoral.y + side * finLength * (0.8 + offset * 0.2)) * r, (pectoral.x + pectoralPart.spread * 0.4) * r, (pectoral.y + side * 0.07) * r)
-          .stroke({ color: this.morphology!.material.secondaryColor, width: Math.max(0.7, r * 0.018), alpha: 0.25 });
+    if (this.presentationMode !== 'VOLUME_ONLY') for (const family of ['pectoral', 'pelvic'] as const) {
+      const fins = ([-1, 1] as const).map(side => {
+        const left = side < 0;
+        const fin = family === 'pectoral'
+          ? left ? this.morphology!.geometry.anchors.pectoralLeft : this.morphology!.geometry.anchors.pectoralRight
+          : left ? this.morphology!.geometry.anchors.pelvicLeft : this.morphology!.geometry.anchors.pelvicRight;
+        const partId = family === 'pectoral'
+          ? left ? this.morphology!.parts.pectoralLeft : this.morphology!.parts.pectoralRight
+          : left ? this.morphology!.parts.pelvicLeft : this.morphology!.parts.pelvicRight;
+        const fallback = family === 'pectoral'
+          ? left ? 'pectoral.classic' : 'pectoral.classic.right'
+          : left ? 'pelvic.round' : 'pelvic.round.right';
+        const part = getMorphologyPart(partId, fallback).geometry;
+        const finLength = fin.scale * part.length;
+        return { fin, finLength, part, side };
+      });
+
+      // Build each mirrored family as a single Graphics path so a fish adds only
+      // three draw submissions (silhouette, roots and rays), independent of side count.
+      for (const { fin, finLength, part, side } of fins) {
+        this.details.moveTo(fin.x * r, fin.y * r)
+          .quadraticCurveTo(
+            (fin.x - part.spread * (0.36 + part.softness * 0.18)) * r,
+            (fin.y + side * finLength) * r,
+            (fin.x + part.spread * (0.36 + part.fork * 0.28)) * r,
+            (fin.y + side * 0.07) * r
+          )
+          .closePath();
       }
+      this.details.fill({ color: this.color, alpha: 0.78 })
+        .stroke({ color: this.morphology!.material.secondaryColor, width: Math.max(0.8, r * 0.025), alpha: 0.34 });
+
+      for (const { fin, part } of fins) {
+        const rootRadius = r * fin.scale * part.rootWidth;
+        this.details.ellipse(fin.x * r, fin.y * r, rootRadius, rootRadius * (0.42 + part.blendDepth));
+      }
+      this.details.fill({
+        color: this.morphology!.material.secondaryColor,
+        alpha: 0.12 + fins[0].part.blendDepth * 0.18
+      });
+
+      for (const { fin, finLength, part, side } of fins) {
+        this.details.moveTo(fin.x * r, fin.y * r)
+          .quadraticCurveTo((fin.x - part.spread * 0.28) * r, (fin.y + side * finLength * 0.78) * r, (fin.x + part.spread * 0.34) * r, (fin.y + side * 0.06) * r);
+      }
+      this.details.stroke({ color: this.morphology!.material.secondaryColor, width: Math.max(0.7, r * 0.018), alpha: 0.25 });
     }
     this.drawMorphologySurface();
     if (this.presentationMode === 'FULL') this.drawPattern(entity);
@@ -259,6 +301,9 @@ export class CreatureDisplay {
     const ridge = layer('DORSAL_VOLUME');
     const dome = layer('HEAD_DOME');
     const peduncle = layer('TAIL_PEDUNCLE');
+    const gill = layer('GILL');
+    const lateral = layer('LATERAL_LINE');
+    const nostril = layer('NOSTRIL');
 
     // PixiJS 用少量同心 Graphics 近似渐变；节点仅在外观签名变化时重建。
     if (flank) {
@@ -302,12 +347,23 @@ export class CreatureDisplay {
 
     if (this.presentationMode === 'VOLUME_ONLY') return;
 
-    this.details.moveTo((headX - 0.2) * r, -maxY * r * 0.48)
-      .quadraticCurveTo((headX - 0.42) * r, 0, (headX - 0.2) * r, maxY * r * 0.48)
-      .stroke({ color: '#0f172a', width: Math.max(1, r * 0.035), alpha: 0.3, cap: 'round' });
-    this.details.moveTo((headX - 0.34) * r, r * 0.08)
-      .quadraticCurveTo(-r * 0.18, r * 0.16, minX * r * 0.7, r * 0.05)
-      .stroke({ color: this.morphology.material.secondaryColor, width: Math.max(0.8, r * 0.025), alpha: 0.2, cap: 'round' });
+    if (gill) {
+      for (const side of [-1, 1] as const) this.details.moveTo((headX - 0.24) * r, side * maxY * r * 0.12)
+        .quadraticCurveTo((headX - 0.42) * r, side * maxY * r * 0.34, (headX - 0.2) * r, side * maxY * r * 0.58);
+      this.details.stroke({ color: gill.color, width: Math.max(1, r * (gill.width ?? 0.035)), alpha: gill.alpha, cap: 'round' });
+    }
+    if (lateral) {
+      for (const side of [-1, 1] as const) this.details.moveTo((headX - 0.38) * r, side * maxY * r * 0.2)
+        .quadraticCurveTo(-r * 0.18, side * maxY * r * 0.27, minX * r * 0.7, side * maxY * r * 0.14);
+      this.details.stroke({ color: lateral.color, width: Math.max(0.8, r * (lateral.width ?? 0.025)), alpha: lateral.alpha, cap: 'round' });
+    }
+    if (nostril) {
+      const mouth = this.morphology.geometry.anchors.mouth;
+      for (const side of [-1, 1] as const) {
+        this.details.circle((mouth.x - 0.2) * r, side * maxY * r * 0.13, Math.max(0.8, r * (nostril.width ?? 0.024)));
+      }
+      this.details.fill({ color: nostril.color, alpha: nostril.alpha });
+    }
     const ridgeLength = r * (0.48 + dorsalPart.spread * 0.34);
     const ridgeHalfWidth = r * (0.025 + dorsal.scale * dorsalPart.length * 0.055);
     const ridgeX = dorsal.x * r;
@@ -318,19 +374,15 @@ export class CreatureDisplay {
       .stroke({ color: this.morphology.material.secondaryColor, width: Math.max(0.8, r * 0.024), alpha: 0.32 });
   }
 
-  private updateFlexibleBody(entity: Entity, now: number, lod: CreatureLod): void {
+  private updateFlexibleBody(entity: Entity, now: number, lod: CreatureLod, motion?: ResolvedMotionState): void {
     if (!this.morphology || lod === 2) {
       if (this.flexMesh) this.flexMesh.visible = false;
       this.body.visible = lod < 2;
       return;
     }
-    const speed = Math.hypot(entity.vx, entity.vy);
-    const velocityAngle = speed > 0.001 ? Math.atan2(entity.vy, entity.vx) : entity.angle;
-    let turn = velocityAngle - entity.angle;
-    while (turn > Math.PI) turn -= Math.PI * 2;
-    while (turn < -Math.PI) turn += Math.PI * 2;
-    const phase = now * 0.001 * this.morphology.motion.tailFrequency + entity.animOffset;
-    const meshData = buildSpineMeshData(this.morphology, this.radius, phase, speed / Math.max(0.01, entity.speed), turn / Math.PI, lod, this.flexMeshData);
+    const resolved = motion ?? resolveMorphologyMotion(entity, this.morphology);
+    const phase = now * 0.001 * resolved.tailFrequency + entity.animOffset;
+    const meshData = buildSpineMeshData(this.morphology, this.radius, phase, resolved.speedRatio, resolved.turn, lod, this.flexMeshData);
     if (!this.flexMesh || this.flexMeshLod !== lod || this.flexMesh.vertices.length !== meshData.vertices.length) {
       this.flexMesh?.destroy();
       this.flexMesh = new MeshSimple({ texture: Texture.WHITE, vertices: meshData.vertices, uvs: meshData.uvs, indices: meshData.indices });
@@ -352,42 +404,8 @@ export class CreatureDisplay {
   private drawPattern(entity: Entity): void {
     const pattern = this.morphology?.material.patternId ?? entity.cosmetics?.pattern ?? 'NONE';
     const r = this.radius;
-    if (this.presentationMode !== 'VOLUME_ONLY' && entity.type === CreatureType.CLOWN_FISH && entity.cosmetics?.rareVariant === 'STARRY_CLOWN') {
-      // 三条珠光带保留小丑鱼辨识度，端点限制在椭圆身体内。
-      for (const [x, height] of [[-0.65, 0.46], [-0.1, 0.65], [0.48, 0.52]]) {
-        this.details.moveTo(r * (x - 0.08), -r * height)
-          .quadraticCurveTo(r * (x + 0.14), 0, r * (x - 0.04), r * height)
-          .stroke({ color: '#040c23', width: r * 0.21, alpha: 0.38 });
-        this.details.moveTo(r * (x - 0.08), -r * height)
-          .quadraticCurveTo(r * (x + 0.14), 0, r * (x - 0.04), r * height)
-          .stroke({ color: '#5be6ef', width: r * 0.14, alpha: 0.65 });
-        this.details.moveTo(r * (x - 0.08), -r * height)
-          .quadraticCurveTo(r * (x + 0.14), 0, r * (x - 0.04), r * height)
-          .stroke({ color: '#edfaff', width: r * 0.065, alpha: 0.95 });
-      }
-      for (const [index, mark] of getCachedPatternMarks(this.morphology!, 23).entries()) {
-        this.details.circle(mark.x * r, mark.y * r, mark.radius * r)
-          .fill({ color: mark.color, alpha: mark.alpha });
-        if (index % 6 === 0) {
-          const x = mark.x * r; const y = mark.y * r; const sparkle = r * 0.055;
-          this.details.moveTo(x - sparkle, y).lineTo(x + sparkle, y)
-            .moveTo(x, y - sparkle).lineTo(x, y + sparkle)
-            .stroke({ color: '#f8fdff', width: Math.max(0.8, r * 0.012), alpha: 0.72, cap: 'round' });
-        }
-      }
-      this.details.ellipse(-r * 0.14, -r * 0.36, r * 0.5, r * 0.12)
-        .fill({ color: '#8abaff', alpha: 0.15 });
-      return;
-    }
-    if (pattern === 'CLOWN_BANDS') {
-      for (const [x, height, bend] of [[-0.48, 0.56, -0.06], [0.18, 0.72, 0.1], [0.62, 0.5, -0.03]] as const) {
-        this.details.moveTo(r * x, -r * height).quadraticCurveTo(r * (x + bend), 0, r * (x - bend * 0.45), r * height)
-          .stroke({ color: '#0f172a', width: r * 0.22, alpha: 0.42, cap: 'round' });
-        this.details.moveTo(r * x, -r * height).quadraticCurveTo(r * (x + bend), 0, r * (x - bend * 0.45), r * height)
-          .stroke({ color: this.morphology?.material.secondaryColor ?? '#fff7ed', width: r * 0.135, alpha: 0.96, cap: 'round' });
-        this.details.moveTo(r * x, -r * height).quadraticCurveTo(r * (x + bend), 0, r * (x - bend * 0.45), r * height)
-          .stroke({ color: '#ffffff', width: r * 0.032, alpha: 0.48, cap: 'round' });
-      }
+    if (this.morphology?.patternLayers.length) {
+      this.drawResolvedPatternLayers();
       return;
     }
     if (pattern === 'NONE') return;
@@ -417,6 +435,46 @@ export class CreatureDisplay {
       const x = i * r * 0.26;
       this.details.moveTo(x - r * 0.08, -r * 0.58).lineTo(x + r * 0.1, r * 0.58)
         .stroke({ color: stripeColor, width: Math.max(2, r * 0.09), alpha: 0.48 });
+    }
+  }
+
+  private drawResolvedPatternLayers(): void {
+    if (!this.morphology) return;
+    const r = this.radius;
+    for (const layer of this.morphology.patternLayers) {
+      for (const primitive of layer.primitives) {
+        if (primitive.kind === 'BAND') {
+          const trace = () => this.pattern.moveTo((primitive.x - 0.08) * r, -primitive.height * r)
+            .quadraticCurveTo((primitive.x + primitive.bend) * r, 0, (primitive.x - primitive.bend * 0.45) * r, primitive.height * r);
+          if (primitive.outlineColor && primitive.outlineWidth) trace().stroke({
+            color: primitive.outlineColor, width: primitive.outlineWidth * r, alpha: 0.42, cap: 'round',
+          });
+          trace().stroke({ color: primitive.color, width: primitive.width * r, alpha: primitive.alpha, cap: 'round' });
+          if (primitive.highlightColor && primitive.highlightWidth) trace().stroke({
+            color: primitive.highlightColor, width: primitive.highlightWidth * r, alpha: 0.48, cap: 'round',
+          });
+        } else if (primitive.kind === 'CIRCLE') {
+          this.pattern.circle(primitive.x * r, primitive.y * r, primitive.radius * r)
+            [primitive.ringWidth ? 'stroke' : 'fill']({
+              color: primitive.color, alpha: primitive.alpha,
+              ...(primitive.ringWidth ? { width: primitive.ringWidth * r } : {}),
+            });
+          if (primitive.sparkle) {
+            const x = primitive.x * r; const y = primitive.y * r; const arm = r * 0.055;
+            this.pattern.moveTo(x - arm, y).lineTo(x + arm, y).moveTo(x, y - arm).lineTo(x, y + arm)
+              .stroke({ color: '#f8fdff', width: Math.max(0.8, r * 0.012), alpha: 0.72, cap: 'round' });
+          }
+        } else if (primitive.kind === 'PATH') {
+          if (primitive.points.length < 2) continue;
+          this.pattern.moveTo(primitive.points[0].x * r, primitive.points[0].y * r);
+          for (const point of primitive.points.slice(1)) this.pattern.lineTo(point.x * r, point.y * r);
+          if (primitive.closed) this.pattern.closePath();
+          this.pattern.stroke({ color: primitive.color, width: primitive.width * r, alpha: primitive.alpha, cap: 'round' });
+        } else {
+          this.pattern.ellipse(primitive.x * r, primitive.y * r, primitive.radiusX * r, primitive.radiusY * r)
+            .stroke({ color: primitive.color, width: primitive.width * r, alpha: primitive.alpha });
+        }
+      }
     }
   }
 
@@ -598,10 +656,43 @@ export class CreatureDisplay {
     }
   }
 
-  private drawAnimated(entity: Entity, now: number, isPlayer: boolean): void {
+  private drawMotionFins(motion?: ResolvedMotionState): void {
+    if (!this.morphology) return;
     const r = this.radius;
+    for (const family of ['pectoral', 'pelvic'] as const) {
+      for (const side of [-1, 1] as const) {
+        const left = side < 0;
+        const fin = family === 'pectoral'
+          ? left ? this.morphology.geometry.anchors.pectoralLeft : this.morphology.geometry.anchors.pectoralRight
+          : left ? this.morphology.geometry.anchors.pelvicLeft : this.morphology.geometry.anchors.pelvicRight;
+        const partId = family === 'pectoral'
+          ? left ? this.morphology.parts.pectoralLeft : this.morphology.parts.pectoralRight
+          : left ? this.morphology.parts.pelvicLeft : this.morphology.parts.pelvicRight;
+        const fallback = family === 'pectoral'
+          ? left ? 'pectoral.classic' : 'pectoral.classic.right'
+          : left ? 'pelvic.round' : 'pelvic.round.right';
+        const part = getMorphologyPart(partId, fallback).geometry;
+        const pose = left ? motion?.leftFin ?? 0 : motion?.rightFin ?? 0;
+        const length = fin.scale * part.length * (1 + pose * 0.34);
+        this.frontAnimated.moveTo(fin.x * r, fin.y * r)
+          .quadraticCurveTo(
+            (fin.x - part.spread * (0.36 + part.softness * 0.18)) * r,
+            (fin.y + side * length) * r,
+            (fin.x + part.spread * (0.36 + part.fork * 0.28)) * r,
+            (fin.y + side * 0.07) * r
+          ).closePath();
+      }
+    }
+    this.frontAnimated.fill({ color: this.color, alpha: 0.82 })
+      .stroke({ color: this.morphology.material.secondaryColor, width: Math.max(0.8, r * 0.025), alpha: 0.38 });
+  }
+
+  private drawAnimated(entity: Entity, now: number, isPlayer: boolean, motion?: ResolvedMotionState): void {
+    const r = this.radius;
+    const resolved = motion ?? (this.morphology ? resolveMorphologyMotion(entity, this.morphology) : undefined);
     const phase = now * 0.008 + entity.animOffset;
-    const wag = Math.sin(phase * 2.2) * r * 0.18;
+    const tailPhase = now * 0.001 * (resolved?.tailFrequency ?? 2.2) + entity.animOffset;
+    const wag = Math.sin(tailPhase) * r * (resolved?.tailAmplitude ?? 0.18);
     this.rear.clear();
     this.effects.clear();
     if (entity.type === CreatureType.CLOWN_FISH && entity.cosmetics?.rareVariant === 'STARRY_CLOWN') {
@@ -617,6 +708,7 @@ export class CreatureDisplay {
     }
     this.frontAnimated.clear();
     if (this.standardFish && entity.type !== CreatureType.PLANKTON) {
+      if (this.morphology && this.presentationMode !== 'VOLUME_ONLY') this.drawMotionFins(resolved);
       const tail = this.morphology?.parts.tailFin ?? entity.cosmetics?.tailType ?? 'DEFAULT';
       const tailGeometry = this.morphology ? getMorphologyPart(this.morphology.parts.tailFin, 'tail.classic').geometry : undefined;
       const tailLength = tailGeometry?.length ?? (tail === 'RIBBON' ? 1.25 : tail === 'FORKED' || tail === 'TRIDENT' ? 0.9 : 0.72);

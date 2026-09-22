@@ -7,6 +7,14 @@ const percentile = (values, p) => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
 };
+const longFrameStats = values => {
+  let count = 0; let streak = 0; let maxStreak = 0;
+  for (const value of values) {
+    if (value > 25) { count += 1; streak += 1; maxStreak = Math.max(maxStreak, streak); }
+    else streak = 0;
+  }
+  return { thresholdMs: 25, count, ratio: values.length ? count / values.length : 0, maxConsecutive: maxStreak };
+};
 
 const browser = await chromium.launch({ channel: 'chromium', headless: true });
 const errors = [];
@@ -72,6 +80,7 @@ for (const [name, contest] of [['natural-calm', false], ['three-team-contest', t
     scene,
     durationMs: DURATION_MS,
     frameMs: { p50: percentile(sample.frameMs, 0.5), p95: percentile(sample.frameMs, 0.95), p99: percentile(sample.frameMs, 0.99), max: Math.max(...sample.frameMs) },
+    longFrames: longFrameStats(sample.frameMs),
     renderMs: { p50: percentile(sample.renderMs, 0.5), p95: percentile(sample.renderMs, 0.95), p99: percentile(sample.renderMs, 0.99), max: Math.max(...sample.renderMs) },
     resources: {
       displayObjects: { min: Math.min(...stable.map(x => x.displayObjects)), max: Math.max(...stable.map(x => x.displayObjects)) },
