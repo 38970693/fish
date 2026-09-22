@@ -55,7 +55,8 @@ export const isPlayerFaction = (e: Entity | PlayerState): boolean =>
  *
  * - 自己不打自己（`id` 相同）
  * - 同阵营不打（玩家 / 战队 / 将来的敌对鱼群内部）
- * - WILD 参与时一律放行：野鱼互吃、野鱼打玩家、玩家打野鱼都成立
+ * - WILD 参与时通常放行：野鱼互吃、野鱼打玩家、玩家打野鱼都成立
+ * - `rival-` 事件敌队与背景 WILD 互不消耗，避免主要对手在进场途中被清掉
  *
  * 吉祥物不在这里过滤 —— 「吉祥物不参战」是内容规则不是阵营规则，
  * 由 combat / skills 各自的 MASCOT 门闸负责（保持现有调用点语义不变）。
@@ -67,6 +68,11 @@ export const canHarm = (attacker: Entity | PlayerState, target: Entity | PlayerS
   if (attacker === target) return false;
   const fa = factionOf(attacker);
   const fb = factionOf(target);
+  // 投食事件的稳定敌队是主要玩法参与者，不能在赶路时被随机生态提前清场。
+  // 它们仍可与玩家阵营及其他敌队交战；普通 WILD 彼此捕食也保持不变。
+  const eventRivalVsWild = (fa === FACTION.WILD && fb.startsWith('rival-'))
+    || (fb === FACTION.WILD && fa.startsWith('rival-'));
+  if (eventRivalVsWild) return false;
   if (fa === FACTION.WILD || fb === FACTION.WILD) return true;
   return fa !== fb;
 };

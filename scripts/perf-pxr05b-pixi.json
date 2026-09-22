@@ -1,0 +1,34 @@
+{
+  "measuredAt": "2026-09-20T15:24:51.730Z",
+  "viewport": { "width": 1280, "height": 800 },
+  "startupRetries": 1,
+  "errors": [],
+  "scenarios": [
+    {
+      "name": "natural-calm",
+      "scene": { "entities": 300, "contest": false, "expectedLod": { "lod0": 5, "lod1": 15, "lod2": 280 } },
+      "durationMs": 60000,
+      "frameMs": { "p50": 17.899999999997817, "p95": 18.60000000000582, "p99": 20.099999999998545, "max": 38.599999999998545 },
+      "renderMs": { "p50": 5.299999997019768, "p95": 6.600000001490116, "p99": 8, "max": 38.899999998509884 },
+      "resources": {
+        "displayObjects": { "min": 2082, "max": 2086 },
+        "textures": { "min": 30, "max": 30 },
+        "cacheBytes": { "min": 1422508, "max": 1422508 },
+        "final": { "at": 60004.39999999851, "renderCount": 3469, "displayObjects": 2086, "textures": 30, "cacheSize": 30, "cacheBytes": 1422508, "lod2AnimatedUpdates": 0, "visibleCreatures": 296, "tickerStarted": false }
+      }
+    },
+    {
+      "name": "three-team-contest",
+      "scene": { "entities": 300, "contest": true, "expectedLod": { "lod0": 5, "lod1": 15, "lod2": 280 } },
+      "durationMs": 60000,
+      "frameMs": { "p50": 17.89999999999418, "p95": 18.59999999999127, "p99": 20, "max": 36.10000000000582 },
+      "renderMs": { "p50": 5.800000004470348, "p95": 7.799999997019768, "p99": 9.100000001490116, "max": 39.600000001490116 },
+      "resources": {
+        "displayObjects": { "min": 2088, "max": 2092 },
+        "textures": { "min": 30, "max": 30 },
+        "cacheBytes": { "min": 1422508, "max": 1422508 },
+        "final": { "at": 60015.399999997026, "renderCount": 6933, "displayObjects": 2092, "textures": 30, "cacheSize": 30, "cacheBytes": 1422508, "lod2AnimatedUpdates": 0, "visibleCreatures": 296, "tickerStarted": false }
+      }
+    }
+  ]
+}

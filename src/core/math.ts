@@ -70,6 +70,18 @@ export const screenToWorld = (
   };
 };
 
+/** 世界坐标 → 屏幕坐标；与 screenToWorld 互为逆变换。 */
+export const worldToScreen = (
+  camera: { x: number; y: number; zoom: number },
+  worldX: number,
+  worldY: number,
+  screenW: number,
+  screenH: number
+): { x: number; y: number } => ({
+  x: (worldX - camera.x) * (camera.zoom || 1) + screenW / 2,
+  y: (worldY - camera.y) * (camera.zoom || 1) + screenH / 2,
+});
+
 /**
  * 位置体检：坐标一旦变成 NaN 就会污染整张 QuadTree 和所有碰撞计算，
  * 所以每帧在进入物理前统一修复。

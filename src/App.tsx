@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import GameCanvas from './components/GameCanvas';
+import RendererSurface from './rendering/RendererSurface';
 import UIOverlay from './components/UIOverlay';
 import { GameState, GameStatus, CreatureType, DEFAULT_COSMETICS } from './types';
 import { CREATURES, CREATURE_DATA, MAP_SHAPE_CONFIG, PROTECTION_CONFIG, SQUAD_COMMAND_LIST } from './constants';
@@ -13,6 +13,8 @@ import { createInitialState } from './factories/initialState';
 import { markRunPractice } from './systems/runFlow';
 import { subscribeAudio, initAudio, toggleMute, isMuted } from './audio';
 import { subscribeAchievements } from './systems/achievements';
+import { selectBrowserRenderer } from './rendering/rendererSelection';
+import { createRivalSquads } from './data/rivalSquads';
 
 // 音效只订阅一次：逻辑层发事件，音频层负责发声，两边互不知情（P1-4）
 subscribeAudio();
@@ -20,6 +22,8 @@ subscribeAudio();
 subscribeAchievements();
 
 const App: React.FC = () => {
+  // URL 优先、localStorage 次之；生产版在 Pixi 正式放行前会安全回退 Canvas。
+  const [rendererSelection] = useState(() => selectBrowserRenderer(true));
   const gameStateRef = useRef<GameState>(createInitialState());
   const [uiState, setUiState] = useState<GameState>(gameStateRef.current);
   const [muted, setMuted] = useState<boolean>(isMuted());
@@ -49,7 +53,7 @@ const App: React.FC = () => {
     );
 
   useEffect(() => {
-    // Space = 加速，Q = 流派技能（P1-3），E = 交互确认（进商场），G = 无敌模式（调试用）
+    // Space = 加速，Q = 流派技能（P1-3），E = 交互确认（商场/沉船），G = 无敌模式（调试用）
     // 1/2/3 = 战队指令（集火 / 护卫 / 撤退），R = 附身下一条（FQ-05）
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') keysRef.current.space = true;
@@ -129,6 +133,215 @@ const App: React.FC = () => {
     if (!import.meta.env.DEV) return;
     (window as unknown as Record<string, unknown>).__FISH_DEBUG__ = {
       state: () => gameStateRef.current,
+      renderer: () => ({ ...rendererSelection }),
+      shapeGallery: () => {
+        const state = gameStateRef.current;
+        const unique = new Map<string, (typeof CREATURES)[keyof typeof CREATURES]>();
+        for (const config of Object.values(CREATURES)) {
+          const shape = config.shape ?? 'FISH';
+          if (!unique.has(shape)) unique.set(shape, config);
+        }
+        const configs = [...unique.values()];
+        state.entities = configs.map((config, index) => {
+          const column = index % 5;
+          const row = Math.floor(index / 5);
+          const entity = createEntity(
+            config.type as CreatureType,
+            MAP_SHAPE_CONFIG.CENTER_X - 560 + column * 280,
+            MAP_SHAPE_CONFIG.CENTER_Y - 420 + row * 280
+          );
+          entity.radius = Math.min(62, Math.max(28, entity.radius));
+          entity.angle = 0;
+          entity.vx = 0;
+          entity.vy = 0;
+          entity.speed = 0;
+          entity.isIdle = true;
+          return entity;
+        });
+        state.player.x = MAP_SHAPE_CONFIG.CENTER_X;
+        state.player.y = MAP_SHAPE_CONFIG.CENTER_Y;
+        state.player.speed = 0;
+        state.player.vx = 0;
+        state.player.vy = 0;
+        state.camera.x = MAP_SHAPE_CONFIG.CENTER_X;
+        state.camera.y = MAP_SHAPE_CONFIG.CENTER_Y;
+        state.camera.zoom = 0.68;
+        return configs.map(config => ({ name: config.name, shape: config.shape ?? 'FISH' }));
+      },
+      rareFishGallery: () => {
+        const state = gameStateRef.current;
+        const cx = MAP_SHAPE_CONFIG.CENTER_X;
+        const cy = MAP_SHAPE_CONFIG.CENTER_Y;
+        const make = (x: number, rare: boolean) => {
+          const entity = createEntity(CreatureType.CLOWN_FISH, x, cy + 80);
+          entity.id = rare ? 'rare-starry-clown' : 'rare-normal-clown';
+          entity.radius = 70;
+          entity.angle = 0;
+          entity.vx = 0;
+          entity.vy = 0;
+          entity.speed = 0;
+          entity.isIdle = true;
+          entity.semiGhostTimer = 0;
+          entity.cosmetics = {
+            ...DEFAULT_COSMETICS,
+            ...(rare ? { rareVariant: 'STARRY_CLOWN' as const, trailType: 'GLITTER' as const } : {}),
+          };
+          return entity;
+        };
+        state.entities = [make(cx - 210, false), make(cx + 210, true)];
+        state.player.x = cx;
+        state.player.y = cy + 300;
+        state.player.speed = 0;
+        state.player.vx = 0;
+        state.player.vy = 0;
+        state.player.semiGhostTimer = 0;
+        state.camera.x = cx;
+        state.camera.y = cy;
+        state.camera.zoom = 0.85;
+        return { normal: '小丑鱼', rare: '星夜小丑鱼', spawnChance: 0.04 };
+      },
+      pixiFeedbackGallery: () => {
+        const state = gameStateRef.current;
+        const cx = MAP_SHAPE_CONFIG.CENTER_X;
+        const cy = MAP_SHAPE_CONFIG.CENTER_Y;
+        state.camera.x = cx;
+        state.camera.y = cy;
+        state.camera.zoom = 0.82;
+        state.player.x = cx;
+        state.player.y = cy + 330;
+        state.player.vx = 0;
+        state.player.vy = 0;
+        state.player.speed = 0;
+        state.player.counterWindup = 300;
+        state.feedingEvent = {
+          id: 'pixi-feedback-event', phase: 'DROPPING', timer: 900, x: cx, y: cy - 120,
+          lastX: cx, lastY: cy - 120, nextDropIn: 60, totalSpawned: 5, claims: {},
+          drops: Array.from({ length: 5 }, (_, index) => ({
+            id: `pixi-drop-${index}`,
+            x: cx - 120 + index * 60,
+            y: cy - 120 + Math.sin(index) * 55,
+            radius: 12,
+            value: 8,
+          })),
+        };
+        state.treasures = [
+          { id: 'pixi-warning', x: cx - 470, y: cy - 300, type: 'FEAST', status: 'WARNING', timer: 180, radius: 24 },
+          { id: 'pixi-feast', x: cx - 470, y: cy + 20, type: 'FEAST', status: 'ACTIVE', timer: 600, radius: 24 },
+          { id: 'pixi-chest', x: cx - 270, y: cy + 20, type: 'CHEST', status: 'ACTIVE', timer: 600, radius: 24 },
+          { id: 'pixi-gem', x: cx + 270, y: cy + 20, type: 'GEM', status: 'ACTIVE', timer: 600, radius: 24 },
+          { id: 'pixi-food', x: cx + 470, y: cy + 20, type: 'FOOD', status: 'ACTIVE', timer: 600, radius: 24 },
+        ];
+        state.powerUps = ['COIN', 'SHELL', 'BOTTLE', 'SPEED', 'SHIELD'].map((type, index) => ({
+          id: `pixi-power-${index}`,
+          x: cx - 320 + index * 160,
+          y: cy + 210,
+          type: type as 'COIN' | 'SHELL' | 'BOTTLE' | 'SPEED' | 'SHIELD',
+          radius: 18,
+        }));
+        const rivalA = createEntity(CreatureType.BLUE_TANG, cx + 400, cy - 300);
+        rivalA.ownerId = 'rival-scavengers';
+        rivalA.counterWindup = 300;
+        const rivalB = createEntity(CreatureType.SQUID, cx + 540, cy - 220);
+        rivalB.ownerId = 'rival-ambushers';
+        state.entities = [rivalA, rivalB];
+        state.rivalSquads = createRivalSquads();
+        for (const squad of state.rivalSquads) {
+          squad.memberIds = squad.id === rivalA.ownerId ? [rivalA.id] : squad.id === rivalB.ownerId ? [rivalB.id] : [];
+          squad.status = 'CONTESTING';
+        }
+        return { treasures: state.treasures.length, drops: state.feedingEvent.drops.length, powerUps: state.powerUps.length, rivals: 2, telegraphs: 2 };
+      },
+      pixiLabelsGallery: () => {
+        const state = gameStateRef.current;
+        const cx = MAP_SHAPE_CONFIG.CENTER_X;
+        const cy = MAP_SHAPE_CONFIG.CENTER_Y;
+        const teammate = createEntity(CreatureType.PUFFER_FISH, cx - 330, cy + 250);
+        teammate.ownerId = 'player';
+        teammate.vx = 0;
+        teammate.vy = 0;
+        teammate.speed = 0;
+        teammate.speechBubble = { text: '我来护卫！', timer: 600, color: '#22d3ee' };
+        state.entities.push(teammate);
+        state.player.speechBubble = { text: '冲向盛宴！', timer: 600, color: '#facc15' };
+        if (state.entities[0]) state.entities[0].speechBubble = { text: '宝藏归我们！', timer: 600, color: '#fb923c' };
+        state.particles = Array.from({ length: 10 }, (_, index) => ({
+          id: `pixi-particle-${index}`,
+          x: cx - 160 + index * 36,
+          y: cy + 360 + Math.sin(index) * 35,
+          vx: 0,
+          vy: 0,
+          life: 1,
+          maxLife: 1,
+          color: index % 2 ? '#67e8f9' : '#f472b6',
+          size: 6 + index % 3,
+          shape: index % 4 === 0 ? 'COOKIE' as const : undefined,
+          spin: index,
+        }));
+        state.labels = [
+          { x: cx - 180, y: cy + 80, text: '逆转！', color: '#facc15', timer: 600, size: 34 },
+          { x: cx + 180, y: cy + 80, text: '+100 金币', color: '#fde68a', timer: 600, size: 22 },
+        ];
+        state.hazards = [{
+          id: 'pixi-meteor', x: cx + 430, y: cy + 280, radius: 95,
+          type: 'METEOR_STRIKE', timer: 180, duration: 240, stage: 'WARNING', countdown: 3.2,
+        }];
+        state.buildings = [{
+          id: 'pixi-prompt-building', x: cx - 500, y: cy + 280, radius: 70,
+          type: 'HOSPITAL', cooldown: 0, prompt: { text: '按 E 使用急救站', color: '#fca5a5' },
+        }];
+        state.screenFlash = { timer: 6, color: '#38bdf8' };
+        return { particles: 10, labels: 2, speechBubbles: 3, squadMarkers: 1, hazards: 1 };
+      },
+      pixiLodStressScene: (contest = false) => {
+        const state = gameStateRef.current;
+        const cx = MAP_SHAPE_CONFIG.CENTER_X;
+        const cy = MAP_SHAPE_CONFIG.CENTER_Y;
+        const configs = Object.values(CREATURES);
+        state.player.x = cx;
+        state.player.y = cy;
+        state.player.vx = 0;
+        state.player.vy = 0;
+        state.player.speed = 0;
+        state.player.invulnerableTimer = 1_000_000;
+        state.camera.x = cx;
+        state.camera.y = cy;
+        state.camera.zoom = 0.22;
+        state.entities = Array.from({ length: 299 }, (_, index) => {
+          const band = index < 4 ? 0 : index < 19 ? 1 : 2;
+          const bandIndex = band === 0 ? index : band === 1 ? index - 4 : index - 19;
+          const bandCount = band === 0 ? 4 : band === 1 ? 15 : 280;
+          const radius = [620, 1320, 2250][band] + (bandIndex % 5) * 45;
+          const angle = (bandIndex / bandCount) * Math.PI * 2 + band * 0.07;
+          const config = configs[index % configs.length];
+          const entity = createEntity(
+            config.type as CreatureType,
+            cx + Math.cos(angle) * radius,
+            cy + Math.sin(angle) * radius
+          );
+          entity.id = `pxr05b-${contest ? 'contest' : 'calm'}-${index}`;
+          entity.angle = angle + Math.PI / 2;
+          entity.vx = 0;
+          entity.vy = 0;
+          entity.speed = 0;
+          entity.health = 1_000_000;
+          entity.invulnerableTimer = 1_000_000;
+          entity.isIdle = true;
+          if (contest && index < 7) entity.ownerId = index % 2 === 0 ? 'rival-scavengers' : 'rival-ambushers';
+          return entity;
+        });
+        state.rivalSquads = contest ? createRivalSquads() : [];
+        for (const squad of state.rivalSquads) {
+          squad.memberIds = state.entities.filter(entity => entity.ownerId === squad.id).map(entity => entity.id);
+          squad.status = 'CONTESTING';
+        }
+        if (contest) {
+          state.feedingEvent = {
+            id: 'pxr05b-contest', phase: 'DROPPING', timer: 100_000, x: cx, y: cy,
+            lastX: cx, lastY: cy, nextDropIn: 100_000, totalSpawned: 0, claims: {}, drops: [],
+          };
+        }
+        return { entities: state.entities.length + 1, contest, expectedLod: { lod0: 5, lod1: 15, lod2: 280 } };
+      },
       // 物种规格取值器：性能探针用固定物种钉工作负载（见 scripts/probe-perf.mjs buildScene）
       spec: (id: string) => (CREATURE_DATA as Record<string, { radius: number } | undefined>)[id],
       defaultCosmetics: () => ({ ...DEFAULT_COSMETICS }),
@@ -294,16 +507,17 @@ const App: React.FC = () => {
             isRightMouseDownRef.current = true;
         }}
     >
-      <GameCanvas 
-        gameState={gameStateRef.current} 
-        onMouseMove={(x, y) => { mouseRef.current = { x, y }; }} 
-        onMouseDown={(e) => { 
-            if (e.button === 0) isMouseDownRef.current = true; 
-            if (e.button === 2) isRightMouseDownRef.current = true;
+      <RendererSurface
+        kind={rendererSelection.kind}
+        gameState={gameStateRef.current}
+        onMouseMove={(x, y) => { mouseRef.current = { x, y }; }}
+        onMouseDown={(e) => {
+          if (e.button === 0) isMouseDownRef.current = true;
+          if (e.button === 2) isRightMouseDownRef.current = true;
         }}
-        onMouseUp={(e) => { 
-            if (e.button === 0) isMouseDownRef.current = false; 
-            if (e.button === 2) isRightMouseDownRef.current = false;
+        onMouseUp={(e) => {
+          if (e.button === 0) isMouseDownRef.current = false;
+          if (e.button === 2) isRightMouseDownRef.current = false;
         }}
       />
       <UIOverlay 

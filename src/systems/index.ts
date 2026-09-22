@@ -20,10 +20,15 @@ import { skillsSystem } from './skills';
 import { concealmentSystem } from './concealment';
 import { aiSystem } from './ai';
 import { squadSystem } from './squad';
+import { rivalSquadsSystem } from './rivalSquads';
+import { habitatsSystem } from './habitats';
+import { obstacleEcologySystem } from './obstacleEcology';
+import { explorationEventSystem } from './explorationEvents';
 import { worldSystem } from './world';
 import { itemsSystem } from './items';
 import { combatSystem } from './combat';
 import { eventsSystem } from './events';
+import { feedingEventSystem } from './feedingEvents';
 import { pondEventSystem } from './pondEvents';
 import { progressionSystem } from './progression';
 import { achievementsSystem } from './achievements';
@@ -43,9 +48,13 @@ export interface SystemEntry {
  *               否则 AI 当帧读到的是上一帧的 `inCover`，钻草丛那一帧会被追打
  *   ai          鱼群思考
  *   squad       战队：把俘虏落地成实体 + 成员跟随（必须紧接 ai 之后，且 ai 会跳过战队成员）
+ *   rivalSquads 敌队：赴事件、争抢与撤退（同样独占所属成员移动）
+ *   habitats    单向洋流：所有阵营共用流场，随后交给 world 处理碰撞和边界
  *   world       统一处理边界 / 障碍 / 生态 / 建筑 / 传送门（放在移动之后，避免被移动覆盖）
+ *   exploration 主动探索交互：读取 world 修正后的位置，负责中断与一次结算
  *   items       道具与鱼雷
  *   combat      碰撞结算（放在移动之后才准）
+ *   feedingEvent 投食争夺：分批掉落与多阵营一次性拾取
  *   events      宝藏 / 陨石 / 喷泉
  *   pondEvent   塘专属事件（珊瑚产卵夜 / 星光鱼群潮）
  *   cleanup     死亡判定 / 进化 / 粒子回收 / 相机
@@ -58,9 +67,14 @@ export const SYSTEMS: SystemEntry[] = [
   { name: 'concealment', fn: safe('concealment', concealmentSystem) },
   { name: 'ai', fn: safe('ai', aiSystem) },
   { name: 'squad', fn: safe('squad', squadSystem) },
+  { name: 'rivalSquads', fn: safe('rivalSquads', rivalSquadsSystem) },
+  { name: 'habitats', fn: safe('habitats', habitatsSystem) },
+  { name: 'obstacleEcology', fn: safe('obstacleEcology', obstacleEcologySystem) },
   { name: 'world', fn: safe('world', worldSystem) },
+  { name: 'exploration', fn: safe('exploration', explorationEventSystem) },
   { name: 'items', fn: safe('items', itemsSystem) },
   { name: 'combat', fn: safe('combat', combatSystem) },
+  { name: 'feedingEvent', fn: safe('feedingEvent', feedingEventSystem) },
   { name: 'events', fn: safe('events', eventsSystem) },
   { name: 'pondEvent', fn: safe('pondEvent', pondEventSystem) },
   { name: 'achievements', fn: safe('achievements', achievementsSystem) },
@@ -114,4 +128,4 @@ export function runSystems(state: GameState, ctx: FrameContext): void {
   }
 }
 
-export { spawnSystem, runFlowSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, worldSystem, itemsSystem, combatSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };
+export { spawnSystem, runFlowSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, rivalSquadsSystem, habitatsSystem, obstacleEcologySystem, worldSystem, explorationEventSystem, itemsSystem, combatSystem, feedingEventSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };

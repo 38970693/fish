@@ -15,6 +15,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createInitialState } from '../factories/initialState';
 import { createBuildings, worldSystem, __resetTeleportLock } from '../systems/world';
 import { pondEventSystem } from '../systems/pondEvents';
+import { explorationEventSystem } from '../systems/explorationEvents';
 import {
   CREATURE_DATA,
   CreatureType,
@@ -177,14 +178,23 @@ describe('按塘生成建筑（特产建筑）', () => {
     expect(coins).toHaveLength(4);
   });
 
-  it('沉船：金币 + 惊扰出一条带怒气的吸血鬼乌贼', () => {
+  it('沉船：按 E 搜索完成后才掉金币并惊扰吸血鬼乌贼', () => {
     const state = createInitialState({ pondId: 'ABYSS', skipWorldGen: true });
     state.buildings = [{
       id: 'wreck-1', x: state.player.x, y: state.player.y,
       type: BuildingType.SHIPWRECK as string,
       radius: BUILDING_DATA.SHIPWRECK.radius, cooldown: 0,
     }];
-    worldSystem(state, makeCtx());
+    const ctx = makeCtx();
+    worldSystem(state, ctx);
+    explorationEventSystem(state, ctx);
+    expect(state.score).toBe(0);
+    expect(state.buildings[0].prompt?.text).toContain('按 E 搜索');
+
+    ctx.input.interact = true;
+    explorationEventSystem(state, ctx);
+    ctx.input.interact = false;
+    for (let frame = 0; frame < 180; frame += 1) explorationEventSystem(state, ctx);
 
     expect(state.score).toBe(scoreGain('ABYSS', 30));
     expect(state.powerUps.filter((p) => p.type === 'COIN')).toHaveLength(5);

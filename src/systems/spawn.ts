@@ -8,8 +8,9 @@
 import { CREATURES, CreatureType, getSpawnPool } from '../data/creatures';
 import { randomizeCosmetics } from '../data/cosmetics';
 import { randomizeMood, randomMoodTimer } from '../data/moods';
+import { rareVariantRollFromId, rollRareVariant } from '../data/rareVariants';
 import type { MoodId } from '../data/moods';
-import { MAX_ENTITIES, TREASURE_CONFIG, WORLD_SIZE } from '../data/world';
+import { MAX_ENTITIES, RIVALS_SPAWN_CONFIG, TREASURE_CONFIG, WORLD_SIZE } from '../data/world';
 import { getPond } from '../data/ponds';
 import { type Entity, type GameState, type FrameContext } from '../types';
 import { uuid } from '../core/math';
@@ -70,17 +71,99 @@ export const createEntity = (
   };
 };
 
+/** 只给自然生成的野生鱼抽稀有外观；脚本、敌队和测试创建保持确定语义。 */
+export const applyWildRareVariant = (entity: Entity, roll?: number): Entity => {
+  const rareVariant = rollRareVariant(
+    entity.type as CreatureType,
+    roll ?? rareVariantRollFromId(entity.id)
+  );
+  if (!rareVariant || !entity.cosmetics) return entity;
+  entity.cosmetics = {
+    ...entity.cosmetics,
+    rareVariant,
+    skinColor: 'DEFAULT',
+    pattern: 'NONE',
+    scaleType: 'NONE',
+    trailType: 'GLITTER',
+  };
+  return entity;
+};
+
 /** 在地图内随机位置生成一条鱼（位置不合法则放弃，返回 null） */
 export const spawnCreature = (state: GameState, type: string): Entity | null => {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const x = Math.random() * WORLD_SIZE;
     const y = Math.random() * WORLD_SIZE;
     if (!isPositionValid(x, y, 50)) continue;
-    const entity = createEntity(type, x, y);
+    const entity = applyWildRareVariant(createEntity(type, x, y));
     state.entities.push(entity);
     return entity;
   }
   return null;
+};
+
+const isNearbySpawnClear = (state: GameState, x: number, y: number): boolean => {
+  if (!isPositionValid(x, y, RIVALS_SPAWN_CONFIG.SPAWN_BUFFER)) return false;
+  const blockedByObstacle = state.obstacles.some(
+    (obstacle) => obstacle.featureState !== 'BROKEN'
+      && Math.hypot(x - obstacle.x, y - obstacle.y) < obstacle.radius + RIVALS_SPAWN_CONFIG.SPAWN_BUFFER
+  );
+  if (blockedByObstacle) return false;
+  return !state.buildings.some(
+    (building) => Math.hypot(x - building.x, y - building.y) < building.radius + RIVALS_SPAWN_CONFIG.SPAWN_BUFFER
+  );
+};
+
+/** 在玩家周边环带生成，让新生物从视野边缘附近进入而不是贴脸出现。 */
+export const spawnCreatureNearPlayer = (state: GameState, type: string): Entity | null => {
+  const spec = CREATURES[type as CreatureType] ?? CREATURES.CLOWN_FISH;
+  const isThreat = spec.tier > state.player.config.tier;
+  const minDistance = isThreat
+    ? Math.max(RIVALS_SPAWN_CONFIG.NEAR_MIN_DISTANCE, RIVALS_SPAWN_CONFIG.THREAT_MIN_DISTANCE)
+    : RIVALS_SPAWN_CONFIG.NEAR_MIN_DISTANCE;
+
+  for (let attempt = 0; attempt < RIVALS_SPAWN_CONFIG.POSITION_ATTEMPTS; attempt += 1) {
+    const angle = Math.random() * Math.PI * 2;
+    const distance = minDistance + Math.random() * (RIVALS_SPAWN_CONFIG.NEAR_MAX_DISTANCE - minDistance);
+    const x = state.player.x + Math.cos(angle) * distance;
+    const y = state.player.y + Math.sin(angle) * distance;
+    if (!isNearbySpawnClear(state, x, y)) continue;
+    const entity = applyWildRareVariant(createEntity(type, x, y));
+    state.entities.push(entity);
+    return entity;
+  }
+  return null;
+};
+
+const nearbyWildlife = (state: GameState): Entity[] => {
+  const maxDistanceSq = RIVALS_SPAWN_CONFIG.NEAR_MAX_DISTANCE ** 2;
+  return state.entities.filter((entity) => {
+    if (entity.ownerId === state.player.id || entity.health <= 0) return false;
+    const dx = entity.x - state.player.x;
+    const dy = entity.y - state.player.y;
+    return dx * dx + dy * dy <= maxDistanceSq;
+  });
+};
+
+const pickStarterType = (state: GameState, nearby: Entity[]): CreatureType | null => {
+  if (!state.run || state.run.clock > RIVALS_SPAWN_CONFIG.STARTER_WINDOW_FRAMES) return null;
+  const foodCount = nearby.filter((entity) => entity.type === CreatureType.PLANKTON).length;
+  const recruitCount = nearby.filter((entity) => entity.config.tier === 1).length;
+  const needsFood = foodCount < RIVALS_SPAWN_CONFIG.STARTER_FOOD_MIN;
+  const needsRecruit = recruitCount < RIVALS_SPAWN_CONFIG.STARTER_RECRUIT_MIN;
+  if (!needsFood && !needsRecruit) return null;
+  if (needsFood && (!needsRecruit || foodCount <= recruitCount * 3)) return CreatureType.PLANKTON;
+  const pool = getSpawnPool(state.pondId, 1);
+  return pool[Math.floor(Math.random() * pool.length)] ?? CreatureType.CLOWN_FISH;
+};
+
+const pickRegularType = (state: GameState): CreatureType => {
+  const pond = getPond(state.pondId);
+  const maxTier = Math.min(4, Math.max(1, Math.floor(state.player.level / 2) + 1 + pond.maxTierBonus));
+  const targetTier = Math.floor(Math.random() * maxTier) + 1;
+  const pool = getSpawnPool(state.pondId, targetTier);
+  if (Math.random() < pond.foodRatio || pool.length === 0) return CreatureType.PLANKTON;
+  return pool[Math.floor(Math.random() * pool.length)] ?? CreatureType.PLANKTON;
 };
 
 /**
@@ -89,7 +172,22 @@ export const spawnCreature = (state: GameState, type: string): Entity | null => 
  * （安全塘喂饱你，危险塘更早出大鱼、且有本塘特产）。
  */
 export const spawnSystem = (state: GameState, _ctx: FrameContext): void => {
-  if (state.entities.length >= MAX_ENTITIES) return;
+  const feeding = state.feedingEvent;
+  const reserveForEvent = !!state.run && !!feeding && (
+    ['WARNING', 'DROPPING', 'LINGERING'].includes(feeding.phase)
+    || feeding.timer <= RIVALS_SPAWN_CONFIG.RESERVE_LEAD_FRAMES
+  );
+  const entityLimit = reserveForEvent ? MAX_ENTITIES - RIVALS_SPAWN_CONFIG.RESERVED_EVENT_SLOTS : MAX_ENTITIES;
+  if (state.entities.length >= entityLimit) return;
+
+  if (state.run) {
+    const nearby = nearbyWildlife(state);
+    if (nearby.length < RIVALS_SPAWN_CONFIG.NEARBY_TARGET) {
+      const type = pickStarterType(state, nearby) ?? pickRegularType(state);
+      spawnCreatureNearPlayer(state, type);
+      return;
+    }
+  }
 
   const pond = getPond(state.pondId);
   const maxTier = Math.min(4, Math.max(1, Math.floor(state.player.level / 2) + 1 + pond.maxTierBonus));

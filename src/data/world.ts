@@ -15,6 +15,33 @@ export const MAX_ENTITIES = 300;
 export const MAX_OBSTACLES = 80;
 export const MAX_POWERUPS = 40;
 
+/**
+ * 鱼群争霸的附近生成预算。
+ *
+ * 总实体上限仍由 MAX_ENTITIES 控制；这组参数只保证玩家周边持续有可参与的生态，
+ * 并把高于玩家阶级的威胁放到更远处进入。旧 LEGACY 模式不读取这组配置。
+ */
+export const RIVALS_SPAWN_CONFIG = {
+  /** 玩家周边至少维持多少条非队友生物，达到后恢复全图背景生成 */
+  NEARBY_TARGET: 60,
+  /** 普通生物的生成环带，避免贴脸又保证短时间内可抵达 */
+  NEAR_MIN_DISTANCE: 520,
+  NEAR_MAX_DISTANCE: 1050,
+  /** 高于玩家当前阶级的生物从更远处进入 */
+  THREAT_MIN_DISTANCE: 820,
+  /** 地图边缘与障碍的额外安全边距 */
+  SPAWN_BUFFER: 70,
+  POSITION_ATTEMPTS: 16,
+  /** 开局一分钟内保证基础捕食与收编机会 */
+  STARTER_WINDOW_FRAMES: 60 * 60,
+  STARTER_FOOD_MIN: 12,
+  STARTER_RECRUIT_MIN: 4,
+  /** 为敌队与后续塘主保留的实体名额，背景生态不得占用 */
+  RESERVED_EVENT_SLOTS: 20,
+  /** 主要事件前 15 秒开始释放远处、未交战的背景实体 */
+  RESERVE_LEAD_FRAMES: 15 * 60,
+} as const;
+
 /** 花瓣形地图：基础半径 + 沿角度的花瓣外扩量 */
 export const MAP_SHAPE_CONFIG = {
   BASE_RADIUS: 2000,

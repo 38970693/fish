@@ -131,26 +131,17 @@ const crescentTail = (ctx: Ctx, r: number, spread = 0.5, len = 0.55) => {
   ctx.stroke();
 };
 
-/** 三角背鳍（画在背上，根部被身体盖住） */
-const dorsalFin = (ctx: Ctx, r: number, x: number, height: number, base = 0.42) => {
+/** 俯视背鳍：沿身体中轴形成双侧等宽的脊线。 */
+const dorsalRidge = (ctx: Ctx, r: number, x: number, length = 0.62, width = 0.08) => {
   ctx.beginPath();
-  ctx.moveTo(x, -r * 0.42);
-  ctx.quadraticCurveTo(x + r * base * 0.3, -r * (0.42 + height), x + r * base, -r * 0.46);
+  ctx.moveTo(x - r * length * 0.55, 0);
+  ctx.quadraticCurveTo(x, -r * width, x + r * length * 0.45, 0);
+  ctx.quadraticCurveTo(x, r * width, x - r * length * 0.55, 0);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
   ctx.lineWidth = 1.2;
   ctx.stroke();
-};
-
-/** 腹部白化：clip 当前轮廓后填下半（鲨形系通用） */
-const paleBelly = (ctx: Ctx, r: number, shape: CreatureShapeId) => {
-  ctx.save();
-  defineShapePath(ctx, shape, r);
-  ctx.clip();
-  ctx.fillStyle = 'rgba(255,255,255,0.38)';
-  ctx.fillRect(-r * 1.8, r * 0.08, r * 3.6, r);
-  ctx.restore();
 };
 
 /* ════════════════════════ ② 背景附属 ════════════════════════ */
@@ -280,15 +271,7 @@ export const drawShapeBack = (
       break;
     }
     case 'EEL': {
-      // 背鳍长浪
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-      ctx.lineWidth = Math.max(2, r * 0.09);
-      ctx.beginPath();
-      for (let x = -r * 1.35; x <= r * 0.45; x += r * 0.08) {
-        const y = -r * 0.42 - Math.sin(x * 0.09 + t * 0.18) * r * 0.1;
-        if (x === -r * 1.35) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
+      // 鳗形的背鳍在俯视下与中轴重合，放到前景层绘制。
       break;
     }
     case 'RAY': {
@@ -313,12 +296,6 @@ export const drawShapeBack = (
     case 'BILLFISH':
       ctx.fillStyle = bodyFill;
       crescentTail(ctx, r, 0.42, 0.5);
-      // 背旗
-      ctx.beginPath();
-      ctx.moveTo(r * 0.35, -r * 0.42);
-      ctx.quadraticCurveTo(-r * 0.05, -r * 0.85, -r * 0.4, -r * 0.48);
-      ctx.closePath();
-      ctx.fill();
       break;
     case 'ANGLER': {
       ctx.fillStyle = bodyFill;
@@ -336,7 +313,6 @@ export const drawShapeBack = (
     case 'SHARK': {
       ctx.fillStyle = bodyFill;
       crescentTail(ctx, r, shape === 'SHARK' ? 0.46 : 0.4, 0.55);
-      dorsalFin(ctx, r, -r * 0.05, shape === 'SHARK' ? 0.5 : 0.44);
       // 胸鳍
       for (const sy of [-1, 1]) {
         ctx.beginPath();
@@ -351,7 +327,6 @@ export const drawShapeBack = (
     case 'ORCA': {
       ctx.fillStyle = bodyFill;
       crescentTail(ctx, r, 0.52, 0.58);
-      dorsalFin(ctx, r, r * 0.12, 0.72, 0.36); // 虎鲸背鳍高耸
       break;
     }
     case 'SEAL': {
@@ -367,7 +342,6 @@ export const drawShapeBack = (
     case 'NARWHAL':
       ctx.fillStyle = bodyFill;
       crescentTail(ctx, r, 0.42, 0.52);
-      dorsalFin(ctx, r, -r * 0.15, 0.3);
       break;
     case 'MERMAID': {
       // 双叶尾鳍
@@ -393,8 +367,9 @@ export const drawShapeBack = (
         const len = r * (0.72 + (i % 3) * 0.16);
         const dx = Math.cos(a);
         const dy = Math.sin(a);
-        const tipX = dx * r * len + sway * dy;
-        const tipY = dy * r * len + sway * dx;
+        // len 已经是像素长度，不能再乘一次 r；否则大体型 KRAKEN 会把触手放大到 r²，形成贯穿屏幕的三角射线。
+        const tipX = dx * len + sway * dy;
+        const tipY = dy * len + sway * dx;
         const perpX = -dy;
         const perpY = dx;
         const w = r * 0.16;
@@ -412,18 +387,6 @@ export const drawShapeBack = (
       break;
     }
     case 'OARFISH': {
-      // 红色背鳍冠：沿背缘一排三角
-      ctx.fillStyle = '#ef4444';
-      for (let i = 0; i < 7; i++) {
-        const bx = r * 0.5 - i * r * 0.3;
-        const h = r * (0.3 - Math.abs(i - 2) * 0.03);
-        ctx.beginPath();
-        ctx.moveTo(bx + r * 0.12, -r * 0.3);
-        ctx.lineTo(bx, -r * 0.3 - h - Math.sin(t * 0.1 + i) * r * 0.04);
-        ctx.lineTo(bx - r * 0.14, -r * 0.32);
-        ctx.closePath();
-        ctx.fill();
-      }
       ctx.fillStyle = bodyFill;
       crescentTail(ctx, r * 1.2, 0.3, 0.3);
       break;
@@ -600,6 +563,8 @@ export const drawShapeFront = (
         ctx.quadraticCurveTo(bx + r * 0.1, 0, bx, r * 0.22);
         ctx.stroke();
       }
+      ctx.fillStyle = 'rgba(255,255,255,0.34)';
+      dorsalRidge(ctx, r, -r * 0.35, 1.25, 0.045);
       break;
     }
     case 'RAY': {
@@ -622,15 +587,16 @@ export const drawShapeFront = (
       // 上颌长剑
       ctx.fillStyle = '#cbd5e1';
       ctx.beginPath();
-      ctx.moveTo(r * 0.85, -r * 0.14);
-      ctx.lineTo(r * 1.9, -r * 0.05);
-      ctx.lineTo(r * 1.9, r * 0.0);
-      ctx.lineTo(r * 0.85, r * 0.02);
+      ctx.moveTo(r * 0.85, -r * 0.08);
+      ctx.lineTo(r * 1.9, 0);
+      ctx.lineTo(r * 0.85, r * 0.08);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.3)';
       ctx.lineWidth = 1;
       ctx.stroke();
+      ctx.fillStyle = bodyFill;
+      dorsalRidge(ctx, r, -r * 0.05, 0.9, 0.09);
       break;
     }
     case 'ANGLER': {
@@ -640,15 +606,15 @@ export const drawShapeFront = (
       ctx.strokeStyle = '#71717a';
       ctx.lineWidth = Math.max(2, r * 0.07);
       ctx.beginPath();
-      ctx.moveTo(r * 0.05, -r * 0.72);
-      ctx.quadraticCurveTo(r * 0.15, -r * 1.2, r * 0.62, -r * 1.3);
+      ctx.moveTo(r * 0.05, 0);
+      ctx.quadraticCurveTo(r * 0.5, 0, r * 1.18, 0);
       ctx.stroke();
       ctx.save();
       ctx.shadowColor = `rgba(253,224,71,${Math.min(1, 0.85 * glow * boost)})`;
       ctx.shadowBlur = r * 0.8 * boost;
       ctx.fillStyle = `rgba(253,224,71,${Math.min(1, 0.75 + glow * 0.25)})`;
       ctx.beginPath();
-      ctx.arc(r * 0.68, -r * 1.34, r * 0.17, 0, Math.PI * 2);
+      ctx.arc(r * 1.28, 0, r * 0.17, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       // 獠牙 4 颗
@@ -684,6 +650,8 @@ export const drawShapeFront = (
         ctx.fill();
       }
       ctx.restore();
+      ctx.fillStyle = bodyFill;
+      dorsalRidge(ctx, r, -r * 0.05, 0.62, 0.07);
       break;
     }
     case 'SEAL': {
@@ -711,7 +679,6 @@ export const drawShapeFront = (
       break;
     }
     case 'SHARK': {
-      paleBelly(ctx, r, 'SHARK');
       // 鳃裂 3 条
       ctx.strokeStyle = 'rgba(0,0,0,0.32)';
       ctx.lineWidth = Math.max(1.2, r * 0.05);
@@ -722,27 +689,32 @@ export const drawShapeFront = (
         ctx.quadraticCurveTo(bx - r * 0.05, 0, bx, r * 0.22);
         ctx.stroke();
       }
+      ctx.fillStyle = bodyFill;
+      dorsalRidge(ctx, r, -r * 0.05, 0.72, 0.085);
       break;
     }
     case 'ORCA': {
-      paleBelly(ctx, r, 'ORCA');
-      // 眼后白斑 + 背后白鞍
+      // 成对眼后白斑与中轴背脊。
       ctx.fillStyle = 'rgba(245,245,245,0.92)';
-      ctx.beginPath();
-      ctx.ellipse(r * 0.5, -r * 0.16, r * 0.2, r * 0.09, -0.35, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(-r * 0.32, -r * 0.4, r * 0.16, r * 0.07, 0.4, 0, Math.PI * 2);
-      ctx.fill();
+      for (const sy of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(r * 0.5, sy * r * 0.16, r * 0.2, r * 0.09, sy * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.32, sy * r * 0.4, r * 0.16, r * 0.07, -sy * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = bodyFill;
+      dorsalRidge(ctx, r, r * 0.08, 0.7, 0.09);
       break;
     }
     case 'NARWHAL': {
       // 螺旋长角
       ctx.fillStyle = '#e2e8f0';
       ctx.beginPath();
-      ctx.moveTo(r * 0.78, -r * 0.2);
-      ctx.lineTo(r * 1.95, -r * 0.34);
-      ctx.lineTo(r * 0.82, -r * 0.02);
+      ctx.moveTo(r * 0.78, -r * 0.1);
+      ctx.lineTo(r * 1.95, 0);
+      ctx.lineTo(r * 0.78, r * 0.1);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = 'rgba(100,116,139,0.6)';
@@ -751,10 +723,12 @@ export const drawShapeFront = (
         const f0 = 0.12 + i * 0.17;
         const f1 = f0 + 0.08;
         ctx.beginPath();
-        ctx.moveTo(r * (0.78 + f0 * 1.17), -r * (0.2 + f0 * 0.14) + r * 0.06);
-        ctx.lineTo(r * (0.78 + f1 * 1.17), -r * (0.2 + f1 * 0.14) - r * 0.02);
+        ctx.moveTo(r * (0.78 + f0 * 1.17), -r * 0.07);
+        ctx.lineTo(r * (0.78 + f1 * 1.17), r * 0.07);
         ctx.stroke();
       }
+      ctx.fillStyle = bodyFill;
+      dorsalRidge(ctx, r, -r * 0.12, 0.48, 0.055);
       break;
     }
     case 'MERMAID': {
@@ -795,21 +769,17 @@ export const drawShapeFront = (
       break;
     }
     case 'OARFISH': {
-      // 头冠细鳍条 + 体侧银光
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = Math.max(1.2, r * 0.05);
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.moveTo(r * (0.5 - i * 0.12), -r * 0.3);
-        ctx.quadraticCurveTo(r * (0.56 - i * 0.12), -r * 0.55, r * (0.5 - i * 0.12), -r * 0.68 - i * r * 0.05);
-        ctx.stroke();
-      }
+      // 红色背鳍冠在俯视下压缩为沿中轴的脊线。
+      ctx.fillStyle = '#ef4444';
+      dorsalRidge(ctx, r, r * 0.18, 0.9, 0.075);
       ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.lineWidth = Math.max(1, r * 0.05);
-      ctx.beginPath();
-      ctx.moveTo(-r * 1.3, -r * 0.06);
-      ctx.quadraticCurveTo(0, -r * 0.16, r * 1.2, -r * 0.04);
-      ctx.stroke();
+      for (const sy of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(-r * 1.3, sy * r * 0.06);
+        ctx.quadraticCurveTo(0, sy * r * 0.16, r * 1.2, sy * r * 0.04);
+        ctx.stroke();
+      }
       break;
     }
     default:

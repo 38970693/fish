@@ -1,0 +1,119 @@
+{
+  "measuredAt": "2026-09-19T14:02:13.465Z",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "targetFrameMs": 16.7,
+  "errors": [],
+  "scenarios": [
+    {
+      "name": "natural-calm",
+      "workload": {
+        "entities": 280,
+        "activeAI": 190,
+        "obstacles": 55,
+        "buildings": 6,
+        "portals": 0,
+        "fountains": 2,
+        "treasures": 0,
+        "powerUps": 29,
+        "hazards": 0,
+        "particles": 100,
+        "labels": 11,
+        "status": "PLAYING",
+        "rivals": 0,
+        "feedingPhase": "WAITING",
+        "drops": 0
+      },
+      "logicMsPerFrame": 3.2623333333184323,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 2.1549999999503293,
+          "share": 0.6605701440564543
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.4890000002086163,
+          "share": 0.14989271489042091
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.44233333331843216,
+          "share": 0.13558802492708263
+        },
+        {
+          "name": "concealment",
+          "msPerFrame": 0.050333333363135654,
+          "share": 0.015428629824266545
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.02433333339790503,
+          "share": 0.007458874036379742
+        }
+      ],
+      "frameMs": {
+        "p50": 16.69999999999709,
+        "p95": 17,
+        "p99": 66.20000000000073,
+        "max": 117.10000000000218
+      }
+    },
+    {
+      "name": "three-team-contest",
+      "workload": {
+        "entities": 280,
+        "activeAI": 169,
+        "obstacles": 55,
+        "buildings": 6,
+        "portals": 0,
+        "fountains": 2,
+        "treasures": 0,
+        "powerUps": 33,
+        "hazards": 0,
+        "particles": 104,
+        "labels": 9,
+        "status": "PLAYING",
+        "rivals": 7,
+        "feedingPhase": "DROPPING",
+        "drops": 1
+      },
+      "logicMsPerFrame": 2.980999999990066,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 1.8340000000099341,
+          "share": 0.6152297886669057
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.4833333333084981,
+          "share": 0.16213798500842294
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.40133333325386045,
+          "share": 0.1346304371872519
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.07666666676600774,
+          "share": 0.0257184390359823
+        },
+        {
+          "name": "feedingEvent",
+          "msPerFrame": 0.05633333327869574,
+          "share": 0.01889746168362411
+        }
+      ],
+      "frameMs": {
+        "p50": 16.700000000000728,
+        "p95": 17,
+        "p99": 50,
+        "max": 50
+      }
+    }
+  ]
+}

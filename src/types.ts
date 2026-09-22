@@ -13,6 +13,8 @@ import type { MoodId } from './data/moods';
 import type { RunMode, RunPhaseId } from './data/runRules';
 import type { SquadRoleId } from './data/squadRoles';
 import type { SquadCommandId } from './data/squadRoles';
+import type { RareVariantId } from './data/rareVariants';
+import type { FishAppearanceV2 } from './morphology/types';
 
 /* ══════════════ 内容型类型（从 data 层转发） ══════════════ */
 
@@ -32,6 +34,7 @@ export type { PondId, PondConfig } from './data/ponds';
 export type { SquadRoleId } from './data/squadRoles';
 
 export type { RunMode, RunPhaseId, RunPhaseConfig } from './data/runRules';
+export type { RareVariantId } from './data/rareVariants';
 
 /* ══════════════ 游戏状态机 ══════════════ */
 
@@ -117,6 +120,8 @@ export type EyebrowType = 'NONE' | 'ANGRY' | 'SAD' | 'CONFUSED' | 'THICK' | 'UNI
 export type TrailType = 'NONE' | 'BUBBLES' | 'RAINBOW' | 'FIRE' | 'GLITTER' | 'HEARTS' | 'ELECTRIC' | 'SLIME';
 
 export interface Cosmetics {
+  /** 稀有外观随身体保存，不改变战斗数值。 */
+  rareVariant?: RareVariantId;
   teeth: TeethType;
   skinColor: string;
   pattern: PatternType;
@@ -190,6 +195,8 @@ export interface Entity {
   speechBubble?: { text: string; timer: number; color: string } | null;
   evolutionVisualTimer?: number;
   cosmetics?: Cosmetics;
+  /** V2 参数化外观；缺省时由物种、实体 id 与旧 Cosmetics 确定性解析。 */
+  appearanceV2?: FishAppearanceV2;
   level: number;
 
   /** 半虚状态：新生成的鱼不能吃也不能被吃（帧） */
@@ -219,6 +226,8 @@ export interface Entity {
    * 环境伤害（陨石 / 沼泽腐蚀）不传 source，**不改写**这里 —— 没有凶手的伤害不夺走别人的归属。
    */
   lastHitById?: string;
+  /** 有来源伤害的单调计数；探索等系统用它区分敌人攻击与环境腐蚀。 */
+  hostileHitCounter?: number;
   /**
    * 死亡已结算（一次性结算的幂等标记）。
    * 一条鱼只能死一次：撕咬 / 技能 / 中毒 / 环境都可能把血打到 0，
@@ -255,6 +264,10 @@ export interface Entity {
   moodId?: MoodId;
   /** 心境剩余帧：到 0 重新抽一次，鱼群才会「活着」换状态 */
   moodTimer?: number;
+  /** 当前所处的单向洋流；由 habitatsSystem 每帧刷新。 */
+  currentZoneId?: string;
+  /** 洋流边缘渐入强度（0～1），仅供 HUD/表现读取。 */
+  currentStrength?: number;
 }
 
 export interface PlayerState extends Entity {
@@ -312,6 +325,7 @@ export interface SquadRecruit {
   maxHealth: number;
   level: number;
   cosmetics?: Cosmetics;
+  appearanceV2?: FishAppearanceV2;
 }
 
 /**
@@ -384,6 +398,15 @@ export interface Obstacle {
   y: number;
   radius: number;
   type: 'ROCK' | 'CORAL' | 'SEAWEED';
+  /** 可选生态特征；缺省时保持原有静态障碍行为。 */
+  feature?: 'BRITTLE' | 'VENT';
+  featureState?: 'IDLE' | 'WARNING' | 'ACTIVE' | 'BROKEN';
+  featureTimer?: number;
+  featureAngle?: number;
+  durability?: number;
+  maxDurability?: number;
+  /** 旧存档首次进入生态系统时只解析一次，避免普通障碍物每帧重复哈希。 */
+  ecologyInitialized?: boolean;
 }
 
 export interface PowerUp {
@@ -446,6 +469,22 @@ export interface Building {
    * 以前写在那个槽里跟战斗气泡互相顶掉（而且 speechBubble 的渲染在 v2 重构时丢过）。
    */
   prompt?: { text: string; color: string } | null;
+  /** 建筑内持续交互的进度环，0～1；渲染器只读。 */
+  activity?: { progress: number; color: string } | null;
+}
+
+export type ExplorationEventPhase = 'IDLE' | 'AVAILABLE' | 'SEARCHING' | 'COMPLETED';
+
+export interface ExplorationEventState {
+  id: string | null;
+  phase: ExplorationEventPhase;
+  targetBuildingId: string | null;
+  timer: number;
+  duration: number;
+  startHitCounter: number;
+  interactHeld: boolean;
+  claimedByPond: Partial<Record<PondId, true>>;
+  lastResult: { text: string; timer: number } | null;
 }
 
 export interface Treasure {
@@ -458,6 +497,49 @@ export interface Treasure {
   radius: number;
   effect?: 'EXP' | 'GOLD' | 'SKILL' | 'SHIELD';
   rewardValue?: number;
+}
+
+export type FeedingEventPhase = 'WAITING' | 'WARNING' | 'DROPPING' | 'LINGERING' | 'COOLDOWN';
+
+export interface FeedingDrop {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  value: number;
+}
+
+export interface FeedingEventState {
+  id: string | null;
+  phase: FeedingEventPhase;
+  timer: number;
+  x: number | null;
+  y: number | null;
+  /** 上一处已验证可达的落点，仅在新选点全部失败时兜底复用。 */
+  lastX: number | null;
+  lastY: number | null;
+  drops: FeedingDrop[];
+  nextDropIn: number;
+  totalSpawned: number;
+  /** 各阵营已抢到的成长资源；未来敌队用它结算有限恢复与补员。 */
+  claims: Record<string, number>;
+}
+
+export type RivalSquadStatus = 'DORMANT' | 'APPROACHING' | 'CONTESTING' | 'RETREATING' | 'RECOVERING';
+
+export interface RivalSquadState {
+  id: string;
+  name: string;
+  kind: 'SCAVENGER' | 'AMBUSHER';
+  status: RivalSquadStatus;
+  memberIds: string[];
+  resource: number;
+  claimedSeen: number;
+  activeEventId: string | null;
+  recoverTimer: number;
+  deployments: number;
+  homeX: number | null;
+  homeY: number | null;
 }
 
 export interface Label {
@@ -512,7 +594,7 @@ export interface FrameInput {
   rightMouseDown: boolean;
   /** Q 键：释放流派技能 */
   q: boolean;
-  /** E 键：交互确认（进商场等需要主动按下，防止路过大建筑被误触发） */
+  /** E 键：交互确认（商场、沉船等需要主动按下，防止路过建筑被误触发） */
   interact: boolean;
 }
 
@@ -539,7 +621,15 @@ export interface GameState {
   hazards: Hazard[];
   portals: Portal[];
   buildings: Building[];
+  /** 可互动环境：单向洋流。缺省表示旧存档/旧夹具未启用。 */
+  currents?: import('./data/habitats').WaterCurrentZone[];
   treasures: Treasure[];
+  /** RIVALS 的单一主要投食事件；LEGACY 缺省，避免新规则渗入旧模式。 */
+  feedingEvent?: FeedingEventState;
+  /** 单一主要探索事件；当前首版为深渊塘沉船搜索。 */
+  exploration?: ExplorationEventState;
+  /** RIVALS 的稳定敌队身份和局内资源；LEGACY 缺省。 */
+  rivalSquads?: RivalSquadState[];
   fountains: Fountain[];
   labels: Label[];
   /** 当前所在的鱼塘（「多鱼塘」阶段 1：开局选塘，影响刷怪/计分/开局生态区） */

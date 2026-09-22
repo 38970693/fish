@@ -1,0 +1,127 @@
+{
+  "measuredAt": "2026-09-20T15:33:27.205Z",
+  "iterations": 20,
+  "pageErrors": [],
+  "samples": [
+    {
+      "renderCount": 8,
+      "renderErrorCount": 2,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 10,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 10,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 10,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 10,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 10,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 8,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 9,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 10,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 9,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 9,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 9,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    },
+    {
+      "renderCount": 9,
+      "renderErrorCount": 0,
+      "tickerStarted": false,
+      "canvases": 1
+    }
+  ]
+}

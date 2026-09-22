@@ -13,16 +13,18 @@
  *   POND  塘际门：通往另一个塘，触发 pondTravel() 重建世界（同尺寸，不同内容）
  */
 
-import { MAX_OBSTACLES, WORLD_SIZE, BUILDING_CONFIGS, PORTAL_CONFIG, METEOR_CONFIG, PROTECTION_CONFIG, TREASURE_CONFIG, MAX_ENTITIES } from '../data/world';
+import { MAX_OBSTACLES, WORLD_SIZE, BUILDING_CONFIGS, PORTAL_CONFIG, METEOR_CONFIG, PROTECTION_CONFIG, TREASURE_CONFIG } from '../data/world';
 import { BIOME_DATA, BIOME_EFFECTS, BiomeType } from '../data/biomes';
 import { BUILDING_DATA, BUILDING_SPAWN_RULES, BuildingType } from '../data/buildings';
 import { getPond, otherPonds, DEFAULT_POND, POND_DATA, scoreGain, type PondId } from '../data/ponds';
-import { CreatureType } from '../data/creatures';
 import { DEFAULT_COSMETICS, GameStatus, type Building, type GameState, type FrameContext, type Obstacle, type Portal } from '../types';
 import { uuid, dist, pick } from '../core/math';
 import { getBiome, getRandomPosInBiome, isPositionValid, clampToMap, resolveObstacles, MAP_CENTER, ObstacleIndex } from './terrain';
 import { createParticle, dealDamage } from './combat';
 import { spawnSystem, createEntity } from './spawn';
+import { createCurrentZones } from '../data/habitats';
+import { configureObstacleEcology } from './obstacleEcology';
+import { getOceanRegion } from '../data/oceanRegions';
 
 /** 塘际门比塘内门大一圈，一眼能认出来 */
 const POND_PORTAL_RADIUS = PORTAL_CONFIG.RADIUS * 1.4;
@@ -62,6 +64,50 @@ export const SHOP_PORTAL_KEEPOUT = SHOP_INTERACT_RANGE + PORTAL_CONFIG.RADIUS + 
 const insideShopKeepOut = (p: { x: number; y: number }): boolean =>
   Math.hypot(p.x - SHOP_POSITION.x, p.y - SHOP_POSITION.y) < SHOP_PORTAL_KEEPOUT;
 
+/** 传送门不能压在洋流上，否则玩家顺流时会在没有选择的情况下被强制换位。 */
+const intersectsCurrentKeepOut = (
+  p: { x: number; y: number },
+  clearance: number,
+  pondId?: string | null
+): boolean => {
+  const pond = ((pondId && pondId in POND_DATA) ? pondId : DEFAULT_POND) as PondId;
+  return createCurrentZones(pond).some(zone => {
+    const cos = Math.cos(zone.angle);
+    const sin = Math.sin(zone.angle);
+    const dx = p.x - zone.x;
+    const dy = p.y - zone.y;
+    const along = dx * cos + dy * sin;
+    const across = -dx * sin + dy * cos;
+    return Math.abs(along) < zone.length / 2 + clearance
+      && Math.abs(across) < zone.width / 2 + clearance;
+  });
+};
+
+const insideCurrentKeepOut = (p: { x: number; y: number }, pondId?: string | null): boolean =>
+  intersectsCurrentKeepOut(p, PORTAL_CONFIG.RADIUS + 60, pondId);
+
+const pushOutsideCurrent = (p: { x: number; y: number }, pondId?: string | null): { x: number; y: number } => {
+  const pond = ((pondId && pondId in POND_DATA) ? pondId : DEFAULT_POND) as PondId;
+  for (const zone of createCurrentZones(pond)) {
+    const cos = Math.cos(zone.angle);
+    const sin = Math.sin(zone.angle);
+    const dx = p.x - zone.x;
+    const dy = p.y - zone.y;
+    const along = dx * cos + dy * sin;
+    const across = -dx * sin + dy * cos;
+    const alongLimit = zone.length / 2 + PORTAL_CONFIG.RADIUS + 60;
+    const acrossLimit = zone.width / 2 + PORTAL_CONFIG.RADIUS + 60;
+    if (Math.abs(along) >= alongLimit || Math.abs(across) >= acrossLimit) continue;
+    const side = across < 0 ? -1 : 1;
+    const pushedAcross = side * (acrossLimit + 20);
+    return {
+      x: zone.x + cos * along - sin * pushedAcross,
+      y: zone.y + sin * along + cos * pushedAcross,
+    };
+  }
+  return p;
+};
+
 /* ══════════════ 世界构建（初始化 / 跨塘重建时调用） ══════════════ */
 
 export const createObstacles = (pondId?: string | null): Obstacle[] => {
@@ -74,6 +120,8 @@ export const createObstacles = (pondId?: string | null): Obstacle[] => {
     const radius = 60 + Math.random() * 220;
     // 整块障碍物（含边缘）都要在花瓣边界内，否则边缘会把鱼挤出地图
     if (!isPositionValid(x, y, radius + 80)) continue;
+    // 洋流必须是一条真正可用的路线；随机巨石/珊瑚不能横在水道中间。
+    if (intersectsCurrentKeepOut({ x, y }, radius + 35, pondId)) continue;
 
     // ⚠️ 拒绝深重叠：两块岩石叠出夹缝会把鱼卡死在里面（玩家和 AI 都中过招）
     let overlaps = false;
@@ -92,7 +140,7 @@ export const createObstacles = (pondId?: string | null): Obstacle[] => {
     else if (biome === BiomeType.SWAMP) type = 'SEAWEED';
     else type = 'ROCK';
 
-    obstacles.push({ id: uuid(), x, y, radius, type });
+    obstacles.push(configureObstacleEcology({ id: uuid(), x, y, radius, type }));
     if (obstacles.length >= target) break;
   }
   return obstacles;
@@ -145,7 +193,7 @@ export const createPortals = (pondId?: string | null): Portal[] => {
     // 塘内门是随机落点，必须避开固定商场（见 SHOP_PORTAL_KEEPOUT）：
     // 先重摇，摇不出来就沿「远离商场」的方向推到禁区外（保证门的数量不减）。
     let pos = getRandomPosInBiome(biome);
-    for (let attempt = 0; attempt < 12 && insideShopKeepOut(pos); attempt += 1) {
+    for (let attempt = 0; attempt < 12 && (insideShopKeepOut(pos) || insideCurrentKeepOut(pos, pondId)); attempt += 1) {
       pos = getRandomPosInBiome(biome);
     }
     if (insideShopKeepOut(pos)) {
@@ -154,6 +202,10 @@ export const createPortals = (pondId?: string | null): Portal[] => {
         x: SHOP_POSITION.x + Math.cos(a) * SHOP_PORTAL_KEEPOUT,
         y: SHOP_POSITION.y + Math.sin(a) * SHOP_PORTAL_KEEPOUT,
       };
+      if (isPositionValid(pushed.x, pushed.y, PORTAL_CONFIG.RADIUS + 40)) pos = pushed;
+    }
+    if (insideCurrentKeepOut(pos, pondId)) {
+      const pushed = pushOutsideCurrent(pos, pondId);
       if (isPositionValid(pushed.x, pushed.y, PORTAL_CONFIG.RADIUS + 40)) pos = pushed;
     }
     return {
@@ -171,6 +223,7 @@ export const createPortals = (pondId?: string | null): Portal[] => {
   const targets = otherPonds(pondId ?? DEFAULT_POND);
   const pondPortals: Portal[] = targets.map((targetId, i) => {
     const pond = getPond(targetId);
+    const region = getOceanRegion(targetId);
     const baseAngle = (Math.PI * 2 * i) / Math.max(1, targets.length) + Math.PI * 0.25;
     let x = MAP_CENTER.x;
     let y = MAP_CENTER.y;
@@ -180,7 +233,9 @@ export const createPortals = (pondId?: string | null): Portal[] => {
       const px = MAP_CENTER.x + Math.cos(a) * r;
       const py = MAP_CENTER.y + Math.sin(a) * r;
       // 商场禁区同样适用：塘际门把人换到别的塘，落在商场旁边一样会把购物打断
-      if (isPositionValid(px, py, POND_PORTAL_RADIUS + 60) && !insideShopKeepOut({ x: px, y: py })) {
+      if (isPositionValid(px, py, POND_PORTAL_RADIUS + 60)
+          && !insideShopKeepOut({ x: px, y: py })
+          && !insideCurrentKeepOut({ x: px, y: py }, pondId)) {
         x = px;
         y = py;
         break;
@@ -192,7 +247,7 @@ export const createPortals = (pondId?: string | null): Portal[] => {
       y,
       radius: POND_PORTAL_RADIUS,
       angle: 0,
-      name: `${pond.name}·门`,
+      name: `${region.name}·航门`,
       kind: 'POND',
       targetPond: targetId,
     };
@@ -229,6 +284,15 @@ export const pondTravel = (state: GameState, targetPondId?: string | null, ctx?:
   state.portals = createPortals(targetId);
   // 建筑按塘重建：目标塘的特产建筑在这里落地（阶段 3a）
   state.buildings = createBuildings(targetId);
+  state.currents = createCurrentZones(targetId);
+  if (state.exploration) {
+    state.exploration.id = null;
+    state.exploration.targetBuildingId = null;
+    state.exploration.phase = 'IDLE';
+    state.exploration.timer = 0;
+    state.exploration.interactHeld = false;
+    state.exploration.lastResult = null;
+  }
 
   // 清场：鱼 / 道具 / 宝藏 / 危险事件 / 粒子 / 飘字 全部换成新塘的
   state.powerUps = [];
@@ -248,7 +312,7 @@ export const pondTravel = (state: GameState, targetPondId?: string | null, ctx?:
   // ⚠️ 顺手把生态区同步掉：否则下一帧 worldSystem 会发一次「进入新海域」并写好气泡，
   // 把下面这句「进入 XX塘」顶掉（和当年商场气泡被顶掉是同一个坑）
   player.currentBiome = getBiome(player.x, player.y);
-  player.speechBubble = { text: `进入 ${target.name}`, timer: 90, color: target.color };
+  player.speechBubble = { text: `抵达 ${getOceanRegion(targetId).name}`, timer: 90, color: target.color };
 
   // 战队成员围到玩家身边（下一帧由 squad 系统接管队形）
   squadMembers.forEach((m, i) => {
@@ -334,32 +398,7 @@ const BUILDING_EFFECTS: Record<string, (state: GameState, ctx: FrameContext, b: 
     ctx.events.emit('building', { x: b.x, y: b.y, label: '珍珠丰收！', color: '#cbd5e1' });
   },
 
-  /** 深渊塘 · 沉船残骸：高风险高回报——金币滚出来，也惊动了船里的东西 */
-  [BuildingType.SHIPWRECK]: (state, ctx, b) => {
-    const gained = scoreGain(state.pondId, 30);
-    state.score += gained;
-    for (let i = 0; i < 5; i += 1) {
-      const ang = (i / 5) * Math.PI * 2 + Math.random() * 0.8;
-      const d = 50 + Math.random() * 90;
-      state.powerUps.push({
-        id: uuid(),
-        x: b.x + Math.cos(ang) * d,
-        y: b.y + Math.sin(ang) * d,
-        type: 'COIN',
-        radius: 14,
-      });
-    }
-    // 惊扰：船骸里窜出一条吸血鬼乌贼（深渊塘特产），带着怒气直扑玩家
-    if (state.entities.length < MAX_ENTITIES) {
-      const ambusher = createEntity(CreatureType.VAMPIRE_SQUID, b.x, b.y - b.radius - 40);
-      ambusher.angerTimer = 600;
-      ambusher.semiGhostTimer = 0;
-      ambusher.speechBubble = { text: '咕噜噜……！', timer: 90, color: '#9f1239' };
-      state.entities.push(ambusher);
-    }
-    state.player.speechBubble = { text: `船骸惊魂 +${gained} 金币！`, timer: 90, color: '#92400e' };
-    ctx.events.emit('building', { x: b.x, y: b.y, label: '沉船里滚出金币……还有什么', color: '#92400e' });
-  },
+  // 沉船由 explorationEvents 接管：旧版“游进去立即领奖”已替换为按 E 持续搜索。
 };
 
 /** E 键上升沿检测（每帧末尾更新）：按住不放只触发一次 */
@@ -492,7 +531,7 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
         这里每帧 filter 一次（80 个元素）换来的可读性，比省那点分配划算。 */
   const obstacles = state.obstacles;
   const isBattleTest = state.status === 'BATTLE_TEST';
-  const solidObstacles = obstacles.filter((o) => o.type !== 'SEAWEED');
+  const solidObstacles = obstacles.filter((o) => o.type !== 'SEAWEED' && o.featureState !== 'BROKEN');
 
   // 障碍物宽相位索引（四叉树）：把「每个实体 × 全部障碍 × 2 遍」的盲扫
   // 缩成「每个实体 × 附近那几个」。性能基线量出这块占逻辑层 ~29%（~0.5ms/帧）。

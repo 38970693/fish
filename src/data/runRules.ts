@@ -137,7 +137,8 @@ export const framesUntilNextPhase = (clock: number): number => {
  *    试玩前不要把它们当结论引用。改规则记得 +ruleVersion（排行榜按版本区分）。
  */
 export const RIVALS_RULES = {
-  ruleVersion: 1,
+  // v7：困难地形复用上一安全投食点、新预告召回返程敌队，并收敛近身名称标记。
+  ruleVersion: 7,
   /** 单塘模式：关闭塘际传送（避免换塘重置对手与决战进度） */
   allowPondTravel: false,
   /** 战队总人数上限（沿用旧值，G1 再加核心位） */

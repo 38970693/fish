@@ -1,7 +1,7 @@
 # 欢乐鱼塘 🐟
 
 一个跑在浏览器里的「大鱼吃小鱼」休闲游戏：鼠标操控、吃鱼成长、进化分支、战队收编、四个生态区、三个可选鱼塘。
-纯前端（React + TypeScript + Canvas），无后端、无外部资源、无音频文件（音效由 WebAudio 现场合成）。
+纯前端（React + TypeScript + PixiJS），无后端、无外部资源、无音频文件（音效由 WebAudio 现场合成）。默认使用 PixiJS WebGL 渲染，`?renderer=canvas` 可切回旧 Canvas 路径。
 
 ![开局选塘](scripts/pond-menu.png)
 
@@ -69,7 +69,8 @@ src/
 ├── core/       引擎核心（数学 / 容错 safe() / EventBus）
 ├── systems/    逻辑层，一个系统一个文件；systems/index.ts 是注册表，顺序即执行顺序
 ├── factories/  状态与实体工厂（createInitialState / createEntity / …）
-├── components/ 表现层（GameCanvas 渲染 / UIOverlay 面板 / MiniMap）
+├── components/ 表现层（Canvas 回退渲染 / UIOverlay 面板 / MiniMap）
+├── rendering/  PixiJS 默认渲染器、相机、LOD、缓存与 Canvas/Pixi 选择
 └── constants.ts · types.ts · gameEngine.ts   ← 聚合门面，旧导入路径始终可用
 ```
 

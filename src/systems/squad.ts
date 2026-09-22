@@ -56,6 +56,7 @@ import { turnToward, pick, dist, dist2 } from '../core/math';
 import { createEntity } from './spawn';
 import { canHarm } from './factions';
 import { canPerceive } from './concealment';
+import { getCreatureDisplayName } from '../data/rareVariants';
 
 /* ══════════════ 查询 ══════════════ */
 
@@ -97,6 +98,7 @@ export const recruitToSquad = (state: GameState, victim: Entity): void => {
     maxHealth: victim.maxHealth,
     level: victim.level,
     cosmetics: victim.cosmetics,
+    appearanceV2: victim.appearanceV2,
   });
 };
 
@@ -118,6 +120,7 @@ const flushRecruits = (state: GameState): void => {
     member.health = r.health;
     member.maxHealth = r.maxHealth;
     if (r.cosmetics) member.cosmetics = r.cosmetics;
+    if (r.appearanceV2) member.appearanceV2 = structuredClone(r.appearanceV2);
     // 刚入队给个短半虚，免得上一秒还是敌人、下一秒就被旁边的大鱼顺手吃掉
     member.semiGhostTimer = SQUAD_CONFIG.RECRUIT_GHOST;
     member.speechBubble = {
@@ -128,6 +131,11 @@ const flushRecruits = (state: GameState): void => {
     state.entities.push(member);
     state.squad.recruitedTotal += 1;
     assignCoreRole(state, member);
+    state.squad.notice = {
+      text: `${getCreatureDisplayName(member)} 加入战队 · ${getSquadMembers(state).length}/${SQUAD_CONFIG.MAX_SIZE}`,
+      color: '#22d3ee',
+      timer: SQUAD_COMMAND_CONFIG.NOTICE_FRAMES,
+    };
   }
   state.squad.pending.length = 0;
 };
@@ -229,6 +237,7 @@ const moveBody = (from: Entity, to: Entity): void => {
   to.health = from.health;
   to.maxHealth = from.maxHealth;
   to.cosmetics = from.cosmetics ?? to.cosmetics;
+  to.appearanceV2 = from.appearanceV2 ? structuredClone(from.appearanceV2) : undefined;
   to.speed = from.config.speed * (to.id === 'player' ? 1.2 : 1);
 };
 
@@ -287,6 +296,7 @@ export const possessMember = (
     health: member.health,
     maxHealth: member.maxHealth,
     cosmetics: member.cosmetics,
+    appearanceV2: member.appearanceV2,
   };
 
   // 成员接管玩家留下的身体，并留在玩家原来的位置。
@@ -305,6 +315,7 @@ export const possessMember = (
   player.health = memberBody.health;
   player.maxHealth = memberBody.maxHealth;
   if (memberBody.cosmetics) player.cosmetics = memberBody.cosmetics;
+  player.appearanceV2 = memberBody.appearanceV2 ? structuredClone(memberBody.appearanceV2) : undefined;
   player.speed = player.config.speed * 1.2;
   player.x = memberPos.x;
   player.y = memberPos.y;
@@ -451,7 +462,7 @@ export const issueCommand = (
     state.squad.command = command;
     state.squad.commandTargetId = target.id;
     state.squad.targetLostTimer = 0;
-    notify(state, `集火 · ${target.config.name}`, cfg.color);
+    notify(state, `集火 · ${getCreatureDisplayName(target)}`, cfg.color);
     return true;
   }
 

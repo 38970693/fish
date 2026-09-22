@@ -18,6 +18,10 @@ import {
 } from '../data/runRules';
 import { DEFAULT_COSMETICS, GameStatus, type Cosmetics, type GameState } from '../types';
 import { createObstacles, createBuildings, createPortals } from '../systems/world';
+import { createFeedingEventState } from '../data/feedingEvents';
+import { createRivalSquads } from '../data/rivalSquads';
+import { createCurrentZones } from '../data/habitats';
+import { createExplorationEventState } from '../data/explorationEvents';
 
 export interface CreateInitialStateOptions {
   startType?: string;
@@ -124,7 +128,11 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     hazards: [],
     portals: options.skipWorldGen || !allowPondTravel ? [] : createPortals(pondId),
     buildings: options.skipWorldGen ? [] : createBuildings(pondId),
+    currents: options.skipWorldGen ? [] : createCurrentZones(pondId),
     treasures: [],
+    feedingEvent: run ? createFeedingEventState() : undefined,
+    exploration: createExplorationEventState(),
+    rivalSquads: run ? createRivalSquads() : undefined,
     fountains: [],
     labels: [],
     pondId,

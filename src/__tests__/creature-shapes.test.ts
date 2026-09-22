@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { drawCuteFish } from '../components/GameCanvas';
+import { drawShapeBack } from '../components/fishShapes';
 import { CREATURES, CREATURE_DATA, validateCreatures, SPAWN_POOL_BY_TIER, CreatureType } from '../data/creatures';
 import { SKILL_DATA } from '../data/skills';
 import { SHAPE_DATA, type CreatureShapeId } from '../data/creatureShapes';
@@ -144,6 +145,17 @@ describe('形状渲染：每个模板都必须画得出区别', () => {
     const base = makeEntity('ANGLER_FISH', DEFAULT_COSMETICS, 'ANGLER');
     const lit = { ...base, lureActive: true } as Entity;
     expect(fingerprint(lit)).not.toBe(fingerprint(base));
+  });
+
+  it('KRAKEN 触手坐标保持在线性半径内，不会形成贯穿屏幕的射线', () => {
+    const radius = 120;
+    const { ctx, calls } = createRecorder();
+    drawShapeBack(ctx, 'KRAKEN', radius, VISUAL_TIME, 0, '#991b1b');
+    const coordinates = calls
+      .filter((call) => /^(moveTo|lineTo|quadraticCurveTo|arc)\(/.test(call))
+      .flatMap((call) => [...call.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0])));
+
+    expect(Math.max(...coordinates.map(Math.abs))).toBeLessThanOrEqual(radius * 2);
   });
 });
 

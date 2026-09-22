@@ -14,11 +14,14 @@ export * from './data/creatures';
 export * from './data/biomes';
 export * from './data/ponds';
 export * from './data/pondEvents';
+export * from './data/feedingEvents';
+export * from './data/rivalSquads';
 export * from './data/skills';
 export * from './data/buildings';
 export * from './data/achievements';
 export * from './data/cosmeticsOptions';
 export * from './data/moods';
+export * from './data/habitats';
 
 import { BIOME_DATA, BIOME_BOUNDS, BiomeType } from './data/biomes';
 import { PHRASES } from './data/world';

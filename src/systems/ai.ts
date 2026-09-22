@@ -88,6 +88,8 @@ const candidateTree = new QuadTree<Entity>();
 const candidateById = new Map<string, Entity>();
 /** findNearest 的查询结果缓冲（存 frameCandidates 下标，复用） */
 const queryBuf: number[] = [];
+/** 鱼群查询复用缓冲；只在单条鱼的更新期间使用，避免每帧制造大量临时数组。 */
+const schoolNeighborBuf: Entity[] = [];
 
 const findNearest = (
   origin: Entity,
@@ -178,6 +180,98 @@ const moveForward = (entity: Entity, state: GameState, speedMult = 1): void => {
   entity.y += entity.vy;
 };
 
+const SCHOOL_RADIUS = 430;
+const SCHOOL_MAX_NEIGHBORS = 20;
+const cruisePhaseCache = new Map<string, number>();
+
+const cruisePhaseFor = (type: string): number => {
+  const cached = cruisePhaseCache.get(type);
+  if (cached !== undefined) return cached;
+  let hash = 0;
+  for (let index = 0; index < type.length; index += 1) hash = (hash * 31 + type.charCodeAt(index)) >>> 0;
+  const phase = (hash % 6283) / 1000;
+  cruisePhaseCache.set(type, phase);
+  return phase;
+};
+
+const canSchoolTogether = (entity: Entity, other: Entity): boolean => {
+  if (other === entity || other.id === entity.id || other.health <= 0 || other.ownerId) return false;
+  if ((entity.config.shape ?? 'FISH') !== 'FISH' || (other.config.shape ?? 'FISH') !== 'FISH') return false;
+  if (entity.config.tier < 1 || entity.config.tier > 2 || other.config.tier < 1 || other.config.tier > 2) return false;
+  if (!['PASSIVE', 'FLEE'].includes(entity.config.behavior) || !['PASSIVE', 'FLEE'].includes(other.config.behavior)) return false;
+  if (entity.type === other.type) return true;
+  return entity.config.tier === other.config.tier && entity.config.nativeBiome === other.config.nativeBiome;
+};
+
+/**
+ * Boids 鱼群方向：
+ * - separation 防止叠成一团；alignment 让鱼朝同一方向；cohesion 让掉队者回到群体。
+ * 返回 null 表示附近没有可组群的鱼，调用方保留原来的单鱼游荡逻辑。
+ */
+export const calculateSchoolHeading = (entity: Entity, neighbors: readonly Entity[]): number | null => {
+  if (neighbors.length === 0) return null;
+  let alignX = 0; let alignY = 0;
+  let centerX = 0; let centerY = 0; let centerWeight = 0;
+  let separateX = 0; let separateY = 0;
+  let panicX = 0; let panicY = 0;
+  for (const other of neighbors) {
+    const dx = other.x - entity.x; const dy = other.y - entity.y;
+    const distance = Math.max(0.001, Math.hypot(dx, dy));
+    const kinship = other.type === entity.type ? 1 : 0.52;
+    const otherSpeed = Math.hypot(other.vx, other.vy);
+    alignX += (otherSpeed > 0.01 ? other.vx / otherSpeed : Math.cos(other.angle)) * kinship;
+    alignY += (otherSpeed > 0.01 ? other.vy / otherSpeed : Math.sin(other.angle)) * kinship;
+    centerX += other.x * kinship; centerY += other.y * kinship; centerWeight += kinship;
+    const spacing = Math.max(58, (entity.radius + other.radius) * 2.25);
+    if (distance < spacing) {
+      const pressure = Math.pow((spacing - distance) / spacing, 1.35) * kinship;
+      separateX -= dx / distance * pressure;
+      separateY -= dy / distance * pressure;
+    }
+    if (other.fearTimer && other.fearTimer > 0) {
+      panicX += (otherSpeed > 0.01 ? other.vx / otherSpeed : Math.cos(other.angle)) * kinship;
+      panicY += (otherSpeed > 0.01 ? other.vy / otherSpeed : Math.sin(other.angle)) * kinship;
+    }
+  }
+  const centerDx = centerX / centerWeight - entity.x;
+  const centerDy = centerY / centerWeight - entity.y;
+  const centerDistance = Math.max(1, Math.hypot(centerDx, centerDy));
+  const currentX = Math.cos(entity.angle); const currentY = Math.sin(entity.angle);
+  const desiredX = currentX * 0.55 + alignX / centerWeight * 1.15
+    + centerDx / centerDistance * 0.42 + separateX * 2.5 + panicX * 0.75;
+  const desiredY = currentY * 0.55 + alignY / centerWeight * 1.15
+    + centerDy / centerDistance * 0.42 + separateY * 2.5 + panicY * 0.75;
+  return Math.atan2(desiredY, desiredX);
+};
+
+/** 有邻居时接管巡游方向；没有邻居时返回 false，由原有 wander 逻辑处理。 */
+const schoolCruise = (entity: Entity, state: GameState, agility: number, speedMult: number): boolean => {
+  if ((entity.config.shape ?? 'FISH') !== 'FISH' || entity.config.tier < 1 || entity.config.tier > 2) return false;
+  schoolNeighborBuf.length = 0;
+  const found = candidateTree.queryCircle(entity.x, entity.y, SCHOOL_RADIUS, queryBuf);
+  for (let index = 0; index < found && schoolNeighborBuf.length < SCHOOL_MAX_NEIGHBORS; index += 1) {
+    const other = candidateTree.itemAt(queryBuf[index]);
+    if (!canSchoolTogether(entity, other)) continue;
+    const distanceSq = dist2(entity, other);
+    if (distanceSq >= SCHOOL_RADIUS * SCHOOL_RADIUS || !canPerceive(entity, other, distanceSq)) continue;
+    schoolNeighborBuf.push(other);
+  }
+  const heading = calculateSchoolHeading(entity, schoolNeighborBuf);
+  if (heading === null) return false;
+  entity.isIdle = false;
+  // 群体转向比单鱼追逐柔和，避免整群像被一根硬杆同时掰弯。
+  entity.angle = turnToward(entity.angle, heading, Math.max(0.03, agility * 0.55));
+  const densityPace = 0.92 + Math.min(0.12, schoolNeighborBuf.length * 0.012);
+  moveForward(entity, state, speedMult * densityPace);
+  return true;
+};
+
+/** 落单鱼的缓慢蛇形巡游，替代每隔百帧突然抽一个大角度。 */
+const gentleCruise = (entity: Entity, state: GameState, agility: number): void => {
+  const wave = Math.sin(state.time * 0.011 + cruisePhaseFor(entity.type));
+  entity.angle += wave * Math.min(0.009, agility * 0.032);
+};
+
 /**
  * 目标是否已经**压在身上**（双方圆相交）—— 「原地转圈」的通用解药。
  *
@@ -200,6 +294,13 @@ const isOverlapping = (entity: Entity, target: Entity): boolean => {
   return dist2(entity, target) < reach * reach;
 };
 
+/** 埋伏型软体鱼暴起时转向很快，在碰撞圆外沿也容易绕猎物打小圈，给它一圈窄缓冲。 */
+const isChaseAngleUnstable = (entity: Entity, target: Entity): boolean => {
+  const margin = entity.config.behavior === 'AMBUSH' ? 1.1 : 1;
+  const reach = (entity.radius + target.radius) * margin;
+  return dist2(entity, target) < reach * reach;
+};
+
 const fleeFrom = (entity: Entity, threat: Entity, state: GameState, agility: number): void => {
   // 已经压在身上：方位角不可信，保持朝向直接冲出去，别原地打转
   if (!isOverlapping(entity, threat)) {
@@ -212,7 +313,7 @@ const fleeFrom = (entity: Entity, threat: Entity, state: GameState, agility: num
 
 const chaseTo = (entity: Entity, prey: Entity, state: GameState, agility: number, mult = 1): void => {
   // 同上：贴到猎物身上时不再追方位角，直接冲过去
-  if (!isOverlapping(entity, prey)) {
+  if (!isChaseAngleUnstable(entity, prey)) {
     const toward = Math.atan2(prey.y - entity.y, prey.x - entity.x);
     entity.angle = turnToward(entity.angle, toward, agility);
   }
@@ -233,7 +334,12 @@ const passiveBehavior: AIHandler = (entity, state) => {
     fleeFrom(entity, threat.entity, state, agility);
     return;
   }
-  if (state.time % 120 === 0) entity.angle += (Math.random() - 0.5) * 0.8;
+  // 保留旧逻辑的随机数消费时机，确保固定种子下后续战斗/掉落序列不漂移；
+  // 角度影响缩小，真正的连续弯曲交给 gentleCruise。
+  const courseNudge = state.time % 120 === 0 ? (Math.random() - 0.5) * 0.12 : 0;
+  if (schoolCruise(entity, state, agility, 0.6)) return;
+  entity.angle += courseNudge;
+  gentleCruise(entity, state, agility);
   moveForward(entity, state, 0.6);
 };
 
@@ -249,7 +355,10 @@ const fleeBehavior: AIHandler = (entity, state) => {
     fleeFrom(entity, threat.entity, state, agility);
     return;
   }
-  if (state.time % 100 === 0) entity.angle += (Math.random() - 0.5) * 0.7;
+  const courseNudge = state.time % 100 === 0 ? (Math.random() - 0.5) * 0.12 : 0;
+  if (schoolCruise(entity, state, agility, 0.8)) return;
+  entity.angle += courseNudge;
+  gentleCruise(entity, state, agility);
   moveForward(entity, state, 0.8);
 };
 
@@ -628,12 +737,17 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
   // 本帧的 id → 实体查表（含玩家）：中毒要凭 `poisonSourceId` 找回施毒者
   const resolveSource = (id: string): Entity | undefined => candidateById.get(id);
 
+  const managedOwnerIds = new Set<string>([
+    'player',
+    ...(state.rivalSquads?.map((squad) => squad.id) ?? []),
+  ]);
+
   for (const entity of state.entities) {
     tickTimers(entity, resolveSource);
 
-    // 战队成员不是野怪：行为归 squad 系统管（跟随玩家）。
+    // 有阵营归属的队员不是野怪：玩家队由 squad、敌队由 rivalSquads 独占移动。
     // 这里必须跳过，否则两个系统每帧各写一次位置，成员会原地抽搐。
-    if (entity.ownerId === 'player') continue;
+    if (entity.ownerId && managedOwnerIds.has(entity.ownerId)) continue;
 
     // 远离玩家的鱼不必每帧思考
     if (dist2(entity, state.player) > AI_ACTIVE_RANGE_SQ) continue;

@@ -18,6 +18,7 @@ import { dist, uuid, pick } from '../core/math';
 import { isPositionValid } from './terrain';
 import { createEntity } from './spawn';
 import { createParticle, dealDamage, createCookieParticle } from './combat';
+import { isFeedingEventMajorPhase } from './feedingEvents';
 
 const TREASURE_EFFECT_BY_TYPE: Record<Treasure['type'], Treasure['effect']> = {
   FEAST: 'EXP',
@@ -221,7 +222,9 @@ const updateFountains = (state: GameState, ctx: FrameContext): void => {
 };
 
 export const eventsSystem = (state: GameState, ctx: FrameContext): void => {
-  if (state.time % TREASURE_CONFIG.SPAWN_INTERVAL === 0) spawnTreasure(state, ctx);
+  if (state.time % TREASURE_CONFIG.SPAWN_INTERVAL === 0 && !isFeedingEventMajorPhase(state)) {
+    spawnTreasure(state, ctx);
+  }
   updateTreasures(state, ctx);
 
   if (state.time % METEOR_CONFIG.INTERVAL === 0) spawnMeteor(state, ctx);

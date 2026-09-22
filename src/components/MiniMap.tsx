@@ -47,6 +47,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
   const [hoveredEntity, setHoveredEntity] = useState<{x: number, y: number, type: string} | null>(null);
   const [navigationHint, setNavigationHint] = useState<{x: number, y: number} | null>(null);
   const { player, portals, treasures, hazards, buildings, entities, fountains } = gameState;
+  const currents = gameState.currents ?? [];
 
   // Blinking effect timer (for treasure warning)
   useEffect(() => {
@@ -221,6 +222,28 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
         ctx.textAlign = 'center';
         ctx.fillText(config.name, x, y + 2);
       }
+    });
+
+    // 洋流用一条带箭头的短水道标出，让玩家可以主动规划顺流路线。
+    currents.forEach(zone => {
+      const x = zone.x * scale + offset;
+      const y = zone.y * scale + offset;
+      const length = zone.length * scale;
+      const width = Math.max(4, zone.width * scale);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(zone.angle);
+      ctx.fillStyle = hexToRgba(zone.color, 0.22);
+      ctx.strokeStyle = hexToRgba(zone.color, 0.8);
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(-length / 2, -width / 2, length, width);
+      ctx.strokeRect(-length / 2, -width / 2, length, width);
+      ctx.beginPath();
+      ctx.moveTo(length * 0.12, -3);
+      ctx.lineTo(length * 0.24, 0);
+      ctx.lineTo(length * 0.12, 3);
+      ctx.stroke();
+      ctx.restore();
     });
 
     // Draw entities as dots (with hover highlight)
@@ -538,7 +561,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
       ctx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
     }
 
-  }, [player, portals, treasures, hazards, buildings, entities, blinkState, isExpanded, isHovered, hoveredEntity, navigationHint, getVisibleEntities, getThreatLevel, gameState.camera]);
+  }, [player, portals, treasures, hazards, buildings, entities, currents, blinkState, isExpanded, isHovered, hoveredEntity, navigationHint, getVisibleEntities, getThreatLevel, gameState.camera]);
 
   return (
     <div className={`absolute bottom-20 right-8 ${isHovered ? 'z-50' : ''}`}>

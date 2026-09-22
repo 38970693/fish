@@ -104,7 +104,10 @@ export const dealDamage = (target: Entity, amount: number, source?: Entity): num
   target.health -= damage;
   // 记归属时用对象同一性判自伤（不能用 id 比：单测把 Math.random 钉成常数时
   // `uuid()` 会给所有实体生成同一个 id，见 factions.ts 的注释）
-  if (source && source !== target) target.lastHitById = source.id;
+  if (source && source !== target) {
+    target.lastHitById = source.id;
+    target.hostileHitCounter = (target.hostileHitCounter ?? 0) + 1;
+  }
   return damage;
 };
 

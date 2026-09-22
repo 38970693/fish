@@ -94,6 +94,19 @@ describe('战队 · 收编', () => {
     expect(members[0].ownerId).toBe('player');
     expect(state.squad.pending).toHaveLength(0);
     expect(state.squad.recruitedTotal).toBe(1);
+    expect(state.squad.notice?.text).toContain('加入战队');
+    expect(state.squad.notice?.text).toContain('1/');
+  });
+
+  it('V2 形态随身体收编并复制，后续修改俘虏不会污染队员', () => {
+    const state = makePlayingState();
+    const prey = makeRecruit(CreatureType.CLOWN_FISH, 300, 300);
+    prey.appearanceV2 = { schemaVersion: 2, recipeId: 'CLOWN_FISH', seed: 88, genes: { bodyLength: 0.8 } };
+    recruitToSquad(state, prey);
+    squadSystem(state, makeCtx());
+    const member = getSquadMembers(state)[0];
+    expect(member.appearanceV2).toEqual(prey.appearanceV2);
+    expect(member.appearanceV2).not.toBe(prey.appearanceV2);
   });
 
   it(`收编人数不超过上限 ${SQUAD_CONFIG.MAX_SIZE}`, () => {
@@ -242,6 +255,16 @@ describe('战队 · 主动切换（灵魂附身）', () => {
     expect(members.some((m) => m.type === oldType && m.radius === oldRadius)).toBe(true);
     // 人数不变（交换，不是复制）
     expect(members).toHaveLength(1);
+  });
+
+  it('主动附身时 V2 形态跟随身体对调', () => {
+    const state = makePlayingState();
+    state.player.appearanceV2 = { schemaVersion: 2, recipeId: 'STANDARD_FISH', seed: 1 };
+    const member = addMember(state, CreatureType.CLOWN_FISH, state.player.x + 200, state.player.y);
+    member.appearanceV2 = { schemaVersion: 2, recipeId: 'CLOWN_FISH', seed: 2, parts: { tailFin: 'tail.ribbon' } };
+    expect(possessMember(state, member.id)).toBe(true);
+    expect(state.player.appearanceV2?.seed).toBe(2);
+    expect(getSquadMembers(state)[0].appearanceV2?.seed).toBe(1);
   });
 
   it('位置真正对调：玩家飞到小弟身上，旧身体留在原地', () => {

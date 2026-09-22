@@ -7,11 +7,15 @@ import { getAchievementView, getUnlockedCount, type AchievementView } from '../s
 import { getLeaderboard, getLastRunRank, clearLeaderboard, type LeaderboardEntry } from '../systems/leaderboard';
 import { SCHOOL_DATA, type SchoolId } from '../data/schools';
 import { POND_LIST, DEFAULT_POND, getPond, type PondId } from '../data/ponds';
-import { getPondSpecialties } from '../data/pondEvents';
 import { SKILL_DATA } from '../data/skills';
+import { FEEDING_EVENT_CONFIG } from '../data/feedingEvents';
+import { getContestIntel } from '../systems/contestIntel';
+import { getCreatureDisplayName } from '../data/rareVariants';
 import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat, Trophy } from 'lucide-react';
 import MiniMap from './MiniMap';
 import CosmeticsPanel from './CosmeticsPanel';
+import { GlobalOceanMap } from './GlobalOceanMap';
+import { getOceanRegion } from '../data/oceanRegions';
 
 // 宝物倒计时组件
 interface TreasureCountdownProps {
@@ -130,6 +134,81 @@ const TreasureAlert: React.FC<{ treasures: Treasure[] }> = ({ treasures }) => {
   );
 };
 
+const FeedingEventAlert: React.FC<{ gameState: GameState }> = ({ gameState }) => {
+  const event = gameState.feedingEvent;
+  if (!event) return null;
+  const seconds = Math.max(0, Math.ceil(event.timer / 60));
+  const active = event.phase === 'WARNING' || event.phase === 'DROPPING' || event.phase === 'LINGERING';
+  const intel = getContestIntel(gameState);
+  const labels = {
+    WAITING: '首次投食准备',
+    WARNING: '投食即将开始',
+    DROPPING: '投食争夺中',
+    LINGERING: '抢走剩余食物',
+    COOLDOWN: '下次投食',
+  } as const;
+  let location = '';
+  if (event.x !== null && event.y !== null) {
+    const dx = event.x - gameState.player.x;
+    const dy = event.y - gameState.player.y;
+    const arrows = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];
+    const octant = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8;
+    location = `${arrows[octant]} ${Math.round(Math.hypot(dx, dy))}m`;
+  }
+
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40">
+      <div className={`min-w-80 bg-slate-900/90 px-5 py-3 rounded-2xl border-2 shadow-xl backdrop-blur-sm ${active ? 'border-orange-400' : 'border-slate-600'}`}>
+        <div className="flex items-center gap-3">
+          <Utensils size={24} className={active ? 'text-orange-300' : 'text-slate-400'} />
+          <div>
+            <div className={`font-black ${active ? 'text-orange-300' : 'text-slate-300'}`}>{labels[event.phase]}</div>
+            <div className="text-sm text-white">
+              {seconds}s {location && `· ${location}`}
+              {event.phase === 'DROPPING' && ` · 已投 ${event.totalSpawned}/${FEEDING_EVENT_CONFIG.DROP_TOTAL_LIMIT}`}
+            </div>
+          </div>
+        </div>
+        {active && intel.squads.some((squad) => squad.alive > 0) && (
+          <div className="mt-2 pt-2 border-t border-slate-700/80 text-xs">
+            <div className="flex items-center justify-between font-bold" style={{ color: intel.color }}>
+              <span><AlertTriangle size={13} className="inline mr-1" />{intel.label}</span>
+              <span>{intel.nearbyEnemies > 0 ? `附近 ${intel.nearbyEnemies} 敌` : '尚在外围'}</span>
+            </div>
+            <div className="mt-1 flex gap-2 text-slate-200">
+              {intel.squads.filter((squad) => squad.alive > 0).map((squad) => (
+                <span key={squad.id} className="rounded bg-slate-800 px-2 py-1 border border-slate-600">
+                  {squad.name} · {squad.tactic} · {squad.alive}人
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ExplorationAlert: React.FC<{ gameState: GameState }> = ({ gameState }) => {
+  const event = gameState.exploration;
+  if (!event || event.phase !== 'SEARCHING') return null;
+  const progress = Math.max(0, Math.min(1, 1 - event.timer / event.duration));
+  return (
+    <div className="absolute top-28 left-1/2 -translate-x-1/2 z-40 min-w-80">
+      <div className="bg-slate-950/90 px-5 py-3 rounded-2xl border-2 border-amber-400 shadow-xl backdrop-blur-sm">
+        <div className="flex items-center justify-between text-sm font-black">
+          <span className="text-amber-300">正在搜索沉船</span>
+          <span className="text-white">{Math.ceil(event.timer / 60)}s</span>
+        </div>
+        <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-amber-600 to-yellow-300 transition-all" style={{ width: `${progress * 100}%` }} />
+        </div>
+        <div className="mt-1 text-center text-[11px] text-slate-300">留在沉船附近；受击或危险逼近会中断</div>
+      </div>
+    </div>
+  );
+};
+
 /**
  * 流派技能槽（P1-3）。
  * 流派由当前生物决定，技能按等级逐档解锁（Lv3 / 6 / 9 / 12），Q 键释放。
@@ -181,7 +260,7 @@ const SchoolSkillBar: React.FC<{ player: PlayerState }> = ({ player }) => {
 
 interface UIOverlayProps {
   gameState: GameState;
-  onStart: (selectedType?: CreatureType) => void;
+  onStart: (selectedType?: CreatureType, pondId?: PondId) => void;
   onStartBattleTest?: () => void;
   onEvolve: (type: CreatureType) => void;
   onRestart: () => void;
@@ -268,17 +347,18 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <p>进化点数攒够当前阶段的阈值，弹出三选一进化方向，世界暂停随便想。</p>
           </Section>
 
-          <Section icon={<MapPin size={20} />} title="鱼塘（开局选）">
+          <Section icon={<MapPin size={20} />} title="全球海域（开局选）">
             {POND_LIST.map(({ id, config }) => (
               <p key={id}>
-                <b style={{ color: config.color }}>{config.name}</b>
+                <b style={{ color: config.color }}>{getOceanRegion(id).name}</b>
+                <span className="text-slate-500 ml-1">（{config.name}）</span>
                 <span className="text-amber-300 ml-1">{'★'.repeat(config.difficulty)}</span>：{config.description}
                 （主生态区 {BIOME_CONFIGS[config.signatureBiome].name}，得分 ×{config.scoreMult}）
               </p>
             ))}
-            <p>越危险的塘得分倍率越高，但刷的大鱼更早、食物更少。</p>
-            <p><b className="text-amber-300">每塘有特产</b>：部分鱼、建筑与事件只在特定塘出现 —— 清水塘特产小丑鱼、锦鲤与许愿池；珊瑚塘特产海马、帝王蟹、狮子鱼、珍珠养殖场，还有「珊瑚产卵夜」金币雨；深渊塘特产水母、灯笼鱼、吸血鬼乌贼、哥布林鲨、皇带鱼、吞鳗、星光鱼与沉船残骸，定期有「星光鱼群潮」过境。想集齐图鉴，就得换塘。</p>
-            <p><b className="text-amber-300">塘际门</b>（大号虚线环、琥珀描边）：游进去直接换塘，地形与鱼群整套重建；成长与战队跟着走、分数保留，落地有短暂保护。塘内门（小门）只是在本塘里随机传送。</p>
+            <p>海图首期开通赤道暖海、珊瑚群岛和马里亚纳深海。越危险的海域收益越高，但大型捕食者更早出现、食物更少。</p>
+            <p><b className="text-amber-300">每片海域有特产</b>：部分鱼、建筑与事件只在特定海域出现。想集齐图鉴，需要沿全球航线远航。</p>
+            <p><b className="text-amber-300">远航门</b>（大号虚线环、琥珀描边）：进入后前往另一片海域，区域地形与鱼群整套重建；成长、战队和分数保留，落地有短暂保护。</p>
           </Section>
 
           <Section icon={<ShoppingBag size={20} />} title="建筑与海域">
@@ -545,35 +625,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-2 sm:mb-3">欢乐鱼塘</h1>
 
                 <div className="flex flex-col gap-2 sm:gap-3">
-                    <h2 className="text-base sm:text-lg text-white font-bold">选择鱼塘</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 w-full max-w-6xl">
-                        {POND_LIST.map(({ id, config }) => {
-                            const isSel = selectedPond === id;
-                            const specialties = getPondSpecialties(id);
-                            const fishText = specialties.fish.length > 2
-                              ? `${specialties.fish.slice(0, 2).join('·')} 等 ${specialties.fish.length} 种`
-                              : specialties.fish.join('·');
-                            const specialtyLine = [fishText, specialties.building, specialties.event].filter(Boolean).join(' · ');
-                            return (
-                                <button
-                                    key={id}
-                                    onClick={() => setSelectedPond(id)}
-                                    className={`p-2.5 rounded-2xl border text-left transition-all ${isSel ? 'bg-indigo-900 border-indigo-400 scale-105 shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-slate-800 border-slate-700 hover:border-indigo-400 hover:bg-slate-700'}`}
-                                >
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: config.color }} />
-                                        <span className="text-white font-bold">{config.name}</span>
-                                        <span className="ml-auto text-[11px] font-black text-amber-300">{'★'.repeat(config.difficulty)}</span>
-                                    </div>
-                                    <p className="text-slate-400 text-xs leading-snug">{config.description}</p>
-                                    <p className="text-slate-500 text-[11px] mt-1">
-                                        主生态区：{BIOME_CONFIGS[config.signatureBiome].name} · 得分 ×{config.scoreMult}
-                                    </p>
-                                    <p className="text-[11px] mt-1 text-amber-200/80">特产：{specialtyLine || '——'}</p>
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <h2 className="text-base sm:text-lg text-white font-bold">选择全球海域</h2>
+                    <GlobalOceanMap selected={selectedPond} onSelect={setSelectedPond} />
 
                     <h2 className="text-base sm:text-lg text-white font-bold">选择你的初始鱼类</h2>
                     <div className="flex gap-1.5 sm:gap-2 justify-center flex-wrap max-w-6xl">
@@ -598,7 +651,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     
                     <div className="mt-2.5 sm:mt-3.5 grid grid-cols-1 sm:grid-cols-3 items-center gap-3 sm:gap-4 w-full">
                     <button onClick={() => onStart(selectedStarter, selectedPond)} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:order-2 sm:justify-self-center">
-                        <Play size={26} fill="white" /> 开始游戏
+                        <Play size={26} fill="white" /> 驶入{getOceanRegion(selectedPond).name}
                     </button>
 
                     <button onClick={() => setShowCosmetics(true)} className="px-5 sm:px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm sm:text-base rounded-full border border-slate-600 hover:border-cyan-400 transition-all flex items-center justify-center gap-2 sm:order-1 sm:justify-self-end">
@@ -650,8 +703,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         {/* 成就解锁 toast（订阅 gameEvents，解锁时弹 4 秒） */}
         <AchievementToast />
 
-        {/* 宝物倒计时显示 */}
-        <TreasureCountdown gameState={gameState} />
+        {/* RIVALS 显示主要投食目标；旧模式继续显示宝藏倒计时 */}
+        {gameState.run ? <FeedingEventAlert gameState={gameState} /> : <TreasureCountdown gameState={gameState} />}
+        <ExplorationAlert gameState={gameState} />
 
         {/* 宝藏预警提示 */}
         <TreasureAlert treasures={gameState.treasures} />
@@ -665,7 +719,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         className="text-[11px] font-black px-2 py-0.5 rounded-full"
                         style={{ backgroundColor: `${getPond(gameState.pondId).color}33`, color: getPond(gameState.pondId).color }}
                     >
-                        {getPond(gameState.pondId).name}
+                        {getOceanRegion(gameState.pondId).name}
                     </span>
                     <span className="text-[11px] text-slate-400">得分 ×{getPond(gameState.pondId).scoreMult}</span>
                     {/* 隐蔽提示（藏在水草里 / 开着隐身技能）：告诉玩家「现在追不到我」 */}
@@ -674,9 +728,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                             隐蔽中 · 未被发现
                         </span>
                     )}
+                    {player.currentZoneId && (
+                        <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-300/50 animate-pulse">
+                            顺流加速 · {gameState.currents?.find(zone => zone.id === player.currentZoneId)?.name ?? '洋流'}
+                        </span>
+                    )}
                 </div>
                 <div className="flex justify-between items-end mb-2">
-                    <span className="text-cyan-400 font-black text-xl">玩家 ({player.config.name}) Lv.{player.level}</span>
+                    <span className="text-cyan-400 font-black text-xl">玩家 ({getCreatureDisplayName(player)}) Lv.{player.level}</span>
                     <span className="text-purple-400 font-bold ml-4">进化点数: {Math.floor(player.evolutionPoints)}</span>
                     <span className="text-white font-mono ml-auto">{Math.max(0, Math.floor(player.health))} / {player.maxHealth}</span>
                 </div>
@@ -762,7 +821,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     {/* 集火目标写出来：不写的话玩家不知道队员在扑谁 */}
                     {squadCommand.id === 'FOCUS' && (
                         <div className="mt-1 text-[11px] text-center" style={{ color: squadCommand.color }}>
-                            集火目标：{squadFocusTarget ? squadFocusTarget.config.name : '（已失效，将自动回到护卫）'}
+                            集火目标：{squadFocusTarget ? getCreatureDisplayName(squadFocusTarget) : '（已失效，将自动回到护卫）'}
                         </div>
                     )}
 
@@ -776,13 +835,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                                 <button
                                     key={m.id}
                                     onClick={() => onPossessMember?.(m.id)}
-                                    title={`点此附身到 ${m.config.name}（Lv.${m.level}，半径 ${Math.round(m.radius)}）${role ? ` · ${role.name}：${role.desc}；弱点：${role.weakness}` : ''}`}
+                                    title={`点此附身到 ${getCreatureDisplayName(m)}（Lv.${m.level}，半径 ${Math.round(m.radius)}）${role ? ` · ${role.name}：${role.desc}；弱点：${role.weakness}` : ''}`}
                                     className={`w-7 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all bg-slate-900/70 ${m.id === squadNextSwitchId
                                         ? 'border-cyan-400 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
                                         : 'border-slate-600 text-slate-300 hover:border-cyan-400/70 hover:text-white'}`}
                                     style={role && m.id !== squadNextSwitchId ? { borderColor: role.color, color: role.color } : undefined}
                                 >
-                                    {m.config.name.slice(0, 1)}
+                                    {m.cosmetics?.rareVariant ? '✦' : m.config.name.slice(0, 1)}
                                 </button>
                                 );
                             })}
@@ -806,7 +865,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 <div className="w-80 bg-slate-900/80 p-4 rounded-2xl border-2 border-red-500 shadow-2xl pointer-events-auto">
                     <div className="flex justify-between items-end mb-2 text-right">
                         <span className="text-white font-mono">{Math.max(0, Math.floor(opponent.health))} / {opponent.maxHealth}</span>
-                        <span className="text-red-400 font-black text-xl">AI ({opponent.config.name})</span>
+                        <span className="text-red-400 font-black text-xl">AI ({getCreatureDisplayName(opponent)})</span>
                     </div>
                     <div className="h-6 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
                         <div className="h-full bg-gradient-to-l from-red-600 to-orange-400 transition-all duration-300" style={{ width: `${(opponent.health / opponent.maxHealth) * 100}%` }}></div>
@@ -935,7 +994,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         <div className="absolute inset-0 flex items-center justify-center bg-amber-950/60 backdrop-blur-md z-50">
             <div className="bg-slate-900 p-12 rounded-3xl border-4 border-amber-400 shadow-2xl text-center max-w-xl">
                 <Crown size={110} className="text-amber-400 mx-auto mb-6" />
-                <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-500 mb-4">称霸鱼塘！</h2>
+                <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-500 mb-4">称霸海域！</h2>
                 <p className="text-slate-200 text-xl mb-2">你击败了深海霸主</p>
                 <p className="text-slate-400 mb-8">
                     最终体重 <span className="text-cyan-400 font-bold">{Math.floor(player.weight)}</span>
