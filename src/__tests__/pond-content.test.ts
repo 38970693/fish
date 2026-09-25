@@ -65,6 +65,15 @@ describe('按塘生成池（特产鱼）', () => {
     expect(getSpawnPool('CLEAR', 3)).not.toContain('LIONFISH');
   });
 
+  it('海狮是独立于海狗的珊瑚塘大型物种', () => {
+    expect(CREATURE_DATA.SEA_LION.name).toBe('海狮');
+    expect(CREATURE_DATA.SEA_LION.shape).toBe('SEAL');
+    expect(getSpawnPool('CORAL', 3)).toContain('SEA_LION');
+    expect(getSpawnPool('CLEAR', 3)).not.toContain('SEA_LION');
+    expect(getSpawnPool('ABYSS', 3)).not.toContain('SEA_LION');
+    expect(CREATURE_DATA.FUR_SEAL.name).toBe('海狗');
+  });
+
   it('深渊塘特产：水母/鮟鱇/吸血鬼乌贼/吞鳗/哥布林鲨/皇带鱼/星光鱼只在深渊塘', () => {
     expect(getSpawnPool('ABYSS', 1)).toContain('JELLYFISH');
     expect(getSpawnPool('ABYSS', 1)).toContain('STARLIGHT_FISH');
@@ -262,14 +271,14 @@ describe('塘专属事件', () => {
 /* ══════════════ ④ 特产汇总（UI 数据） ══════════════ */
 
 describe('getPondSpecialties（菜单塘卡数据）', () => {
-  it('三条特产线齐全：清水塘=2 鱼+许愿池、珊瑚塘=3 鱼+珍珠场+产卵夜、深渊塘=7 鱼+沉船+鱼群潮', () => {
+  it('三条特产线齐全：珊瑚塘展示新增海狮，清水塘和深渊塘保持原样', () => {
     const clear = getPondSpecialties('CLEAR');
     expect(clear.fish).toEqual(['小丑鱼', '锦鲤']);
     expect(clear.building).toBe('许愿池');
     expect(clear.event).toBeNull();
 
     const coral = getPondSpecialties('CORAL');
-    expect(coral.fish).toEqual(['海马', '帝王蟹', '狮子鱼']);
+    expect(coral.fish).toEqual(['海马', '帝王蟹', '狮子鱼', '海狮']);
     expect(coral.building).toBe('珍珠养殖场');
     expect(coral.event).toBe('珊瑚产卵夜');
 

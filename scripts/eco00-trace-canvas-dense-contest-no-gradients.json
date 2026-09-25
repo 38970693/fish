@@ -1,0 +1,1374 @@
+{
+  "eventCount": 198665,
+  "threads": [
+    {
+      "pid": 0,
+      "tid": 0,
+      "name": "swapper"
+    },
+    {
+      "pid": 10524,
+      "tid": 17916,
+      "name": "Compositor"
+    },
+    {
+      "pid": 10524,
+      "tid": 27116,
+      "name": "CrRendererMain"
+    },
+    {
+      "pid": 28940,
+      "tid": 4684,
+      "name": "PerfettoTrace"
+    },
+    {
+      "pid": 28940,
+      "tid": 30596,
+      "name": "CrBrowserMain"
+    },
+    {
+      "pid": 28940,
+      "tid": 3624,
+      "name": "Chrome_IOThread"
+    },
+    {
+      "pid": 10524,
+      "tid": 8636,
+      "name": "PerfettoTrace"
+    },
+    {
+      "pid": 10524,
+      "tid": 7180,
+      "name": "Chrome_ChildIOThread"
+    },
+    {
+      "pid": 12752,
+      "tid": 27500,
+      "name": "PerfettoTrace"
+    },
+    {
+      "pid": 12752,
+      "tid": 24728,
+      "name": "Chrome_ChildIOThread"
+    },
+    {
+      "pid": 28940,
+      "tid": 23224,
+      "name": "DevToolsPipeHandlerWriteThread"
+    },
+    {
+      "pid": 12752,
+      "tid": 29960,
+      "name": "GpuVSyncThread"
+    },
+    {
+      "pid": 12752,
+      "tid": 29400,
+      "name": "VizCompositorThread"
+    },
+    {
+      "pid": 12752,
+      "tid": 30692,
+      "name": "CrGpuMain"
+    },
+    {
+      "pid": 10524,
+      "tid": 3052,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 11360,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 17256,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 476,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 12752,
+      "tid": 9576,
+      "name": "StackSamplingProfiler"
+    },
+    {
+      "pid": 12752,
+      "tid": 29416,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 12752,
+      "tid": 12260,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 28940,
+      "tid": 12932,
+      "name": "StackSamplingProfiler"
+    },
+    {
+      "pid": 28940,
+      "tid": 3392,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 4904,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 26744,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 5124,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 28940,
+      "tid": 15160,
+      "name": "ThreadPoolServiceThread"
+    },
+    {
+      "pid": 28940,
+      "tid": 2216,
+      "name": "ThreadPoolSingleThreadCOMSTASharedForegroundBlocking0"
+    },
+    {
+      "pid": 12752,
+      "tid": 29220,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 28940,
+      "tid": 25524,
+      "name": "MemoryInfra"
+    },
+    {
+      "pid": 10524,
+      "tid": 29568,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 26120,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 7928,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 5516,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 29752,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 27672,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 12752,
+      "tid": 21448,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 30660,
+      "name": "ThreadPoolServiceThread"
+    },
+    {
+      "pid": 10524,
+      "tid": 5924,
+      "name": "ThreadPoolBackgroundWorker"
+    },
+    {
+      "pid": 28940,
+      "tid": 9108,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 10524,
+      "tid": 26892,
+      "name": "ThreadPoolForegroundWorker"
+    }
+  ],
+  "longest": [
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469274,
+      "durationMs": 64.687
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469274,
+      "durationMs": 64.686
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469306,
+      "durationMs": 64.653
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469308,
+      "durationMs": 64.647
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469313,
+      "durationMs": 64.642
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469323,
+      "durationMs": 64.63
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469324,
+      "durationMs": 64.628
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469325,
+      "durationMs": 64.627
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552469328,
+      "durationMs": 64.622
+    },
+    {
+      "name": "ThreadPool_RunTask",
+      "category": "toplevel",
+      "pid": 10524,
+      "tid": 3052,
+      "startUs": 28552866995,
+      "durationMs": 58.172
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591643,
+      "durationMs": 53.109
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591644,
+      "durationMs": 53.107
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591647,
+      "durationMs": 53.102
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591648,
+      "durationMs": 53.096
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591650,
+      "durationMs": 53.093
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591655,
+      "durationMs": 53.086
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591656,
+      "durationMs": 53.083
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591657,
+      "durationMs": 53.082
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28553591658,
+      "durationMs": 53.079
+    },
+    {
+      "name": "RasterDecoderImpl::DoEndRasterCHROMIUM",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552482983,
+      "durationMs": 50.944
+    },
+    {
+      "name": "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28552482984,
+      "durationMs": 50.815
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571084,
+      "durationMs": 47.717
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571084,
+      "durationMs": 47.716
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571085,
+      "durationMs": 47.713
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571086,
+      "durationMs": 47.708
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571090,
+      "durationMs": 47.703
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571098,
+      "durationMs": 47.693
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571099,
+      "durationMs": 47.691
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571100,
+      "durationMs": 47.689
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551571102,
+      "durationMs": 47.685
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266743,
+      "durationMs": 47.027
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266743,
+      "durationMs": 47.026
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266744,
+      "durationMs": 47.024
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266745,
+      "durationMs": 47.019
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266750,
+      "durationMs": 47.014
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266758,
+      "durationMs": 47.004
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266759,
+      "durationMs": 47.002
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266760,
+      "durationMs": 47
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551266763,
+      "durationMs": 46.995
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921528,
+      "durationMs": 44.825
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921529,
+      "durationMs": 44.823
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921531,
+      "durationMs": 44.818
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921531,
+      "durationMs": 44.814
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921534,
+      "durationMs": 44.81
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921538,
+      "durationMs": 44.777
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921539,
+      "durationMs": 44.774
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921539,
+      "durationMs": 44.774
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28550921541,
+      "durationMs": 44.77
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619260,
+      "durationMs": 44.732
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619261,
+      "durationMs": 44.73
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619262,
+      "durationMs": 44.727
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619263,
+      "durationMs": 44.722
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619269,
+      "durationMs": 44.716
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619286,
+      "durationMs": 44.696
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619287,
+      "durationMs": 44.694
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619288,
+      "durationMs": 44.693
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551619291,
+      "durationMs": 44.688
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747826,
+      "durationMs": 43.495
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747827,
+      "durationMs": 43.493
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747829,
+      "durationMs": 43.489
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747829,
+      "durationMs": 43.485
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747832,
+      "durationMs": 43.481
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747837,
+      "durationMs": 43.462
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747837,
+      "durationMs": 43.461
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747838,
+      "durationMs": 43.46
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551747840,
+      "durationMs": 43.456
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137431,
+      "durationMs": 43.323
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137432,
+      "durationMs": 43.321
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137432,
+      "durationMs": 43.319
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137433,
+      "durationMs": 43.315
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137433,
+      "durationMs": 43.306
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137435,
+      "durationMs": 43.289
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137435,
+      "durationMs": 43.288
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137435,
+      "durationMs": 43.287
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551137436,
+      "durationMs": 43.285
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441705,
+      "durationMs": 42.775
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441705,
+      "durationMs": 42.773
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441706,
+      "durationMs": 42.77
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441707,
+      "durationMs": 42.765
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441709,
+      "durationMs": 42.762
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441713,
+      "durationMs": 42.743
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441714,
+      "durationMs": 42.741
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441714,
+      "durationMs": 42.741
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551441715,
+      "durationMs": 42.738
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051954,
+      "durationMs": 42.643
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051954,
+      "durationMs": 42.642
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051956,
+      "durationMs": 42.638
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051956,
+      "durationMs": 42.635
+    },
+    {
+      "name": "GPUTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051959,
+      "durationMs": 42.631
+    },
+    {
+      "name": "RendererMainThread",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051964,
+      "durationMs": 42.609
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051965,
+      "durationMs": 42.607
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051965,
+      "durationMs": 42.607
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551051967,
+      "durationMs": 42.603
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551223926,
+      "durationMs": 42.466
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551834648,
+      "durationMs": 42.465
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551223927,
+      "durationMs": 42.464
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551834649,
+      "durationMs": 42.463
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551223929,
+      "durationMs": 42.46
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551834650,
+      "durationMs": 42.46
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 12752,
+      "tid": 30692,
+      "startUs": 28551223930,
+      "durationMs": 42.456
+    }
+  ],
+  "topEvents": [
+    {
+      "name": "RunTask",
+      "count": 15982,
+      "totalMs": 26572.70100000164,
+      "maxMs": 64.687
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "count": 15636,
+      "totalMs": 26524.832000001934,
+      "maxMs": 64.686
+    },
+    {
+      "name": "WaitForVSync Sleep",
+      "count": 565,
+      "totalMs": 9996.47699999999,
+      "maxMs": 18.547
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "count": 1014,
+      "totalMs": 9972.590000000038,
+      "maxMs": 64.653
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "count": 461,
+      "totalMs": 9871.108000000017,
+      "maxMs": 64.647
+    },
+    {
+      "name": "GPUTask",
+      "count": 462,
+      "totalMs": 9868.931000000008,
+      "maxMs": 64.642
+    },
+    {
+      "name": "RendererMainThread",
+      "count": 427,
+      "totalMs": 9860.441999999997,
+      "maxMs": 64.63
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "count": 460,
+      "totalMs": 9860.435,
+      "maxMs": 64.628
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "count": 460,
+      "totalMs": 9859.941000000003,
+      "maxMs": 64.627
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "count": 460,
+      "totalMs": 9857.848999999995,
+      "maxMs": 64.622
+    },
+    {
+      "name": "RasterDecoderImpl::DoEndRasterCHROMIUM",
+      "count": 430,
+      "totalMs": 6175.800000000005,
+      "maxMs": 50.944
+    },
+    {
+      "name": "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush",
+      "count": 430,
+      "totalMs": 6142.924999999995,
+      "maxMs": 50.815
+    },
+    {
+      "name": "v8.callFunction",
+      "count": 1506,
+      "totalMs": 5423.679000000003,
+      "maxMs": 20.913
+    },
+    {
+      "name": "FunctionCall",
+      "count": 1506,
+      "totalMs": 5408.116000000001,
+      "maxMs": 20.906
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "count": 277,
+      "totalMs": 5312.261000000001,
+      "maxMs": 30.144
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "count": 277,
+      "totalMs": 4845.057999999996,
+      "maxMs": 28.384
+    },
+    {
+      "name": "AsyncTask Run",
+      "count": 969,
+      "totalMs": 4844.622000000004,
+      "maxMs": 20.925
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "count": 277,
+      "totalMs": 4842.328000000003,
+      "maxMs": 28.38
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "count": 277,
+      "totalMs": 4840.790999999998,
+      "maxMs": 28.376
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "count": 277,
+      "totalMs": 4830.872999999999,
+      "maxMs": 28.346
+    },
+    {
+      "name": "FireAnimationFrame",
+      "count": 830,
+      "totalMs": 4830.000999999993,
+      "maxMs": 20.928
+    },
+    {
+      "name": "RasterDecoderImpl::DoRasterCHROMIUM",
+      "count": 430,
+      "totalMs": 3654.757000000006,
+      "maxMs": 21.539
+    },
+    {
+      "name": "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing",
+      "count": 430,
+      "totalMs": 3653.480999999999,
+      "maxMs": 21.535
+    },
+    {
+      "name": "ThreadPool_RunTask",
+      "count": 3557,
+      "totalMs": 1264.5039999999979,
+      "maxMs": 58.172
+    },
+    {
+      "name": "SimpleWatcher::OnHandleReady",
+      "count": 2889,
+      "totalMs": 625.6779999999965,
+      "maxMs": 7.207
+    },
+    {
+      "name": "MessagePort::Accept",
+      "count": 265,
+      "totalMs": 588.1480000000001,
+      "maxMs": 7.194
+    },
+    {
+      "name": "Commit",
+      "count": 277,
+      "totalMs": 411.1500000000001,
+      "maxMs": 3.186
+    },
+    {
+      "name": "LayerTreeHost::DoUpdateLayers",
+      "count": 277,
+      "totalMs": 399.12600000000026,
+      "maxMs": 3.125
+    },
+    {
+      "name": "CanvasResourceProviderSharedImage::ProduceCanvasResource",
+      "count": 480,
+      "totalMs": 392.30199999999866,
+      "maxMs": 3.085
+    },
+    {
+      "name": "V8.GC_MC_BACKGROUND_MARKING",
+      "count": 204,
+      "totalMs": 275.5129999999999,
+      "maxMs": 5.493
+    },
+    {
+      "name": "RasterImplementation::RasterCHROMIUM",
+      "count": 430,
+      "totalMs": 248.2939999999999,
+      "maxMs": 1.69
+    },
+    {
+      "name": "IOHandler::OnIOCompleted",
+      "count": 5729,
+      "totalMs": 94.96000000000159,
+      "maxMs": 0.313
+    },
+    {
+      "name": "MinorGC",
+      "count": 161,
+      "totalMs": 73.28999999999998,
+      "maxMs": 0.809
+    },
+    {
+      "name": "ProxyImpl::ScheduledActionDraw",
+      "count": 277,
+      "totalMs": 70.84300000000003,
+      "maxMs": 0.735
+    },
+    {
+      "name": "MainFrame.Draw",
+      "count": 277,
+      "totalMs": 70.58699999999997,
+      "maxMs": 0.735
+    },
+    {
+      "name": "V8.GCScavenger",
+      "count": 161,
+      "totalMs": 68.81499999999998,
+      "maxMs": 0.785
+    },
+    {
+      "name": "V8.GC_SCAVENGER",
+      "count": 161,
+      "totalMs": 66.316,
+      "maxMs": 0.716
+    },
+    {
+      "name": "ANGLEPlatformImpl::RunWorkerTask",
+      "count": 42,
+      "totalMs": 61.854,
+      "maxMs": 8.127
+    },
+    {
+      "name": "Receive mojo message",
+      "count": 2599,
+      "totalMs": 60.68000000000024,
+      "maxMs": 0.281
+    },
+    {
+      "name": "V8.GC_SCAVENGER_SCAVENGE",
+      "count": 161,
+      "totalMs": 60.11399999999998,
+      "maxMs": 0.666
+    },
+    {
+      "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+      "count": 109,
+      "totalMs": 56.77499999999999,
+      "maxMs": 1.778
+    },
+    {
+      "name": "WebFrameWidgetImpl::UpdateLifecycle",
+      "count": 277,
+      "totalMs": 46.946,
+      "maxMs": 0.826
+    },
+    {
+      "name": "V8.GC_SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL",
+      "count": 775,
+      "totalMs": 45.51200000000003,
+      "maxMs": 0.348
+    },
+    {
+      "name": "V8.GCIncrementalMarking",
+      "count": 1215,
+      "totalMs": 44.00799999999995,
+      "maxMs": 2.569
+    },
+    {
+      "name": "V8.GC_MC_INCREMENTAL",
+      "count": 1215,
+      "totalMs": 42.786000000000165,
+      "maxMs": 2.568
+    },
+    {
+      "name": "ProxyImpl::ReadyToCommit",
+      "count": 277,
+      "totalMs": 37.65800000000003,
+      "maxMs": 0.239
+    },
+    {
+      "name": "MajorGC",
+      "count": 13,
+      "totalMs": 33.24,
+      "maxMs": 3.186
+    },
+    {
+      "name": "V8.GCFinalizeMC",
+      "count": 13,
+      "totalMs": 32.887,
+      "maxMs": 3.159
+    },
+    {
+      "name": "V8.GC_MARK_COMPACTOR",
+      "count": 13,
+      "totalMs": 32.772000000000006,
+      "maxMs": 3.154
+    },
+    {
+      "name": "V8.GC_SCAVENGER_SCAVENGE_PARALLEL_PHASE",
+      "count": 161,
+      "totalMs": 27.09500000000001,
+      "maxMs": 0.41
+    },
+    {
+      "name": "LayerTreeHostImpl::CommitComplete",
+      "count": 277,
+      "totalMs": 24.693999999999996,
+      "maxMs": 0.195
+    },
+    {
+      "name": "LayerTreeImpl::UpdateDrawProperties",
+      "count": 826,
+      "totalMs": 23.661999999999985,
+      "maxMs": 0.137
+    },
+    {
+      "name": "DXGISwapChainImageBacking::Present",
+      "count": 276,
+      "totalMs": 23.531999999999996,
+      "maxMs": 0.234
+    },
+    {
+      "name": "Scheduler::BeginFrame",
+      "count": 545,
+      "totalMs": 22.86600000000001,
+      "maxMs": 0.263
+    },
+    {
+      "name": "LocalFrameView::RunStyleAndLayoutLifecyclePhases",
+      "count": 287,
+      "totalMs": 22.054000000000002,
+      "maxMs": 0.545
+    },
+    {
+      "name": "LocalFrameView::UpdateStyleAndLayout",
+      "count": 287,
+      "totalMs": 20.336000000000002,
+      "maxMs": 0.538
+    },
+    {
+      "name": "WinVSyncProvider::GetVSyncIntervalIfAvailable",
+      "count": 566,
+      "totalMs": 20.029999999999973,
+      "maxMs": 0.318
+    },
+    {
+      "name": "LayerTreeHostImpl::PrepareToDraw",
+      "count": 277,
+      "totalMs": 19.786999999999992,
+      "maxMs": 0.181
+    },
+    {
+      "name": "Scheduler::BeginImplFrame",
+      "count": 545,
+      "totalMs": 18.833999999999975,
+      "maxMs": 0.256
+    },
+    {
+      "name": "TileManager::PrepareTiles",
+      "count": 512,
+      "totalMs": 18.370999999999967,
+      "maxMs": 0.169
+    }
+  ]
+}

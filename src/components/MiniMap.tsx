@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GameState, Portal, Treasure, Hazard, BiomeType, Building, CreatureType, Entity } from '../types';
 import { WORLD_SIZE, MAP_SHAPE_CONFIG, BIOME_CONFIGS, TREASURE_CONFIG, BUILDING_CONFIGS, TREASURE_COLORS } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
+import { getPond } from '../data/ponds';
+import { ENDLESS_WORLD_CONFIG, formatEndlessGlobalCoordinate } from '../data/endlessWorld';
 
 interface MiniMapProps {
   gameState: GameState;
@@ -12,6 +14,26 @@ interface MiniMapProps {
 const MINIMAP_SIZE = 200;
 const MINIMAP_PADDING = 10;
 const MINIMAP_ZOOM_LEVEL = 3; // How much the minimap zooms out
+
+export const createEndlessMiniMapProjection = (
+  player: { x: number; y: number },
+  isExpanded = false,
+) => {
+  const range = ENDLESS_WORLD_CONFIG.RADAR_RANGE * (isExpanded ? 1.35 : 1);
+  const scale = (MINIMAP_SIZE - MINIMAP_PADDING * 2) / (range * 2);
+  return {
+    range,
+    scale,
+    toMap: (x: number, y: number) => ({
+      x: MINIMAP_SIZE / 2 + (x - player.x) * scale,
+      y: MINIMAP_SIZE / 2 + (y - player.y) * scale,
+    }),
+    toWorld: (x: number, y: number) => ({
+      x: player.x + (x - MINIMAP_SIZE / 2) / scale,
+      y: player.y + (y - MINIMAP_SIZE / 2) / scale,
+    }),
+  };
+};
 
 // Threat level colors
 const THREAT_COLORS = {
@@ -59,13 +81,15 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
 
   // Calculate entities within minimap view range
   const getVisibleEntities = useCallback(() => {
-    const viewRange = (WORLD_SIZE / MINIMAP_ZOOM_LEVEL);
+    const viewRange = gameState.worldMode === 'ENDLESS'
+      ? ENDLESS_WORLD_CONFIG.RADAR_RANGE * (isExpanded ? 1.35 : 1)
+      : (WORLD_SIZE / MINIMAP_ZOOM_LEVEL);
     return entities.filter(entity => {
       const dx = entity.x - player.x;
       const dy = entity.y - player.y;
       return Math.sqrt(dx * dx + dy * dy) < viewRange;
     });
-  }, [entities, player.x, player.y]);
+  }, [entities, player.x, player.y, gameState.worldMode, isExpanded]);
 
   // Determine threat level of an entity relative to player
   const getThreatLevel = useCallback((entity: Entity | { radius: number }) => {
@@ -86,6 +110,12 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
+    if (gameState.worldMode === 'ENDLESS') {
+      const world = createEndlessMiniMapProjection(player, isExpanded).toWorld(clickX, clickY);
+      onNavigate(world.x, world.y);
+      return;
+    }
+
     // Convert minimap coordinates to world coordinates
     const scale = (MINIMAP_SIZE - MINIMAP_PADDING * 2) / WORLD_SIZE;
     const worldX = (clickX - MINIMAP_PADDING) / scale;
@@ -93,7 +123,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
 
     // Only navigate if within boundary
     const angle = Math.atan2(worldY - WORLD_SIZE / 2, worldX - WORLD_SIZE / 2);
-    const boundaryRadius = getMapBoundaryRadius(angle);
+    const boundaryRadius = getMapBoundaryRadius(angle, gameState.pondId);
     const distanceFromCenter = Math.sqrt(
       Math.pow(worldX - WORLD_SIZE / 2, 2) + Math.pow(worldY - WORLD_SIZE / 2, 2)
     );
@@ -101,7 +131,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
     if (distanceFromCenter < boundaryRadius) {
       onNavigate(worldX, worldY);
     }
-  }, [onNavigate]);
+  }, [onNavigate, gameState.pondId, gameState.worldMode, player, isExpanded]);
 
   // Handle mouse move for hover effect
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -114,6 +144,20 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
     const rect = canvas.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
+    if (gameState.worldMode === 'ENDLESS') {
+      const projection = createEndlessMiniMapProjection(player, isExpanded);
+      const world = projection.toWorld(mouseX, mouseY);
+      const allDots = [
+        ...entities.map(e => ({ ...e, type: 'entity' })),
+        ...treasures.map(t => ({ ...t, type: `treasure-${t.type}` })),
+        ...hazards.map(h => ({ ...h, type: 'hazard' })),
+        ...buildings.map(b => ({ ...b, type: `building-${b.type}` })),
+      ];
+      const found = allDots.find(dot => Math.hypot(dot.x - world.x, dot.y - world.y) < 70);
+      setHoveredEntity(found ? { x: found.x, y: found.y, type: found.type } : null);
+      if (onNavigate) setNavigationHint(world);
+      return;
+    }
     const scale = (MINIMAP_SIZE - MINIMAP_PADDING * 2) / WORLD_SIZE;
     const offset = MINIMAP_PADDING;
 
@@ -144,7 +188,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
     // Set navigation hint
     if (onNavigate) {
       const angle = Math.atan2(worldY - WORLD_SIZE / 2, worldX - WORLD_SIZE / 2);
-      const boundaryRadius = getMapBoundaryRadius(angle);
+      const boundaryRadius = getMapBoundaryRadius(angle, gameState.pondId);
       const distanceFromCenter = Math.sqrt(
         Math.pow(worldX - WORLD_SIZE / 2, 2) + Math.pow(worldY - WORLD_SIZE / 2, 2)
       );
@@ -154,7 +198,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
         setNavigationHint(null);
       }
     }
-  }, [onNavigate, entities, portals, treasures, hazards, buildings]);
+  }, [onNavigate, entities, portals, treasures, hazards, buildings, gameState.pondId, gameState.worldMode, player, isExpanded]);
 
   const handleMouseLeave = useCallback(() => {
     setIsHovered(false);
@@ -180,12 +224,92 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
     ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
     ctx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
 
-    // Draw flower-shaped map boundary
+    if (gameState.worldMode === 'ENDLESS') {
+      const projection = createEndlessMiniMapProjection(player, isExpanded);
+      const center = MINIMAP_SIZE / 2;
+      const { range, scale: radarScale, toMap } = projection;
+
+      // 无限地图没有“全图缩略图”，小地图改成玩家中心局部雷达。
+      ctx.save();
+      ctx.strokeStyle = 'rgba(103,232,249,0.16)';
+      ctx.lineWidth = 1;
+      for (const fraction of [0.33, 0.66, 1]) {
+        ctx.beginPath();
+        ctx.arc(center, center, (MINIMAP_SIZE / 2 - MINIMAP_PADDING) * fraction, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(148,163,184,0.12)';
+      ctx.beginPath();
+      ctx.moveTo(MINIMAP_PADDING, center); ctx.lineTo(MINIMAP_SIZE - MINIMAP_PADDING, center);
+      ctx.moveTo(center, MINIMAP_PADDING); ctx.lineTo(center, MINIMAP_SIZE - MINIMAP_PADDING);
+      ctx.stroke();
+      ctx.restore();
+
+      for (const zone of currents) {
+        if (Math.hypot(zone.x - player.x, zone.y - player.y) > range * 1.25) continue;
+        const p = toMap(zone.x, zone.y);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(zone.angle);
+        ctx.fillStyle = hexToRgba(zone.color, 0.22);
+        ctx.fillRect(-zone.length * radarScale / 2, -Math.max(3, zone.width * radarScale) / 2, zone.length * radarScale, Math.max(3, zone.width * radarScale));
+        ctx.restore();
+      }
+
+      for (const entity of visibleEntities) {
+        const p = toMap(entity.x, entity.y);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = getThreatLevel(entity); ctx.fill();
+      }
+      for (const building of buildings) {
+        if (Math.hypot(building.x - player.x, building.y - player.y) > range) continue;
+        const p = toMap(building.x, building.y);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = BUILDING_COLORS[building.type] ?? '#06b6d4'; ctx.fill();
+      }
+      for (const treasure of treasures) {
+        if (Math.hypot(treasure.x - player.x, treasure.y - player.y) > range) continue;
+        const p = toMap(treasure.x, treasure.y);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = TREASURE_COLORS[treasure.type] ?? TREASURE_COLORS.DEFAULT; ctx.fill();
+      }
+      for (const hazard of hazards) {
+        if (Math.hypot(hazard.x - player.x, hazard.y - player.y) > range) continue;
+        const p = toMap(hazard.x, hazard.y);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      if (navigationHint && onNavigate) {
+        const p = toMap(navigationHint.x, navigationHint.y);
+        ctx.strokeStyle = 'rgba(34,211,238,0.7)';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      ctx.beginPath(); ctx.arc(center, center, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(center + Math.cos(player.angle) * 7, center + Math.sin(player.angle) * 7, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#22d3ee'; ctx.fill();
+
+      if (isExpanded) {
+        const globalX = formatEndlessGlobalCoordinate(player.x, gameState.endlessWorld?.originChunkX ?? '0');
+        const globalY = formatEndlessGlobalCoordinate(player.y, gameState.endlessWorld?.originChunkY ?? '0');
+        ctx.fillStyle = 'rgba(226,232,240,0.72)';
+        ctx.font = '8px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`X ${globalX}  Y ${globalY}`, 8, MINIMAP_SIZE - 8);
+      }
+      return;
+    }
+
+    // Draw the active pond silhouette used by collision and spawning.
     ctx.beginPath();
     const cx = WORLD_SIZE / 2;
     const cy = WORLD_SIZE / 2;
     for (let angle = 0; angle < Math.PI * 2; angle += 0.05) {
-      const radius = getMapBoundaryRadius(angle) * scale;
+      const radius = getMapBoundaryRadius(angle, gameState.pondId) * scale;
       const x = cx * scale + Math.cos(angle) * radius + offset;
       const y = cy * scale + Math.sin(angle) * radius + offset;
       if (angle === 0) {
@@ -195,9 +319,9 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
       }
     }
     ctx.closePath();
-    ctx.fillStyle = 'rgba(30, 58, 95, 0.6)';
+    ctx.fillStyle = getPond(gameState.pondId).waterColor;
     ctx.fill();
-    ctx.strokeStyle = '#38bdf8';
+    ctx.strokeStyle = getPond(gameState.pondId).shoreColor;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -245,6 +369,73 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
       ctx.stroke();
       ctx.restore();
     });
+
+    if (gameState.pondLayout) {
+      const discovered = new Set(gameState.discoveredLandmarks ?? []);
+      // 稀疏路线提示：只画布局给出的主路线，不揭示动态事件答案。
+      ctx.save();
+      ctx.strokeStyle = 'rgba(226,232,240,0.18)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 5]);
+      for (const route of gameState.pondLayout.routes) {
+        ctx.beginPath();
+        route.points.forEach((p, i) => {
+          const x = p.x * scale + offset;
+          const y = p.y * scale + offset;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // 出生点始终可见；互动地标发现后才显示完整标记，未发现只给方向提示。
+      const sx = gameState.pondLayout.spawn.x * scale + offset;
+      const sy = gameState.pondLayout.spawn.y * scale + offset;
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+
+      for (const landmark of gameState.pondLayout.landmarks) {
+        const lx = landmark.x * scale + offset;
+        const ly = landmark.y * scale + offset;
+        const color = landmark.kind === 'LILY' ? '#86efac'
+          : landmark.kind === 'NURSERY' || landmark.kind === 'PEARL_BED' ? '#5eead4' : '#c4b5fd';
+        if (discovered.has(landmark.id)) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(lx, ly, 5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = color;
+          ctx.fillRect(lx - 1.5, ly - 1.5, 3, 3);
+          if (isExpanded) {
+            const label = landmark.kind === 'LILY' ? '睡莲' : landmark.kind === 'NURSERY' ? '产卵场' : landmark.kind === 'PEARL_BED' ? '珍珠场' : landmark.kind === 'WRECK' ? '沉船' : '热泉';
+            ctx.font = 'bold 7px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, lx, ly - 8);
+          }
+        } else {
+          const dx = landmark.x - player.x;
+          const dy = landmark.y - player.y;
+          const len = Math.max(1, Math.hypot(dx, dy));
+          const hintRadius = MINIMAP_SIZE * 0.38;
+          const hx = MINIMAP_SIZE / 2 + dx / len * hintRadius;
+          const hy = MINIMAP_SIZE / 2 + dy / len * hintRadius;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(hx + dx / len * 4, hy + dy / len * 4);
+          ctx.lineTo(hx - dy / len * 3, hy + dx / len * 3);
+          ctx.lineTo(hx + dy / len * 3, hy - dx / len * 3);
+          ctx.closePath();
+          ctx.fill();
+          if (isExpanded) {
+            ctx.font = '7px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${Math.round(len)}m`, hx, hy + 10);
+          }
+        }
+      }
+      ctx.restore();
+    }
 
     // Draw entities as dots (with hover highlight)
     visibleEntities.forEach((entity) => {
@@ -561,7 +752,14 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
       ctx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
     }
 
-  }, [player, portals, treasures, hazards, buildings, entities, currents, blinkState, isExpanded, isHovered, hoveredEntity, navigationHint, getVisibleEntities, getThreatLevel, gameState.camera]);
+  }, [
+    player, player.x, player.y, player.angle,
+    portals, treasures, hazards, buildings, entities, currents,
+    blinkState, isExpanded, isHovered, hoveredEntity, navigationHint,
+    getVisibleEntities, getThreatLevel,
+    gameState.camera, gameState.pondId, gameState.pondLayout, gameState.discoveredLandmarks,
+    gameState.worldMode, gameState.endlessWorld?.originChunkX, gameState.endlessWorld?.originChunkY,
+  ]);
 
   return (
     <div className={`absolute bottom-20 right-8 ${isHovered ? 'z-50' : ''}`}>
@@ -582,7 +780,9 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
       />
       <div className="absolute -top-6 left-0 right-0 text-center">
         <span className="text-cyan-400 text-xs font-bold bg-slate-900/80 px-2 py-0.5 rounded">
-          {isExpanded ? '小地图 (展开)' : '小地图'}
+          {gameState.worldMode === 'ENDLESS'
+            ? (isExpanded ? '局部雷达 (展开)' : '局部雷达')
+            : (isExpanded ? '小地图 (展开)' : '小地图')}
         </span>
       </div>
 

@@ -13,7 +13,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:slice": "vitest run --config vitest.slice.config.ts"
+    "test:slice": "vitest run --config vitest.slice.config.ts",
+    "probe:v3-06": "node scripts/probe-v3-06-performance.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",

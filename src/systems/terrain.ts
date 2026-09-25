@@ -6,24 +6,41 @@
  */
 
 import { MAP_SHAPE_CONFIG } from '../data/world';
+import { getPond } from '../data/ponds';
 import { BIOME_DATA, BiomeType } from '../data/biomes';
 import type { Obstacle } from '../types';
 import { clamp, normalizeAngle } from '../core/math';
 import { QuadTree } from '../utils/SpatialHash';
+import { getEndlessBiome, type WorldMode } from '../data/endlessWorld';
 
 const { BASE_RADIUS, PETAL_VARIANCE, CENTER_X, CENTER_Y } = MAP_SHAPE_CONFIG;
 
 /** 某个角度上地图的最大半径（花瓣形状的关键） */
-export const getMapBoundaryRadius = (angle: number): number =>
-  BASE_RADIUS + PETAL_VARIANCE * Math.abs(Math.sin(2 * angle));
+export const getMapBoundaryRadius = (angle: number, pondId?: string | null): number => {
+  const shape = getPond(pondId).shape;
+  if (shape === 'ATOLL') {
+    return 2220 + 660 * Math.abs(Math.sin(3 * angle)) + 95 * Math.sin(5 * angle + 0.6);
+  }
+  if (shape === 'TRENCH') {
+    return 2480 + 390 * Math.cos(2 * (angle + 0.35)) + 130 * Math.cos(5 * angle - 0.5);
+  }
+  return BASE_RADIUS + PETAL_VARIANCE * Math.abs(Math.sin(2 * angle));
+};
 
 /** 坐标是否落在地图内（buffer 为额外安全边距） */
-export const isPositionValid = (x: number, y: number, buffer = 0): boolean => {
+export const isPositionValid = (
+  x: number,
+  y: number,
+  buffer = 0,
+  pondId?: string | null,
+  worldMode: WorldMode = 'FINITE',
+): boolean => {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  if (worldMode === 'ENDLESS') return true;
   const dx = x - CENTER_X;
   const dy = y - CENTER_Y;
   const distance = Math.hypot(dx, dy);
-  return distance < getMapBoundaryRadius(Math.atan2(dy, dx)) - buffer;
+  return distance < getMapBoundaryRadius(Math.atan2(dy, dx), pondId) - buffer;
 };
 
 interface Mover {
@@ -74,19 +91,25 @@ const alignToSurface = (entity: Mover, nx: number, ny: number): void => {
  *    现在与 `resolveObstacles` 走同一套（只推回表面 + `alignToSurface` 限速掰向切向），
  *    顶边界的表现从「弹回」变成「贴着边缘滑走」。
  */
-export const clampToMap = (entity: Mover, isBattleTest = false): void => {
+export const clampToMap = (
+  entity: Mover,
+  isBattleTest = false,
+  pondId?: string | null,
+  worldMode: WorldMode = 'FINITE',
+): void => {
   if (!Number.isFinite(entity.x) || !Number.isFinite(entity.y)) {
-    entity.x = CENTER_X;
-    entity.y = CENTER_Y;
+    entity.x = worldMode === 'ENDLESS' ? 0 : CENTER_X;
+    entity.y = worldMode === 'ENDLESS' ? 0 : CENTER_Y;
     return;
   }
+  if (worldMode === 'ENDLESS' && !isBattleTest) return;
 
   const dx = entity.x - CENTER_X;
   const dy = entity.y - CENTER_Y;
   const currentDist = Math.hypot(dx, dy);
   const angle = Math.atan2(dy, dx);
 
-  const maxR = isBattleTest ? 800 : getMapBoundaryRadius(angle);
+  const maxR = isBattleTest ? 800 : getMapBoundaryRadius(angle, pondId);
 
   const boundaryBuffer = Math.max(entity.radius * 3, 150);
   const limit = maxR - entity.radius;
@@ -238,7 +261,15 @@ export const resolveObstacles = (
 };
 
 /** 坐标属于哪个生态区（四象限） */
-export const getBiome = (x: number, y: number): BiomeType => {
+export const getBiome = (
+  x: number,
+  y: number,
+  worldMode: WorldMode = 'FINITE',
+  worldSeed = 0,
+  originChunkX: number | bigint | string = 0,
+  originChunkY: number | bigint | string = 0,
+): BiomeType => {
+  if (worldMode === 'ENDLESS') return getEndlessBiome(worldSeed, x, y, originChunkX, originChunkY);
   if (x < CENTER_X && y < CENTER_Y) return BiomeType.SHALLOWS;
   if (x >= CENTER_X && y < CENTER_Y) return BiomeType.REEF;
   if (x < CENTER_X && y >= CENTER_Y) return BiomeType.SWAMP;
@@ -246,7 +277,7 @@ export const getBiome = (x: number, y: number): BiomeType => {
 };
 
 /** 在指定生态区内取一个随机点 */
-export const getRandomPosInBiome = (biome: BiomeType): { x: number; y: number } => {
+export const getRandomPosInBiome = (biome: BiomeType, pondId?: string | null): { x: number; y: number } => {
   const baseAngle: Record<BiomeType, number> = {
     [BiomeType.SHALLOWS]: -3 * Math.PI / 4,
     [BiomeType.REEF]: -Math.PI / 4,
@@ -255,8 +286,9 @@ export const getRandomPosInBiome = (biome: BiomeType): { x: number; y: number } 
   };
 
   const maxR = BASE_RADIUS + PETAL_VARIANCE * 0.8;
-  const r = 500 + Math.random() * Math.max(0, maxR - 800);
+  const sampledRadius = 500 + Math.random() * Math.max(0, maxR - 800);
   const a = baseAngle[biome] + (Math.random() - 0.5) * 0.5;
+  const r = Math.min(sampledRadius, getMapBoundaryRadius(a, pondId) - 260);
 
   return {
     x: CENTER_X + Math.cos(a) * r,

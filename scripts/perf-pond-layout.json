@@ -1,0 +1,661 @@
+{
+  "measuredAt": "2026-09-25T08:20:24.327Z",
+  "seed": 20260925,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 3000,
+  "scenarios": [
+    {
+      "renderer": "canvas",
+      "layoutMode": "classic",
+      "fixture": {
+        "entities": 300,
+        "contest": false,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "pondId": "CLEAR",
+        "pondLayoutMode": "CLASSIC",
+        "layoutSeed": null,
+        "layoutVersion": null
+      },
+      "errors": [],
+      "frameCount": 113,
+      "frameMs": {
+        "p50": 34.399999999999636,
+        "p95": 36.099999999999454,
+        "p99": 36.399999999999636
+      },
+      "renderMs": {
+        "p50": 6.100000001490116,
+        "p95": 6.800000000745058
+      },
+      "beforeMetrics": {
+        "renderer": "canvas",
+        "renderCount": 51,
+        "lastRenderMs": 6.699999999254942,
+        "displayObjects": 0,
+        "textures": 0
+      },
+      "afterMetrics": {
+        "renderer": "canvas",
+        "renderCount": 164,
+        "lastRenderMs": 5.599999997764826,
+        "displayObjects": 0,
+        "textures": 0
+      },
+      "renderErrorDelta": 0
+    },
+    {
+      "renderer": "canvas",
+      "layoutMode": "procedural",
+      "fixture": {
+        "entities": 300,
+        "contest": false,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "pondId": "CLEAR",
+        "pondLayoutMode": "PROCEDURAL",
+        "layoutSeed": 20260925,
+        "layoutVersion": 1
+      },
+      "errors": [],
+      "frameCount": 120,
+      "frameMs": {
+        "p50": 18.099999999999454,
+        "p95": 36.09999999999991,
+        "p99": 36.19999999999982
+      },
+      "renderMs": {
+        "p50": 6,
+        "p95": 6.800000000745058
+      },
+      "beforeMetrics": {
+        "renderer": "canvas",
+        "renderCount": 60,
+        "lastRenderMs": 6.199999999254942,
+        "displayObjects": 0,
+        "textures": 0
+      },
+      "afterMetrics": {
+        "renderer": "canvas",
+        "renderCount": 180,
+        "lastRenderMs": 5.299999997019768,
+        "displayObjects": 0,
+        "textures": 0
+      },
+      "renderErrorDelta": 0
+    },
+    {
+      "renderer": "pixi",
+      "layoutMode": "classic",
+      "fixture": {
+        "entities": 300,
+        "contest": false,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "pondId": "CLEAR",
+        "pondLayoutMode": "CLASSIC",
+        "layoutSeed": null,
+        "layoutVersion": null
+      },
+      "errors": [],
+      "frameCount": 171,
+      "frameMs": {
+        "p50": 17.600000000000364,
+        "p95": 18.100000000000364,
+        "p99": 18.5
+      },
+      "renderMs": {
+        "p50": 2.600000001490116,
+        "p95": 3
+      },
+      "beforeMetrics": {
+        "renderer": "WebGLRenderer",
+        "tickerStarted": false,
+        "width": 1280,
+        "height": 800,
+        "renderCount": 72,
+        "lastRenderMs": 2.800000000745058,
+        "textures": 31,
+        "contextLostCount": 0,
+        "contextRestoredCount": 0,
+        "renderErrorCount": 0,
+        "layerCount": 7,
+        "visibleStaticObjects": 0,
+        "obstacleStaticBuilds": 0,
+        "obstacleStaticCacheHits": 0,
+        "obstacleAnimatedBuilds": 0,
+        "displayObjects": 2197,
+        "cameraX": 3000,
+        "cameraY": 3000,
+        "cameraZoom": 0.22,
+        "creatureObjects": 298,
+        "visibleCreatures": 298,
+        "standardFish": 97,
+        "creaturePoolSize": 0,
+        "creaturePoolCapacity": 96,
+        "creatureDisplaysCreated": 298,
+        "creatureDisplaysReused": 0,
+        "creatureDisplaysEvicted": 0,
+        "appearanceCacheSize": 128,
+        "appearanceCacheCapacity": 128,
+        "appearanceCacheHits": 0,
+        "appearanceCacheMisses": 298,
+        "appearanceCacheEvictions": 170,
+        "visibleWorldItems": 1,
+        "visibleCombatTelegraphs": 0,
+        "visibleRivalMarkers": 0,
+        "visibleParticles": 0,
+        "visibleWorldLabels": 3,
+        "visibleSpeechBubbles": 0,
+        "visibleSquadMarkers": 0,
+        "visibleHazards": 0,
+        "riggedAppendageCreatures": 49,
+        "segmentedBodyCreatures": 28,
+        "lod0Creatures": 6,
+        "lod1Creatures": 15,
+        "lod2Creatures": 277,
+        "lod2AnimatedUpdates": 0,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1454264,
+        "lodTextureCacheCapacity": 64,
+        "lodTextureCacheBudgetBytes": 33554432,
+        "lodTextureCacheHits": 19850,
+        "lodTextureCacheMisses": 31,
+        "lodTextureCacheEvictions": 0
+      },
+      "afterMetrics": {
+        "renderer": "WebGLRenderer",
+        "tickerStarted": false,
+        "width": 1280,
+        "height": 800,
+        "renderCount": 243,
+        "lastRenderMs": 2.400000002235174,
+        "textures": 31,
+        "contextLostCount": 0,
+        "contextRestoredCount": 0,
+        "renderErrorCount": 0,
+        "layerCount": 7,
+        "visibleStaticObjects": 0,
+        "obstacleStaticBuilds": 0,
+        "obstacleStaticCacheHits": 0,
+        "obstacleAnimatedBuilds": 0,
+        "displayObjects": 2197,
+        "cameraX": 3000,
+        "cameraY": 3000,
+        "cameraZoom": 0.22,
+        "creatureObjects": 298,
+        "visibleCreatures": 297,
+        "standardFish": 96,
+        "creaturePoolSize": 0,
+        "creaturePoolCapacity": 96,
+        "creatureDisplaysCreated": 298,
+        "creatureDisplaysReused": 0,
+        "creatureDisplaysEvicted": 0,
+        "appearanceCacheSize": 128,
+        "appearanceCacheCapacity": 128,
+        "appearanceCacheHits": 0,
+        "appearanceCacheMisses": 298,
+        "appearanceCacheEvictions": 170,
+        "visibleWorldItems": 1,
+        "visibleCombatTelegraphs": 0,
+        "visibleRivalMarkers": 0,
+        "visibleParticles": 0,
+        "visibleWorldLabels": 3,
+        "visibleSpeechBubbles": 0,
+        "visibleSquadMarkers": 0,
+        "visibleHazards": 0,
+        "riggedAppendageCreatures": 49,
+        "segmentedBodyCreatures": 28,
+        "lod0Creatures": 6,
+        "lod1Creatures": 15,
+        "lod2Creatures": 276,
+        "lod2AnimatedUpdates": 0,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1454264,
+        "lodTextureCacheCapacity": 64,
+        "lodTextureCacheBudgetBytes": 33554432,
+        "lodTextureCacheHits": 67155,
+        "lodTextureCacheMisses": 31,
+        "lodTextureCacheEvictions": 0
+      },
+      "renderErrorDelta": 0
+    },
+    {
+      "renderer": "pixi",
+      "layoutMode": "procedural",
+      "fixture": {
+        "entities": 300,
+        "contest": false,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "pondId": "CLEAR",
+        "pondLayoutMode": "PROCEDURAL",
+        "layoutSeed": 20260925,
+        "layoutVersion": 1
+      },
+      "errors": [],
+      "frameCount": 170,
+      "frameMs": {
+        "p50": 17.600000000000364,
+        "p95": 18.199999999999818,
+        "p99": 18.599999999999454
+      },
+      "renderMs": {
+        "p50": 2.899999998509884,
+        "p95": 3.400000002235174
+      },
+      "beforeMetrics": {
+        "renderer": "WebGLRenderer",
+        "tickerStarted": false,
+        "width": 1280,
+        "height": 800,
+        "renderCount": 44,
+        "lastRenderMs": 2.899999998509884,
+        "textures": 31,
+        "contextLostCount": 0,
+        "contextRestoredCount": 0,
+        "renderErrorCount": 30,
+        "layerCount": 7,
+        "visibleStaticObjects": 1,
+        "obstacleStaticBuilds": 0,
+        "obstacleStaticCacheHits": 0,
+        "obstacleAnimatedBuilds": 0,
+        "displayObjects": 2196,
+        "cameraX": 3000,
+        "cameraY": 3000,
+        "cameraZoom": 0.22,
+        "creatureObjects": 298,
+        "visibleCreatures": 298,
+        "standardFish": 97,
+        "creaturePoolSize": 0,
+        "creaturePoolCapacity": 96,
+        "creatureDisplaysCreated": 298,
+        "creatureDisplaysReused": 0,
+        "creatureDisplaysEvicted": 0,
+        "appearanceCacheSize": 128,
+        "appearanceCacheCapacity": 128,
+        "appearanceCacheHits": 0,
+        "appearanceCacheMisses": 298,
+        "appearanceCacheEvictions": 170,
+        "visibleWorldItems": 0,
+        "visibleCombatTelegraphs": 0,
+        "visibleRivalMarkers": 0,
+        "visibleParticles": 10,
+        "visibleWorldLabels": 2,
+        "visibleSpeechBubbles": 0,
+        "visibleSquadMarkers": 0,
+        "visibleHazards": 0,
+        "riggedAppendageCreatures": 49,
+        "segmentedBodyCreatures": 28,
+        "lod0Creatures": 6,
+        "lod1Creatures": 15,
+        "lod2Creatures": 277,
+        "lod2AnimatedUpdates": 0,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1438300,
+        "lodTextureCacheCapacity": 64,
+        "lodTextureCacheBudgetBytes": 33554432,
+        "lodTextureCacheHits": 20390,
+        "lodTextureCacheMisses": 31,
+        "lodTextureCacheEvictions": 0
+      },
+      "afterMetrics": {
+        "renderer": "WebGLRenderer",
+        "tickerStarted": false,
+        "width": 1280,
+        "height": 800,
+        "renderCount": 215,
+        "lastRenderMs": 2.800000000745058,
+        "textures": 31,
+        "contextLostCount": 0,
+        "contextRestoredCount": 0,
+        "renderErrorCount": 30,
+        "layerCount": 7,
+        "visibleStaticObjects": 2,
+        "obstacleStaticBuilds": 0,
+        "obstacleStaticCacheHits": 0,
+        "obstacleAnimatedBuilds": 0,
+        "displayObjects": 2196,
+        "cameraX": 3000,
+        "cameraY": 3000,
+        "cameraZoom": 0.22,
+        "creatureObjects": 298,
+        "visibleCreatures": 298,
+        "standardFish": 97,
+        "creaturePoolSize": 0,
+        "creaturePoolCapacity": 96,
+        "creatureDisplaysCreated": 298,
+        "creatureDisplaysReused": 0,
+        "creatureDisplaysEvicted": 0,
+        "appearanceCacheSize": 128,
+        "appearanceCacheCapacity": 128,
+        "appearanceCacheHits": 0,
+        "appearanceCacheMisses": 298,
+        "appearanceCacheEvictions": 170,
+        "visibleWorldItems": 0,
+        "visibleCombatTelegraphs": 0,
+        "visibleRivalMarkers": 0,
+        "visibleParticles": 16,
+        "visibleWorldLabels": 2,
+        "visibleSpeechBubbles": 0,
+        "visibleSquadMarkers": 0,
+        "visibleHazards": 0,
+        "riggedAppendageCreatures": 49,
+        "segmentedBodyCreatures": 28,
+        "lod0Creatures": 6,
+        "lod1Creatures": 15,
+        "lod2Creatures": 277,
+        "lod2AnimatedUpdates": 0,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1438300,
+        "lodTextureCacheCapacity": 64,
+        "lodTextureCacheBudgetBytes": 33554432,
+        "lodTextureCacheHits": 67698,
+        "lodTextureCacheMisses": 31,
+        "lodTextureCacheEvictions": 0
+      },
+      "renderErrorDelta": 0
+    }
+  ],
+  "comparisons": [
+    {
+      "renderer": "canvas",
+      "classicP95": 36.099999999999454,
+      "proceduralP95": 36.09999999999991,
+      "ratio": 1.0000000000000127,
+      "pass": true
+    },
+    {
+      "renderer": "pixi",
+      "classicP95": 18.100000000000364,
+      "proceduralP95": 18.199999999999818,
+      "ratio": 1.0055248618784227,
+      "pass": true
+    }
+  ],
+  "restartProbe": {
+    "snapshots": [
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260925,
+        "backgroundKey": "CLEAR:1:20260925",
+        "displayObjects": 2235,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 26
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2214,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260927,
+        "backgroundKey": "CLEAR:1:20260927",
+        "displayObjects": 2204,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2221,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260929,
+        "backgroundKey": "CLEAR:1:20260929",
+        "displayObjects": 2209,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2234,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260931,
+        "backgroundKey": "CLEAR:1:20260931",
+        "displayObjects": 2219,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2229,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260933,
+        "backgroundKey": "CLEAR:1:20260933",
+        "displayObjects": 2215,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2242,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260935,
+        "backgroundKey": "CLEAR:1:20260935",
+        "displayObjects": 2227,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2224,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260937,
+        "backgroundKey": "CLEAR:1:20260937",
+        "displayObjects": 2214,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2239,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260939,
+        "backgroundKey": "CLEAR:1:20260939",
+        "displayObjects": 2218,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2234,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260941,
+        "backgroundKey": "CLEAR:1:20260941",
+        "displayObjects": 2219,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2228,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "PROCEDURAL",
+        "seed": 20260943,
+        "backgroundKey": "CLEAR:1:20260943",
+        "displayObjects": 2215,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      },
+      {
+        "mode": "CLASSIC",
+        "seed": null,
+        "backgroundKey": "CLEAR",
+        "displayObjects": 2237,
+        "creaturePoolSize": 0,
+        "appearanceCacheSize": 128,
+        "lodTextureCacheSize": 31,
+        "lodTextureCacheBytes": 1475444,
+        "renderErrors": 30
+      }
+    ],
+    "steadyRanges": {
+      "displayObjects": {
+        "min": 2214,
+        "max": 2242,
+        "delta": 28
+      },
+      "creaturePoolSize": {
+        "min": 0,
+        "max": 0,
+        "delta": 0
+      },
+      "appearanceCacheSize": {
+        "min": 128,
+        "max": 128,
+        "delta": 0
+      },
+      "lodTextureCacheSize": {
+        "min": 31,
+        "max": 31,
+        "delta": 0
+      },
+      "lodTextureCacheBytes": {
+        "min": 1475444,
+        "max": 1475444,
+        "delta": 0
+      }
+    },
+    "displayObjectTrend": {
+      "classic": {
+        "samples": 8,
+        "firstMean": 2235,
+        "lastMean": 2233,
+        "delta": -2
+      },
+      "procedural": {
+        "samples": 7,
+        "firstMean": 2220.3333333333335,
+        "lastMean": 2217.3333333333335,
+        "delta": -3
+      }
+    },
+    "renderErrors": {
+      "min": 30,
+      "max": 30,
+      "delta": 0
+    }
+  }
+}

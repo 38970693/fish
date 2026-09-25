@@ -30,6 +30,8 @@ import { combatSystem } from './combat';
 import { eventsSystem } from './events';
 import { feedingEventSystem } from './feedingEvents';
 import { pondEventSystem } from './pondEvents';
+import { pondOpportunitySystem } from './pondOpportunities';
+import { endlessWorldSystem } from './endlessWorld';
 import { progressionSystem } from './progression';
 import { achievementsSystem } from './achievements';
 
@@ -61,6 +63,7 @@ export interface SystemEntry {
  */
 export const SYSTEMS: SystemEntry[] = [
   { name: 'runFlow', fn: safe('runFlow', runFlowSystem) },
+  { name: 'endlessWorld', fn: safe('endlessWorld', endlessWorldSystem) },
   { name: 'spawn', fn: safe('spawn', spawnSystem) },
   { name: 'playerControl', fn: safe('playerControl', playerControlSystem) },
   { name: 'skills', fn: safe('skills', skillsSystem) },
@@ -71,6 +74,7 @@ export const SYSTEMS: SystemEntry[] = [
   { name: 'habitats', fn: safe('habitats', habitatsSystem) },
   { name: 'obstacleEcology', fn: safe('obstacleEcology', obstacleEcologySystem) },
   { name: 'world', fn: safe('world', worldSystem) },
+  { name: 'pondOpportunity', fn: safe('pondOpportunity', pondOpportunitySystem) },
   { name: 'exploration', fn: safe('exploration', explorationEventSystem) },
   { name: 'items', fn: safe('items', itemsSystem) },
   { name: 'combat', fn: safe('combat', combatSystem) },
@@ -128,4 +132,4 @@ export function runSystems(state: GameState, ctx: FrameContext): void {
   }
 }
 
-export { spawnSystem, runFlowSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, rivalSquadsSystem, habitatsSystem, obstacleEcologySystem, worldSystem, explorationEventSystem, itemsSystem, combatSystem, feedingEventSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };
+export { spawnSystem, runFlowSystem, endlessWorldSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, rivalSquadsSystem, habitatsSystem, obstacleEcologySystem, worldSystem, pondOpportunitySystem, explorationEventSystem, itemsSystem, combatSystem, feedingEventSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };

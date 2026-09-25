@@ -1,0 +1,123 @@
+{
+  "measuredAt": "2026-09-22T15:07:59.520Z",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "startupRetries": 0,
+  "errors": [],
+  "scenarios": [
+    {
+      "name": "natural-calm",
+      "scene": {
+        "entities": 300,
+        "contest": false,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        }
+      },
+      "durationMs": 60000,
+      "frameMs": {
+        "p50": 16.69999999999709,
+        "p95": 18,
+        "p99": 18.30000000000291,
+        "max": 125.90000000000146
+      },
+      "longFrames": {
+        "thresholdMs": 25,
+        "count": 33,
+        "ratio": 0.009361702127659575,
+        "maxConsecutive": 2
+      },
+      "renderMs": {
+        "p50": 10.5,
+        "p95": 12.399999998509884,
+        "p99": 15.799999997019768,
+        "max": 46.899999998509884
+      },
+      "resources": {
+        "displayObjects": {
+          "min": 2179,
+          "max": 2182
+        },
+        "textures": {
+          "min": 30,
+          "max": 30
+        },
+        "cacheBytes": {
+          "min": 1397800,
+          "max": 1397800
+        },
+        "final": {
+          "at": 60014.699999994045,
+          "renderCount": 3616,
+          "displayObjects": 2182,
+          "textures": 30,
+          "cacheSize": 30,
+          "cacheBytes": 1397800,
+          "lod2AnimatedUpdates": 0,
+          "visibleCreatures": 296,
+          "tickerStarted": false
+        }
+      }
+    },
+    {
+      "name": "three-team-contest",
+      "scene": {
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        }
+      },
+      "durationMs": 60000,
+      "frameMs": {
+        "p50": 16.69999999999709,
+        "p95": 17.70000000001164,
+        "p99": 33.30000000000291,
+        "max": 274.3999999999942
+      },
+      "longFrames": {
+        "thresholdMs": 25,
+        "count": 47,
+        "ratio": 0.013378878451465983,
+        "maxConsecutive": 3
+      },
+      "renderMs": {
+        "p50": 11.100000001490116,
+        "p95": 12.899999998509884,
+        "p99": 17,
+        "max": 50.20000000298023
+      },
+      "resources": {
+        "displayObjects": {
+          "min": 2183,
+          "max": 2187
+        },
+        "textures": {
+          "min": 30,
+          "max": 30
+        },
+        "cacheBytes": {
+          "min": 1397800,
+          "max": 1397800
+        },
+        "final": {
+          "at": 60007.09999999404,
+          "renderCount": 7212,
+          "displayObjects": 2187,
+          "textures": 30,
+          "cacheSize": 30,
+          "cacheBytes": 1397800,
+          "lod2AnimatedUpdates": 0,
+          "visibleCreatures": 296,
+          "tickerStarted": false
+        }
+      }
+    }
+  ]
+}

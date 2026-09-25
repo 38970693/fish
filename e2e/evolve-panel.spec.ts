@@ -28,7 +28,7 @@ test.describe('进化面板：候选不再抖动', () => {
     page.on('pageerror', (e) => pageErrors.push(e.message));
 
     await page.goto('/');
-    await page.getByRole('button', { name: /开始游戏/ }).first().click();
+    await page.getByRole('button', { name: /驶入/ }).first().click();
 
     // 调试钩子只有 DEV 构建才有（生产会被摇掉）
     await page.waitForFunction(

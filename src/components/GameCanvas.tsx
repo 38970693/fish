@@ -4,13 +4,15 @@ import React, { useRef, useEffect } from 'react';
 import { GameState, GameStatus, Entity, Particle, CreatureType, PlayerState, PowerUp, Hazard, Building, BuildingType, Portal, Cosmetics, BodyType, TailType, TrailType, EyeType, EyebrowType, AccessoryType, PatternType, ScaleType } from '../types';
 import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, FEEDING_EVENT_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, getPond, getMood } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
+import { getPondScenery } from '../data/pondScenery';
 import { defineShapePath, drawShapeBack, drawShapeFront, drawSurfaceMouth } from './fishShapes';
 import type { CreatureShapeId } from '../data/creatureShapes';
 import { CanvasGameRenderer } from '../rendering/canvas/CanvasGameRenderer';
 import { createViewport } from '../rendering/types';
 import type { WaterCurrentZone } from '../data/habitats';
-import { getCachedPatternMarks, resolveMorphology, resolveMorphologyMotion, type ResolvedMorphology } from '../morphology';
-import { drawMorphologyBodyDetails, drawMorphologyFrontParts, drawMorphologyPatterns, drawMorphologyRearParts, traceMorphologyBody } from '../rendering/canvas/MorphologyCanvasRenderer';
+import { getCachedPatternMarks, resolveMorphologyForRender, resolveMorphologyMotion, usesMorphologyFishRenderer, type ResolvedMorphology } from '../morphology';
+import { drawMorphologyFrontParts, drawMorphologyPatterns, drawMorphologyRearParts, traceMorphologyBody } from '../rendering/canvas/MorphologyCanvasRenderer';
+import { drawCachedMorphologyBodyDetails } from '../rendering/canvas/MorphologyDetailCache';
 import { drawObstacleCanvas } from '../rendering/canvas/ObstacleCanvasRenderer';
 import { OBSTACLE_ECOLOGY } from '../data/obstacleEcology';
 
@@ -120,7 +122,9 @@ export interface FishRenderOptions {
     showPattern?: boolean;
     volumeOnly?: boolean;
     lod?: 0 | 1 | 2;
+    visibleSurfaceLayers?: readonly import('../morphology').SurfaceLayerKind[];
 }
+
 
 export const drawCuteFish = (
     ctx: CanvasRenderingContext2D,
@@ -137,10 +141,13 @@ export const drawCuteFish = (
     // 身体轮廓与附属，嘴画成表面五官、不画内壁/装扮牙/装扮尾。手工构造的 config 没有
     // shape 字段 = FISH，旧调用点零变化。
     const shape = (entity.config?.shape ?? 'FISH') as CreatureShapeId;
-    const isFish = shape === 'FISH';
-    const morphology: ResolvedMorphology | undefined = isFish && type !== CreatureType.PLANKTON
-        ? resolveMorphology(entity)
+    const isFish = usesMorphologyFishRenderer(type, shape);
+    const resolvedMorphology: ResolvedMorphology | undefined = isFish && type !== CreatureType.PLANKTON
+        ? resolveMorphologyForRender(entity)
         : undefined;
+    const morphology = resolvedMorphology && renderOptions.visibleSurfaceLayers
+        ? { ...resolvedMorphology, surfaceLayers: resolvedMorphology.surfaceLayers.filter(layer => renderOptions.visibleSurfaceLayers!.includes(layer.kind)) }
+        : resolvedMorphology;
     const morphologyMotion = morphology ? resolveMorphologyMotion(entity, morphology) : undefined;
 
     // 吉祥物
@@ -278,6 +285,7 @@ export const drawCuteFish = (
         drawMorphologyRearParts(ctx, morphology, radius, visualTime, bodyFill, morphologyMotion);
     }
 
+
     // 绘制口腔内壁（只有轮廓缺口嘴的鱼形才有「口腔」）
     if (isFish && type !== CreatureType.PLANKTON) {
         ctx.save(); ctx.fillStyle = '#400505'; ctx.beginPath();
@@ -316,9 +324,7 @@ export const drawCuteFish = (
     }
 
     if (morphology) {
-        ctx.save(); defineBodyPath(); ctx.clip();
-        drawMorphologyBodyDetails(ctx, morphology, radius, entity.angle, morphologyLod);
-        ctx.restore();
+        drawCachedMorphologyBodyDetails(ctx, morphology, radius, entity.angle, morphologyLod);
         if (!volumeOnly) {
             drawMorphologyFrontParts(ctx, morphology, radius, bodyFill, morphologyMotion);
             if (showPattern) drawMorphologyPatterns(ctx, morphology, radius, morphologyLod, 'EXTERIOR');
@@ -491,14 +497,20 @@ export const drawCuteFish = (
     } else if (cosmetics?.eyeType && cosmetics.eyeType !== 'NORMAL') {
         drawEyes(ctx, cosmetics.eyeType, eyeX, eyeY, eyeRadius / 0.2, visualTime);
     } else {
-        const eyeRows = [{ y: -eyeY, scale: 1, alpha: 1 }, { y: eyeY, scale: 1, alpha: 1 }];
-        for (const eye of eyeRows) {
-            const size = eyeRadius * eye.scale;
-            ctx.save(); ctx.globalAlpha = eye.alpha;
-            ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(eyeX, eye.y, size, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(eyeX+size*0.26, eye.y, size*0.5, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(eyeX+size*0.43, eye.y-size*0.18, size*0.13, 0, Math.PI*2); ctx.fill();
-            ctx.restore();
+        const size = eyeRadius * 1.12;
+        if (radius >= 12) {
+            ctx.fillStyle = 'rgba(251,113,133,0.55)';
+            ctx.beginPath();
+            for (const side of [-1, 1]) {
+                ctx.ellipse(eyeX + radius * 0.24, side * Math.max(eyeY * 0.45, eyeY - size * 0.72), radius * 0.105, radius * 0.069, 0, 0, Math.PI * 2);
+            }
+            ctx.fill();
+        }
+        for (const side of [-1, 1]) {
+            const y = side * eyeY;
+            ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(eyeX, y, size, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(eyeX + size * 0.23, y, size * 0.54, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.arc(eyeX + size * 0.41, side * (eyeY + size * 0.18), size * 0.17, 0, Math.PI * 2); ctx.fill();
         }
     }
 
@@ -1774,14 +1786,15 @@ const isOnScreen = (p: SpatialPoint, camera: { x: number; y: number; zoom: numbe
  * ⚠️ 刻意做成「首次调用时构建」而不是模块加载时：单测（jsdom）会 import 这个文件，
  *    而 jsdom 没有 Path2D —— 模块加载即构建会让两个渲染测试套件在 import 阶段就崩。
  */
-let boundaryLayers: { layer: number; path: Path2D }[] | null = null;
-const getBoundaryLayers = (): { layer: number; path: Path2D }[] => {
-  if (boundaryLayers) return boundaryLayers;
+const boundaryLayers = new Map<string, { layer: number; path: Path2D }[]>();
+const getBoundaryLayers = (pondId: string): { layer: number; path: Path2D }[] => {
+  const cached = boundaryLayers.get(pondId);
+  if (cached) return cached;
   const layers: { layer: number; path: Path2D }[] = [];
-  for (let layer = 5; layer >= 1; layer -= 1) {
+  for (let layer = 5; layer >= 0; layer -= 1) {
     const path = new Path2D();
     for (let a = 0; a <= Math.PI * 2; a += 0.05) {
-      const r = getMapBoundaryRadius(a) + layer * 60;
+      const r = getMapBoundaryRadius(a, pondId) + layer * 60;
       const x = MAP_SHAPE_CONFIG.CENTER_X + Math.cos(a) * r;
       const y = MAP_SHAPE_CONFIG.CENTER_Y + Math.sin(a) * r;
       if (a === 0) path.moveTo(x, y);
@@ -1790,7 +1803,7 @@ const getBoundaryLayers = (): { layer: number; path: Path2D }[] => {
     path.closePath();
     layers.push({ layer, path });
   }
-  boundaryLayers = layers;
+  boundaryLayers.set(pondId, layers);
   return layers;
 };
 
@@ -1832,7 +1845,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         ctx.translate(canvas.width / 2, canvas.height / 2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.x, -camera.y);
 
         // 绘制边界缓冲区域（柔和的渐变边缘）
-        if (status !== GameStatus.BATTLE_TEST) {
+        if (status !== GameStatus.BATTLE_TEST && gameState.worldMode !== 'ENDLESS') {
             // 花瓣边界是**静态几何**（只有透明度在呼吸），却原来每帧用 5 层 × 126 段
             // 重描一遍（630 次 lineTo + 1260 次 sin/cos + 5 次宽描边光栅化）。
             // 形状只跟层号有关 → 模块级缓存成 5 个 Path2D，每帧只剩 5 次 stroke(path)；
@@ -1841,13 +1854,84 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
             const screenRadius = Math.hypot(canvas.width, canvas.height) / 2 / camera.zoom;
             if (camDist - BOUNDARY_MAX_RADIUS <= screenRadius) {
                 const boundaryPulse = Math.sin(visualTime * 0.05) * 0.1 + 0.9;
-                for (const { layer, path } of getBoundaryLayers()) {
+                for (const { layer, path } of getBoundaryLayers(gameState.pondId)) {
                     const layerAlpha = (0.05 + Math.sin(visualTime * 0.03 + layer) * 0.02) * boundaryPulse;
-                    ctx.strokeStyle = `rgba(59, 130, 246, ${layerAlpha})`;
+                    ctx.globalAlpha = layer === 0 ? 0.44 : layerAlpha * 3;
+                    ctx.strokeStyle = getPond(gameState.pondId).shoreColor;
                     ctx.lineWidth = 40 - layer * 6;
                     ctx.setLineDash([]);
                     ctx.stroke(path);
                 }
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        if (gameState.worldMode !== 'ENDLESS' && gameState.pondLayout) {
+            ctx.save();
+            ctx.strokeStyle = gameState.pondId === 'CLEAR' ? 'rgba(186,230,253,0.15)'
+                : gameState.pondId === 'CORAL' ? 'rgba(153,246,228,0.16)' : 'rgba(196,181,253,0.16)';
+            ctx.lineWidth = 9;
+            ctx.setLineDash([28, 36]);
+            for (const route of gameState.pondLayout.routes) {
+                if (route.points.length < 2) continue;
+                ctx.beginPath();
+                ctx.moveTo(route.points[0].x, route.points[0].y);
+                for (let i = 1; i < route.points.length; i += 1) ctx.lineTo(route.points[i].x, route.points[i].y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // 静态生态装饰只绘制视野内的点；不参与碰撞与拾取。
+        let visibleScenery = 0;
+        for (const mark of gameState.worldMode === 'ENDLESS' ? [] : getPondScenery(gameState.pondId, gameState.pondLayout)) {
+            if (!isOnScreen(mark, camera, canvas.width, canvas.height)) continue;
+            if (gameState.pondLayout && visibleScenery >= 40) break;
+            visibleScenery += 1;
+            ctx.save();
+            ctx.translate(mark.x, mark.y);
+            if (mark.kind === 'LILY') {
+                ctx.fillStyle = 'rgba(112, 214, 160, 0.18)';
+                ctx.strokeStyle = 'rgba(183, 247, 199, 0.28)';
+                ctx.beginPath(); ctx.ellipse(0, 0, mark.radius, mark.radius * 0.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = 'rgba(248, 210, 229, 0.5)';
+                ctx.beginPath(); ctx.arc(mark.radius * 0.16, -mark.radius * 0.1, mark.radius * 0.12, 0, Math.PI * 2); ctx.fill();
+            } else if (mark.kind === 'CORAL') {
+                ctx.strokeStyle = 'rgba(255, 182, 152, 0.38)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+                for (const offset of [-0.55, 0, 0.55]) {
+                    ctx.beginPath(); ctx.moveTo(0, mark.radius * 0.45);
+                    ctx.lineTo(offset * mark.radius, -mark.radius * (0.45 + Math.abs(offset) * 0.2)); ctx.stroke();
+                }
+            } else {
+                ctx.fillStyle = 'rgba(165, 140, 255, 0.12)';
+                ctx.strokeStyle = 'rgba(185, 164, 255, 0.34)'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(0, 0, mark.radius * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = 'rgba(215, 200, 255, 0.56)';
+                ctx.beginPath(); ctx.arc(0, 0, mark.radius * 0.15, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        if (gameState.pondLayout) {
+            for (const landmark of gameState.pondLayout.landmarks) {
+                if (!isOnScreen(landmark, camera, canvas.width, canvas.height)) continue;
+                ctx.save();
+                ctx.translate(landmark.x, landmark.y);
+                ctx.lineWidth = 5;
+                ctx.setLineDash([12, 8]);
+                ctx.strokeStyle = landmark.kind === 'LILY' ? 'rgba(134,239,172,0.9)'
+                    : landmark.kind === 'NURSERY' || landmark.kind === 'PEARL_BED' ? 'rgba(94,234,212,0.9)'
+                    : 'rgba(196,181,253,0.9)';
+                ctx.beginPath();
+                ctx.arc(0, 0, landmark.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.font = 'bold 22px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(255,255,255,0.86)';
+                const label = landmark.kind === 'LILY' ? '睡莲群' : landmark.kind === 'NURSERY' ? '产卵场' : landmark.kind === 'PEARL_BED' ? '珍珠场' : landmark.kind === 'WRECK' ? '沉船' : '热泉';
+                ctx.fillText(label, 0, -landmark.radius - 14);
+                ctx.restore();
             }
         }
 

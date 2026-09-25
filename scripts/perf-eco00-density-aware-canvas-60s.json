@@ -1,0 +1,244 @@
+{
+  "measuredAt": "2026-09-24T00:28:23.560Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 60000,
+  "scenarios": [
+    {
+      "renderer": "canvas",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": null,
+      "rendererEnd": null,
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 2,
+        "treasures": 0,
+        "powerUps": 33,
+        "hazards": 0,
+        "particles": 16,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 60000,
+      "frameCount": 1951,
+      "frameMs": {
+        "p50": 35.5,
+        "p95": 36.100000000000364,
+        "p99": 36.599999999998545
+      },
+      "renderMs": {
+        "p50": 6.2000000001862645,
+        "p95": 6.7999999998137355
+      },
+      "loopMs": {
+        "p50": 9.799999999813735,
+        "p95": 15.199999999720603
+      },
+      "loopSteps": {
+        "1": 500,
+        "2": 1251,
+        "3": 198,
+        "4": 2
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 305,
+          "p95": 36.100000000000364,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 326,
+          "p95": 36.10000000000218,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 1,
+            "treasures": 0,
+            "powerUps": 7,
+            "hazards": 0,
+            "particles": 8,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 20,
+          "frameCount": 330,
+          "p95": 36.10000000000218,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 1,
+            "treasures": 0,
+            "powerUps": 13,
+            "hazards": 0,
+            "particles": 8,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 30,
+          "frameCount": 330,
+          "p95": 36.099999999998545,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 16,
+            "hazards": 0,
+            "particles": 12,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 40,
+          "frameCount": 329,
+          "p95": 36.099999999998545,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 22,
+            "hazards": 0,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 50,
+          "frameCount": 330,
+          "p95": 36.099999999998545,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 26,
+            "hazards": 1,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 60,
+          "frameCount": 1,
+          "p95": 35,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 33,
+            "hazards": 0,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 4.870833333333334,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 4.1358333333395425,
+          "share": 0.8491017964084603
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.4875000000038805,
+          "share": 0.10008554320011234
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.16416666664493582,
+          "share": 0.03370402052590641
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.025833333341870456,
+          "share": 0.005303678359323276
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.010833333327900619,
+          "share": 0.0022241231810916583
+        }
+      ]
+    }
+  ]
+}

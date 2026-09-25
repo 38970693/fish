@@ -6,7 +6,7 @@ import { factionOf, FACTION } from './factions';
 import { isPositionValid } from './terrain';
 
 const isPointClear = (state: GameState, x: number, y: number, clearance: number): boolean => {
-  if (!isPositionValid(x, y, clearance)) return false;
+  if (!isPositionValid(x, y, clearance, state.pondId, state.worldMode)) return false;
   const obstacleHit = state.obstacles.some(
     (item) => item.featureState !== 'BROKEN' && Math.hypot(x - item.x, y - item.y) < item.radius + clearance
   );

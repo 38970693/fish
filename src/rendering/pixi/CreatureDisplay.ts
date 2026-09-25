@@ -1,10 +1,12 @@
 import { Container, Graphics, MeshSimple, Sprite, Texture, type Texture as PixiTexture } from 'pixi.js';
 import { CreatureType, type BodyType, type Entity } from '../../types';
 import type { CreatureShapeId } from '../../data/creatureShapes';
-import { buildAppendageRig, type AppendageRigSpec } from './AppendageRig';
+import { buildAppendageRig, type AppendageRigSpec, type RigSegment } from './AppendageRig';
+import { buildAppendageMeshData, type AppendageMeshData } from './AppendageMesh';
 import { lodJointCount, type CreatureLod } from './CreatureLod';
-import { getCachedPatternMarks, getMorphologyPart, morphologyAppearanceSignature, resolveMorphology, resolveMorphologyMotion, type ResolvedMorphology, type ResolvedMotionState, type SurfaceLayerKind } from '../../morphology';
+import { buildRadialSpines, getCachedPatternMarks, getMorphologyPart, morphologyAppearanceSignature, resolveMorphology, resolveMorphologyMotion, usesMorphologyFishRenderer, type ResolvedMorphology, type ResolvedMotionState, type SurfaceLayerKind } from '../../morphology';
 import { buildSpineMeshData, type SpineMeshData } from './MorphologyMesh';
+import { cuteFacePair } from '../cuteFishFace';
 
 export interface LodTextureAsset {
   texture: PixiTexture;
@@ -38,7 +40,7 @@ export const creatureAppearanceSignature = (entity: Entity): string => {
 };
 
 export const isPixiStandardFish = (entity: Entity): boolean =>
-  (entity.config.shape ?? 'FISH') === 'FISH';
+  usesMorphologyFishRenderer(entity.type, entity.config.shape);
 
 const resolvedBodyColor = (entity: Entity, morphology?: ResolvedMorphology): string => {
   if (morphology) return morphology.material.primaryColor;
@@ -61,6 +63,10 @@ export class CreatureDisplay {
   private flexMesh?: MeshSimple;
   private flexMeshLod: CreatureLod | -1 = -1;
   private flexMeshData?: SpineMeshData;
+  private rigMesh?: MeshSimple;
+  private rigMeshData?: AppendageMeshData;
+  private rigGroups: RigSegment[][] = [];
+  private rigAlpha = 1;
   private lodSprite = new Sprite();
   private signature = '';
   private radius = 1;
@@ -69,6 +75,7 @@ export class CreatureDisplay {
   private morphology?: ResolvedMorphology;
   private lod: CreatureLod = 0;
   private presentationMode: CreaturePresentationMode = 'FULL';
+  private hiddenSurfaceLayers = new Set<SurfaceLayerKind>();
 
   constructor(private id: string) {
     this.root.label = `creature:${id}`;
@@ -90,8 +97,16 @@ export class CreatureDisplay {
     this.signature = '';
   }
 
+  /** 实验室预览专用：只过滤解析后的表面层，不修改实体外观数据。 */
+  setHiddenSurfaceLayers(kinds: ReadonlySet<SurfaceLayerKind>): void {
+    const next = new Set(kinds);
+    if (next.size === this.hiddenSurfaceLayers.size && [...next].every(kind => this.hiddenSurfaceLayers.has(kind))) return;
+    this.hiddenSurfaceLayers = next;
+    this.signature = '';
+  }
+
   update(entity: Entity, now: number, isPlayer: boolean, lod: CreatureLod = 0, skipAnimation = false): void {
-    const nextSignature = creatureAppearanceSignature(entity);
+    const nextSignature = `${creatureAppearanceSignature(entity)}|layers:${[...this.hiddenSurfaceLayers].sort().join(',')}`;
     if (nextSignature !== this.signature) {
       this.signature = nextSignature;
       this.rebuild(entity);
@@ -100,9 +115,9 @@ export class CreatureDisplay {
     const motion = this.morphology ? resolveMorphologyMotion(entity, this.morphology) : undefined;
     this.root.position.set(entity.x, entity.y);
     this.root.rotation = entity.angle;
-    // 两个高光节点围绕各自体积中心反向旋转，因此光源在世界中保持左上方向。
-    this.dorsalLight.rotation = -entity.angle;
-    this.headLight.rotation = -entity.angle;
+    // 光斑跟随鱼体朝向，局部保持在中线上。
+    this.dorsalLight.rotation = 0;
+    this.headLight.rotation = 0;
     const breath = motion ? 1 + Math.sin(now * 0.0021 + entity.animOffset) * motion.breathAmplitude : 1;
     this.root.scale.set(scale * (motion?.bodyStretch ?? 1), scale * breath);
     this.root.alpha = entity.semiGhostTimer && entity.semiGhostTimer > 0
@@ -120,9 +135,10 @@ export class CreatureDisplay {
     this.rear.visible = lod < 2;
     this.body.visible = lod < 2;
     this.effects.visible = lod < 2;
+    if (this.rigMesh) this.rigMesh.visible = lod < 2 && !this.standardFish && this.rigGroups.length > 0;
     this.lodSprite.visible = lod === 2 && !!this.lodSprite.texture;
     this.updateFlexibleBody(entity, now, lod, motion);
-    if (!skipAnimation && lod < 2) this.drawAnimated(entity, now, isPlayer, motion);
+    if (!skipAnimation && lod < 2) this.drawAnimated(entity, now, isPlayer, motion, lod);
   }
 
   useLodTexture(asset: LodTextureAsset): void {
@@ -139,6 +155,7 @@ export class CreatureDisplay {
     this.details.visible = false;
     this.frontAnimated.visible = false;
     this.effects.visible = false;
+    if (this.rigMesh) this.rigMesh.visible = false;
   }
 
   createSnapshotTarget(): { target: Container; centerX: number; centerY: number } {
@@ -150,8 +167,16 @@ export class CreatureDisplay {
       graphic.rotation = source.rotation;
       return graphic;
     };
+    target.addChild(clone(this.rear));
+    if (this.rigMesh?.visible && this.rigMeshData) {
+      const rig = new MeshSimple({ texture: Texture.WHITE, vertices: this.rigMeshData.vertices.slice(),
+        uvs: this.rigMeshData.uvs.slice(), indices: this.rigMeshData.indices.slice() });
+      rig.tint = this.color;
+      rig.alpha = this.rigAlpha;
+      target.addChild(rig);
+    }
     target.addChild(
-      clone(this.rear), clone(this.body), clone(this.pattern), clone(this.surface), clone(this.dorsalLight),
+      clone(this.body), clone(this.pattern), clone(this.surface), clone(this.dorsalLight),
       clone(this.headLight), clone(this.details), clone(this.frontAnimated)
     );
     const bounds = target.getLocalBounds();
@@ -210,10 +235,15 @@ export class CreatureDisplay {
     this.dorsalLight.clear();
     this.headLight.clear();
     this.details.clear();
-    this.morphology = this.standardFish && entity.type !== CreatureType.PLANKTON ? resolveMorphology(entity) : undefined;
+    const resolvedMorphology = this.standardFish && entity.type !== CreatureType.PLANKTON ? resolveMorphology(entity) : undefined;
+    this.morphology = resolvedMorphology && this.hiddenSurfaceLayers.size
+      ? { ...resolvedMorphology, surfaceLayers: resolvedMorphology.surfaceLayers.filter(layer => !this.hiddenSurfaceLayers.has(layer.kind)) }
+      : resolvedMorphology;
     this.color = resolvedBodyColor(entity, this.morphology);
     this.flexMeshLod = -1;
     this.flexMeshData = undefined;
+    this.rigGroups = [];
+    if (this.rigMesh) this.rigMesh.visible = false;
     this.body.scale.set(this.morphology ? 1 : scale.x, this.morphology ? 1 : scale.y);
     this.pattern.scale.set(this.morphology ? 1 : scale.x, this.morphology ? 1 : scale.y);
     this.details.scale.set(this.morphology ? 1 : scale.x, this.morphology ? 1 : scale.y);
@@ -281,6 +311,15 @@ export class CreatureDisplay {
       this.details.stroke({ color: this.morphology!.material.secondaryColor, width: Math.max(0.7, r * 0.018), alpha: 0.25 });
     }
     this.drawMorphologySurface();
+    const spines = this.morphology.surfaceLayers.find(layer => layer.kind === 'RADIAL_SPINES');
+    if (spines && this.presentationMode !== 'VOLUME_ONLY') {
+      for (const triangle of buildRadialSpines(this.morphology)) {
+        this.details.moveTo(triangle[0].x * r, triangle[0].y * r)
+          .lineTo(triangle[1].x * r, triangle[1].y * r)
+          .lineTo(triangle[2].x * r, triangle[2].y * r).closePath();
+      }
+      this.details.fill({ color: spines.color, alpha: spines.alpha });
+    }
     if (this.presentationMode === 'FULL') this.drawPattern(entity);
     if (this.presentationMode !== 'VOLUME_ONLY') {
       this.drawEyes(entity);
@@ -348,8 +387,11 @@ export class CreatureDisplay {
     if (this.presentationMode === 'VOLUME_ONLY') return;
 
     if (gill) {
-      for (const side of [-1, 1] as const) this.details.moveTo((headX - 0.24) * r, side * maxY * r * 0.12)
-        .quadraticCurveTo((headX - 0.42) * r, side * maxY * r * 0.34, (headX - 0.2) * r, side * maxY * r * 0.58);
+      for (const side of [-1, 1] as const) for (let index = 0; index < (gill.count ?? 1); index += 1) {
+        const offset = index * 0.115;
+        this.details.moveTo((headX - 0.24 - offset) * r, side * maxY * r * 0.12)
+          .quadraticCurveTo((headX - 0.42 - offset) * r, side * maxY * r * 0.34, (headX - 0.2 - offset) * r, side * maxY * r * 0.58);
+      }
       this.details.stroke({ color: gill.color, width: Math.max(1, r * (gill.width ?? 0.035)), alpha: gill.alpha, cap: 'round' });
     }
     if (lateral) {
@@ -613,19 +655,23 @@ export class CreatureDisplay {
     const eyeAnchor = this.morphology?.geometry.anchors.eyeLeft;
     const eyeX = r * (eyeAnchor?.x ?? 0.38);
     const eyeY = r * Math.abs(eyeAnchor?.y ?? 0.38);
-    const eyeRadius = r * (eyeAnchor?.scale ?? (eyeType === 'ANIME' ? 0.24 : 0.2));
-    const eyes = [{ y: -eyeY, scale: 1, alpha: 1 }, { y: eyeY, scale: 1, alpha: 1 }];
-    for (const eye of eyes) {
-      const y = eye.y;
-      const size = eyeRadius * eye.scale;
-      this.details.circle(eyeX, y, size).fill({ color: '#ffffff', alpha: eye.alpha });
+    const faces = cuteFacePair(r, eyeX / r, eyeY / r, eyeAnchor?.scale ?? (eyeType === 'ANIME' ? 0.24 : 0.2), eyeType);
+    const eyeRadius = faces[0].eye.radius;
+    if (faces[0].blush && faces[1].blush) {
+      for (const { blush } of faces) this.details.ellipse(blush!.x, blush!.y, blush!.radius, blush!.radius * 0.66);
+      this.details.fill({ color: '#fb7185', alpha: 0.55 });
+    }
+    for (const face of faces) {
+      const y = face.eye.y;
+      const size = face.eye.radius;
+      this.details.circle(eyeX, y, size).fill({ color: '#ffffff' });
       if (eyeType === 'DEAD') {
         this.details.moveTo(eyeX - size * 0.55, y - size * 0.55).lineTo(eyeX + size * 0.55, y + size * 0.55)
           .moveTo(eyeX + size * 0.55, y - size * 0.55).lineTo(eyeX - size * 0.55, y + size * 0.55)
           .stroke({ color: '#111827', width: Math.max(1, r * 0.06) });
       } else {
-        this.details.circle(eyeX + size * 0.24, y, size * 0.5).fill({ color: eyeColor, alpha: eye.alpha });
-        this.details.circle(eyeX + size * 0.43, y - size * 0.15, size * 0.15).fill({ color: '#ffffff', alpha: 0.9 * eye.alpha });
+        this.details.circle(face.pupil.x, face.pupil.y, face.pupil.radius).fill({ color: eyeColor });
+        this.details.circle(face.shine.x, face.shine.y, face.shine.radius).fill({ color: '#ffffff', alpha: 0.92 });
       }
     }
     const eyebrow = entity.cosmetics?.eyebrowType;
@@ -687,7 +733,7 @@ export class CreatureDisplay {
       .stroke({ color: this.morphology.material.secondaryColor, width: Math.max(0.8, r * 0.025), alpha: 0.38 });
   }
 
-  private drawAnimated(entity: Entity, now: number, isPlayer: boolean, motion?: ResolvedMotionState): void {
+  private drawAnimated(entity: Entity, now: number, isPlayer: boolean, motion?: ResolvedMotionState, lod: CreatureLod = 0): void {
     const r = this.radius;
     const resolved = motion ?? (this.morphology ? resolveMorphologyMotion(entity, this.morphology) : undefined);
     const phase = now * 0.008 + entity.animOffset;
@@ -707,8 +753,9 @@ export class CreatureDisplay {
       }
     }
     this.frontAnimated.clear();
+    this.rigGroups = [];
     if (this.standardFish && entity.type !== CreatureType.PLANKTON) {
-      if (this.morphology && this.presentationMode !== 'VOLUME_ONLY') this.drawMotionFins(resolved);
+      if (lod === 0 && resolved?.braking && this.morphology && this.presentationMode !== 'VOLUME_ONLY') this.drawMotionFins(resolved);
       const tail = this.morphology?.parts.tailFin ?? entity.cosmetics?.tailType ?? 'DEFAULT';
       const tailGeometry = this.morphology ? getMorphologyPart(this.morphology.parts.tailFin, 'tail.classic').geometry : undefined;
       const tailLength = tailGeometry?.length ?? (tail === 'RIBBON' ? 1.25 : tail === 'FORKED' || tail === 'TRIDENT' ? 0.9 : 0.72);
@@ -721,16 +768,17 @@ export class CreatureDisplay {
       const tailSoftness = tailGeometry?.softness ?? 0.35;
       const tailFork = tailGeometry?.fork ?? 0.25;
       const tipX = r * (rootX - tailLength);
+      const spread = 1 + Math.sin(tailPhase) * (resolved?.tailAmplitude ?? 0.18) * 0.3;
       this.rear.moveTo(r * rootX, -r * rootHalf)
-        .quadraticCurveTo(r * (rootX - tailLength * (0.38 + tailSoftness * 0.12)), -r * fork + wag * 0.35, tipX, -r * fork * 1.08 + wag)
-        .quadraticCurveTo(r * (rootX - tailLength * 0.68), -r * fork * tailFork * 0.38 + wag * 0.2, r * (rootX - tailLength * (0.72 - tailFork * 0.08)), wag * 0.08)
-        .quadraticCurveTo(r * (rootX - tailLength * 0.68), r * fork * tailFork * 0.38 + wag * 0.2, tipX, r * fork * 1.08 + wag)
-        .quadraticCurveTo(r * (rootX - tailLength * (0.38 + tailSoftness * 0.12)), r * fork + wag * 0.35, r * rootX, r * rootHalf).closePath()
+        .quadraticCurveTo(r * (rootX - tailLength * (0.38 + tailSoftness * 0.12)), -r * fork * spread, tipX, -r * fork * 1.08 * spread)
+        .quadraticCurveTo(r * (rootX - tailLength * 0.68), -r * fork * tailFork * 0.38 * spread, r * (rootX - tailLength * (0.72 - tailFork * 0.08)), 0)
+        .quadraticCurveTo(r * (rootX - tailLength * 0.68), r * fork * tailFork * 0.38 * spread, tipX, r * fork * 1.08 * spread)
+        .quadraticCurveTo(r * (rootX - tailLength * (0.38 + tailSoftness * 0.12)), r * fork * spread, r * rootX, r * rootHalf).closePath()
         .fill({ color: tail === 'MECHANICAL' ? '#94a3b8' : this.color, alpha: tail === 'GHOST' ? 0.45 : 0.9 })
         .stroke({ color: '#0f172a', width: 1, alpha: 0.35 });
       for (const ray of [-0.72, -0.36, 0, 0.36, 0.72]) {
         this.rear.moveTo(r * rootX, ray * r * rootHalf)
-          .quadraticCurveTo(r * (rootX - tailLength * 0.48), ray * r * fork + wag * 0.2, tipX, ray * r * fork + wag)
+          .quadraticCurveTo(r * (rootX - tailLength * 0.48), ray * r * fork * spread, tipX, ray * r * fork * spread)
           .stroke({ color: this.morphology?.material.secondaryColor ?? '#ffffff', width: Math.max(0.7, r * 0.02), alpha: 0.24 });
       }
       const mouthGap = 0.08 + ((Math.sin(phase * 1.4) + 1) / 2) * 0.25;
@@ -749,6 +797,7 @@ export class CreatureDisplay {
     } else if (!this.standardFish) {
       this.drawSpecialAnimated(entity, (entity.config.shape ?? 'FISH') as CreatureShapeId, phase, wag);
     }
+    this.updateRigMesh();
     if (isPlayer) {
       const concealed = entity.camoActive || entity.inCover;
       this.effects.circle(0, 0, r * 1.55).stroke({ color: concealed ? '#4ade80' : '#22d3ee', width: 3, alpha: 0.45 + Math.sin(phase) * 0.18 });
@@ -847,10 +896,28 @@ export class CreatureDisplay {
     const joints = lodJointCount(this.lod, spec.joints);
     if (joints === 0) return [];
     const segments = buildAppendageRig({ ...spec, joints }, { radius: this.radius, phase, transverseVelocity });
-    for (const segment of segments) {
-      this.rear.moveTo(segment.from.x, segment.from.y).lineTo(segment.to.x, segment.to.y)
-        .stroke({ color: this.color, width: segment.width, alpha, cap: 'round', join: 'round' });
-    }
+    this.rigGroups.push(segments);
+    this.rigAlpha = alpha;
     return segments;
+  }
+
+  private updateRigMesh(): void {
+    if (!this.rigGroups.length) {
+      if (this.rigMesh) this.rigMesh.visible = false;
+      return;
+    }
+    const data = buildAppendageMeshData(this.rigGroups, this.rigMeshData);
+    if (!this.rigMesh || this.rigMesh.vertices.length !== data.vertices.length) {
+      this.rigMesh?.destroy();
+      this.rigMesh = new MeshSimple({ texture: Texture.WHITE, vertices: data.vertices, uvs: data.uvs, indices: data.indices });
+      this.rigMesh.label = `appendage-mesh:${this.id}`;
+      this.root.addChildAt(this.rigMesh, this.root.getChildIndex(this.body));
+    } else {
+      this.rigMesh.vertices = data.vertices;
+    }
+    this.rigMeshData = data;
+    this.rigMesh.tint = this.color;
+    this.rigMesh.alpha = this.rigAlpha;
+    this.rigMesh.visible = true;
   }
 }

@@ -1,7 +1,7 @@
 import type { MorphologyGenes, StandardFishGeometry, SurfaceLayer, VolumeProfile } from '../types';
 
 /** 修改表面层语义或缓存内容时递增，强制 Pixi/LOD 外观缓存失效。 */
-export const MORPHOLOGY_SURFACE_REVISION = 'v3-surface-2';
+export const MORPHOLOGY_SURFACE_REVISION = 'v3-surface-3';
 
 export const STANDARD_VOLUME_LAYERS: readonly SurfaceLayer[] = Object.freeze([
   Object.freeze({ kind: 'FLANK_SHADE', color: '#07111f', alpha: 0.28, width: 0.72, symmetry: 'MIRROR' }),
@@ -38,19 +38,17 @@ export const buildVolumeProfile = (
     flankShade: region((minX + maxX) * -0.03, 0, bodyLength * 0.48, bodyHalfDepth * (0.72 + genes.bellyCurve * 0.12)),
     headDome: region(headX - bodyLength * 0.05, 0, bodyLength * (0.18 + genes.headRatio * 0.08), bodyHalfDepth * (0.48 + genes.headRatio * 0.16)),
     tailPeduncle: region(tailX + bodyLength * 0.025, 0, bodyLength * 0.13, Math.max(0.08, tailDepth * 0.62)),
-    // 世界左上方固定光源；渲染器按实体朝向换算到鱼体局部坐标。
-    worldLight: Object.freeze({ x: -0.62, y: -0.78 }),
+    // 局部光斑沿鱼体中线布置，避免上下两侧出现不同亮度。
+    worldLight: Object.freeze({ x: -0.62, y: 0 }),
   });
 };
 
 export const localLightDirection = (
   worldLight: Readonly<{ x: number; y: number }>,
-  entityAngle: number
+  _entityAngle: number
 ): Readonly<{ x: number; y: number }> => {
-  const cosine = Math.cos(-entityAngle);
-  const sine = Math.sin(-entityAngle);
   return Object.freeze({
-    x: round(worldLight.x * cosine - worldLight.y * sine),
-    y: round(worldLight.x * sine + worldLight.y * cosine),
+    x: round(worldLight.x),
+    y: 0,
   });
 };

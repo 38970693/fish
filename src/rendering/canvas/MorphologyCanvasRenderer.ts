@@ -1,4 +1,4 @@
-import { localLightDirection, type ResolvedMorphology, type ResolvedMotionState, type SurfaceLayerKind } from '../../morphology';
+import { buildRadialSpines, localLightDirection, type ResolvedMorphology, type ResolvedMotionState, type SurfaceLayerKind } from '../../morphology';
 import { getMorphologyPart } from '../../morphology/registry';
 
 type Ctx = CanvasRenderingContext2D;
@@ -86,7 +86,7 @@ export const drawMorphologyRearParts = (
   const { tailRoot } = morphology.geometry.anchors;
   const amplitude = motion?.tailAmplitude ?? morphology.motion.tailAmplitude;
   const frequency = motion?.tailFrequency ?? morphology.motion.tailFrequency;
-  const wag = Math.sin(visualTime * frequency * 0.1) * radius * amplitude;
+  const spread = 1 + Math.sin(visualTime * frequency * 0.1) * amplitude * 0.3;
   const tailPart = getMorphologyPart(morphology.parts.tailFin, 'tail.classic').geometry;
   const length = tailPart.length;
   const fork = tailPart.spread * (0.62 + morphology.genes.tailFork * 0.38);
@@ -97,10 +97,10 @@ export const drawMorphologyRearParts = (
   ctx.beginPath();
   ctx.moveTo(tailRoot.x * radius, -tailRoot.scale * radius * 0.45);
   const tipX = (tailRoot.x - length) * radius;
-  ctx.quadraticCurveTo((tailRoot.x - length * (0.38 + tailPart.softness * 0.12)) * radius, -fork * radius + wag * 0.35, tipX, -fork * 1.08 * radius + wag);
-  ctx.quadraticCurveTo((tailRoot.x - length * 0.68) * radius, -fork * tailPart.fork * 0.38 * radius + wag * 0.2, (tailRoot.x - length * (0.72 - tailPart.fork * 0.08)) * radius, wag * 0.08);
-  ctx.quadraticCurveTo((tailRoot.x - length * 0.68) * radius, fork * tailPart.fork * 0.38 * radius + wag * 0.2, tipX, fork * 1.08 * radius + wag);
-  ctx.quadraticCurveTo((tailRoot.x - length * (0.38 + tailPart.softness * 0.12)) * radius, fork * radius + wag * 0.35, tailRoot.x * radius, tailRoot.scale * radius * 0.45);
+  ctx.quadraticCurveTo((tailRoot.x - length * (0.38 + tailPart.softness * 0.12)) * radius, -fork * radius * spread, tipX, -fork * 1.08 * radius * spread);
+  ctx.quadraticCurveTo((tailRoot.x - length * 0.68) * radius, -fork * tailPart.fork * 0.38 * radius * spread, (tailRoot.x - length * (0.72 - tailPart.fork * 0.08)) * radius, 0);
+  ctx.quadraticCurveTo((tailRoot.x - length * 0.68) * radius, fork * tailPart.fork * 0.38 * radius * spread, tipX, fork * 1.08 * radius * spread);
+  ctx.quadraticCurveTo((tailRoot.x - length * (0.38 + tailPart.softness * 0.12)) * radius, fork * radius * spread, tailRoot.x * radius, tailRoot.scale * radius * 0.45);
   ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.save();
   ctx.globalAlpha = 0.24;
@@ -109,7 +109,7 @@ export const drawMorphologyRearParts = (
   for (const ray of [-0.72, -0.36, 0, 0.36, 0.72]) {
     ctx.beginPath();
     ctx.moveTo(tailRoot.x * radius, ray * tailRoot.scale * radius * 0.42);
-    ctx.quadraticCurveTo((tailRoot.x - length * 0.48) * radius, ray * fork * radius + wag * 0.2, tipX, ray * fork * radius + wag);
+    ctx.quadraticCurveTo((tailRoot.x - length * 0.48) * radius, ray * fork * radius * spread, tipX, ray * fork * radius * spread);
     ctx.stroke();
   }
   ctx.restore();
@@ -153,7 +153,7 @@ export const drawMorphologyBodyDetails = (
     ctx.fill();
   }
 
-  // 固定世界光从左上照射；鱼转身时高光在局部坐标中反向移动。
+  // 局部高光沿鱼体中线，转身后也不破坏上下对称。
   if (ridgeLayer) {
     const offsetX = light.x * dorsalRidge.radiusX * radius * 0.16;
     const offsetY = light.y * Math.max(dorsalRidge.radiusY * radius, radius * 0.04) * 0.8;
@@ -203,8 +203,11 @@ export const drawMorphologyBodyDetails = (
   for (const side of [-1, 1] as const) {
     if (gillLayer) {
       ctx.beginPath();
-      ctx.moveTo((headX - 0.24) * radius, side * maxY * radius * 0.12);
-      ctx.quadraticCurveTo((headX - 0.42) * radius, side * maxY * radius * 0.34, (headX - 0.2) * radius, side * maxY * radius * 0.58);
+      for (let index = 0; index < (gillLayer.count ?? 1); index += 1) {
+        const offset = index * 0.115;
+        ctx.moveTo((headX - 0.24 - offset) * radius, side * maxY * radius * 0.12);
+        ctx.quadraticCurveTo((headX - 0.42 - offset) * radius, side * maxY * radius * 0.34, (headX - 0.2 - offset) * radius, side * maxY * radius * 0.58);
+      }
       ctx.strokeStyle = rgba(gillLayer.color, gillLayer.alpha);
       ctx.lineWidth = Math.max(1, radius * (gillLayer.width ?? 0.035));
       ctx.stroke();
@@ -296,6 +299,18 @@ export const drawMorphologyFrontParts = (
       ctx.globalAlpha = 0.78;
       ctx.strokeStyle = 'rgba(15,23,42,0.3)';
       ctx.lineWidth = Math.max(1, radius * 0.04);
+    }
+  }
+  const spines = surfaceLayer(morphology, 'RADIAL_SPINES');
+  if (spines) {
+    ctx.globalAlpha = spines.alpha;
+    ctx.fillStyle = spines.color;
+    for (const triangle of buildRadialSpines(morphology)) {
+      ctx.beginPath();
+      ctx.moveTo(triangle[0].x * radius, triangle[0].y * radius);
+      ctx.lineTo(triangle[1].x * radius, triangle[1].y * radius);
+      ctx.lineTo(triangle[2].x * radius, triangle[2].y * radius);
+      ctx.closePath(); ctx.fill();
     }
   }
   ctx.restore();

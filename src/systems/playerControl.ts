@@ -18,7 +18,10 @@ const getPlayerAgility = (state: GameState): number => {
     0.02,
     GAME_MECHANICS.BASE_TURN_SPEED - p.radius * GAME_MECHANICS.SIZE_AGILITY_PENALTY
   );
-  const biome = (p.currentBiome ?? getBiome(p.x, p.y)) as BiomeType;
+  const biome = (p.currentBiome ?? getBiome(
+    p.x, p.y, state.worldMode, state.endlessWorld?.seed,
+    state.endlessWorld?.originChunkX, state.endlessWorld?.originChunkY,
+  )) as BiomeType;
   const biomePenalty = BIOME_EFFECTS[biome]?.bigFishTurnPenalty ?? 0;
   return Math.max(0.02, base * (1 - biomePenalty));
 };
@@ -44,7 +47,10 @@ export const playerControlSystem = (state: GameState, ctx: FrameContext): void =
   p.boost.current = Math.max(0, Math.min(p.boost.max, p.boost.current));
 
   /* ── 3. 生态区速度加成（浅滩对小型鱼 +20%） ── */
-  const biome = (p.currentBiome ?? getBiome(p.x, p.y)) as BiomeType;
+  const biome = (p.currentBiome ?? getBiome(
+    p.x, p.y, state.worldMode, state.endlessWorld?.seed,
+    state.endlessWorld?.originChunkX, state.endlessWorld?.originChunkY,
+  )) as BiomeType;
   const effect = BIOME_EFFECTS[biome];
   if (effect && p.config.tier <= effect.speedBonusMaxTier) {
     speedMult *= effect.speedMult;

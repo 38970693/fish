@@ -1,0 +1,208 @@
+{
+  "measuredAt": "2026-09-24T14:25:47.033Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "naturalRun": false,
+  "scenarios": [
+    {
+      "renderer": "pixi",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": {
+        "lod0": 298,
+        "lod1": 1,
+        "lod2": 0,
+        "renderCount": 24,
+        "renderErrors": 0,
+        "displayObjects": 3403,
+        "creaturePoolSize": 31,
+        "lodTextureCacheBytes": 0,
+        "obstacleStaticBuilds": 10,
+        "obstacleStaticCacheHits": 111,
+        "obstacleAnimatedBuilds": 16,
+        "visible": 299,
+        "standardFish": 99,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 331,
+        "lod2AnimatedUpdates": 0
+      },
+      "rendererEnd": {
+        "lod0": 281,
+        "lod1": 18,
+        "lod2": 0,
+        "renderCount": 206,
+        "renderErrors": 0,
+        "displayObjects": 3403,
+        "creaturePoolSize": 31,
+        "lodTextureCacheBytes": 0,
+        "obstacleStaticBuilds": 10,
+        "obstacleStaticCacheHits": 1203,
+        "obstacleAnimatedBuilds": 16,
+        "visible": 299,
+        "standardFish": 99,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 331,
+        "lod2AnimatedUpdates": 0
+      },
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 6,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 178,
+      "frameMs": {
+        "p50": 50.399999999999636,
+        "p95": 67.09999999999854,
+        "p99": 71.29999999999927
+      },
+      "renderMs": {
+        "p50": 22.399999998509884,
+        "p95": 29.600000001490116
+      },
+      "loopMs": {
+        "p50": 26.399999998509884,
+        "p95": 38
+      },
+      "loopSteps": {
+        "2": 5,
+        "3": 99,
+        "4": 72,
+        "5": 2
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 176,
+          "p95": 67.09999999999854,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING",
+            "run": {
+              "mode": "RIVALS",
+              "ruleVersion": 7,
+              "phase": "EARLY",
+              "clock": 148,
+              "practice": true,
+              "practiceReason": "无敌模式",
+              "bossId": null
+            },
+            "feedingPhase": "DROPPING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 49.20000000000073,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 6,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 0,
+            "status": "PLAYING",
+            "run": {
+              "mode": "RIVALS",
+              "ruleVersion": 7,
+              "phase": "EARLY",
+              "clock": 745,
+              "practice": true,
+              "practiceReason": "无敌模式",
+              "bossId": null
+            },
+            "feedingPhase": "DROPPING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 7.631666666641832,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 6.4058333330477275,
+          "share": 0.8393754094433598
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.8016666668156783,
+          "share": 0.1050447696202167
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.2383333330973983,
+          "share": 0.031229526066587535
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.042499999950329465,
+          "share": 0.0055689015003888755
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.02250000008692344,
+          "share": 0.0029482419856296125
+        }
+      ]
+    }
+  ]
+}

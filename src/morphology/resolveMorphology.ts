@@ -152,3 +152,20 @@ export const morphologyAppearanceSignature = (entity: MorphologyEntityInput): st
     shape: entity.config.shape ?? 'FISH',
     appearance: entity.appearanceV2 ?? null,
   });
+
+const renderMorphologyCache = new WeakMap<MorphologyEntityInput, { key: string; resolved: ResolvedMorphology }>();
+
+/** Canvas 高频绘制复用静态形态；动作仍由每帧的 resolveMorphologyMotion 计算。 */
+export const resolveMorphologyForRender = (entity: MorphologyEntityInput): ResolvedMorphology => {
+  // 只序列化输入，不重复序列化解析后的几何、花纹和体积签名。
+  // 内容键而非对象引用保证实验室/旧存档对嵌套外观的原地修改也能失效。
+  const key = JSON.stringify([
+    entity.id, entity.type, entity.config.shape, entity.config.color,
+    entity.cosmetics, entity.appearanceV2,
+  ]);
+  const cached = renderMorphologyCache.get(entity);
+  if (cached?.key === key) return cached.resolved;
+  const resolved = resolveMorphology(entity);
+  renderMorphologyCache.set(entity, { key, resolved });
+  return resolved;
+};

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { MeshSimple } from 'pixi.js';
 import { CreatureType } from '../types';
 import { createEntity } from '../gameEngine';
-import { creatureAppearanceSignature, isPixiStandardFish, PIXI_CREATURE_SHAPES } from '../rendering/pixi/CreatureDisplay';
+import { CreatureDisplay, creatureAppearanceSignature, isPixiStandardFish, PIXI_CREATURE_SHAPES } from '../rendering/pixi/CreatureDisplay';
 import { CREATURE_SHAPE_IDS } from '../data/creatureShapes';
 
 describe('Pixi 标准鱼外观', () => {
@@ -29,8 +30,24 @@ describe('Pixi 标准鱼外观', () => {
     expect(creatureAppearanceSignature(fish)).not.toBe(afterPattern);
   });
 
-  it('仅 FISH 进入本阶段的标准鱼管线', () => {
+  it('标准鱼及迁移后的河豚、大白鲨进入共享形态管线', () => {
     expect(isPixiStandardFish(createEntity(CreatureType.CLOWN_FISH, 0, 0))).toBe(true);
+    expect(isPixiStandardFish(createEntity(CreatureType.PUFFER_FISH, 0, 0))).toBe(true);
+    expect(isPixiStandardFish(createEntity(CreatureType.GREAT_WHITE, 0, 0))).toBe(true);
+    expect(isPixiStandardFish(createEntity(CreatureType.GOBLIN_SHARK, 0, 0))).toBe(false);
     expect(isPixiStandardFish(createEntity(CreatureType.JELLYFISH, 0, 0))).toBe(false);
   });
+
+  it('特殊鱼的 LOD2 源快照包含附肢网格', () => {
+    const squid = createEntity(CreatureType.SQUID, 0, 0);
+    const display = new CreatureDisplay(squid.id);
+    display.update(squid, 1000, false, 0);
+    const snapshot = display.createSnapshotTarget();
+    const rig = snapshot.target.children.find(child => child instanceof MeshSimple && child.label !== 'morphology-mesh');
+    expect(rig).toBeInstanceOf(MeshSimple);
+    expect((rig as MeshSimple).vertices.length).toBeGreaterThan(0);
+    expect(snapshot.target.children.indexOf(rig!)).toBe(1);
+    display.destroy();
+  });
+
 });

@@ -8,3 +8,10 @@ body {
 canvas {
   display: block;
 }
+
+/* 横向菜单在矮桌面窗口中整体收紧，保留 420px 等极矮窗口的滚动兜底。 */
+@media (min-width: 1000px) and (min-height: 500px) and (max-height: 600px) {
+  .menu-content {
+    zoom: 0.78;
+  }
+}

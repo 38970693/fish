@@ -106,8 +106,12 @@ const App: React.FC = () => {
     let alive = true;
     let last = performance.now();
     let acc = 0;
+    const loopMetrics = { sequence: 0, steps: 0, ms: 0 };
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__FISH_LOOP_METRICS__ = loopMetrics;
     const loop = (now: number) => {
       if (!alive) return;
+      const loopStart = performance.now();
+      let steps = 0;
       // 后台切回来一次性补最多 250ms，防止追帧雪崩
       acc += Math.min(now - last, 250);
       last = now;
@@ -119,11 +123,20 @@ const App: React.FC = () => {
           keysRef.current.e
         );
         acc -= STEP_MS;
+        steps += 1;
+      }
+      if (import.meta.env.DEV) {
+        loopMetrics.sequence += 1;
+        loopMetrics.steps = steps;
+        loopMetrics.ms = performance.now() - loopStart;
       }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+      if (import.meta.env.DEV) delete (window as unknown as Record<string, unknown>).__FISH_LOOP_METRICS__;
+    };
   }, []);
 
   // 开发期调试钩子：e2e 探针（scripts/probe-*.mjs）用它直接读真实 gameState。
@@ -522,11 +535,11 @@ const App: React.FC = () => {
       />
       <UIOverlay 
         gameState={uiState} 
-        onStart={(type, pondId) => {
+        onStart={(type, pondId, worldMode) => {
             // 浏览器要求音频上下文在用户手势里创建/恢复，开始按钮正是最合适的位置
             initAudio();
             const currentCos = gameStateRef.current.player.cosmetics;
-            gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos, pondId });
+            gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos, pondId, worldMode });
             gameStateRef.current.status = GameStatus.PLAYING;
             // P0-2 新手保护：开局 8 秒不会被吃（自己可以正常捕食）
             gameStateRef.current.player.invulnerableTimer = PROTECTION_CONFIG.NEWBIE_DURATION;
@@ -535,7 +548,9 @@ const App: React.FC = () => {
         onRestart={() => {
             // 重开保留当前塘：在哪翻的车，就在哪爬起来（「多鱼塘」阶段 1）
             const pondId = gameStateRef.current.pondId;
-            gameStateRef.current = createInitialState({ pondId });
+            const worldMode = gameStateRef.current.worldMode;
+            const worldSeed = gameStateRef.current.endlessWorld?.seed;
+            gameStateRef.current = createInitialState({ pondId, worldMode, worldSeed });
         }}
         onEvolve={(type: any) => {
             // 进化数值只有一份真值（systems/progression.ts）—— 无人值守的 3 分钟切片台架
@@ -547,8 +562,10 @@ const App: React.FC = () => {
             // P0-3 复活：满血、回出生点、带 5 秒保护，避免落地即被守尸
             const p = gameStateRef.current.player;
             p.health = p.maxHealth;
-            p.x = MAP_SHAPE_CONFIG.CENTER_X;
-            p.y = MAP_SHAPE_CONFIG.CENTER_Y;
+            if (gameStateRef.current.worldMode !== 'ENDLESS') {
+              p.x = gameStateRef.current.pondLayout?.spawn.x ?? MAP_SHAPE_CONFIG.CENTER_X;
+              p.y = gameStateRef.current.pondLayout?.spawn.y ?? MAP_SHAPE_CONFIG.CENTER_Y;
+            }
             p.vx = 0;
             p.vy = 0;
             p.invulnerableTimer = PROTECTION_CONFIG.REVIVE_DURATION;

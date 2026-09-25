@@ -33,6 +33,14 @@ const standardRanges: MorphologyRecipe['ranges'] = {
   tailFork: [0.12, 0.8], eyeScale: [0.3, 0.72], eyeSpacing: [0.3, 0.7],
 };
 
+const SHARK_SURFACE_LAYERS = STANDARD_VOLUME_LAYERS.map(layer =>
+  layer.kind === 'GILL' ? { ...layer, count: 3, alpha: 0.52 } : layer);
+
+const PUFFER_SURFACE_LAYERS = [
+  ...STANDARD_VOLUME_LAYERS,
+  { kind: 'RADIAL_SPINES', color: '#d9f99d', alpha: 0.88, count: 7, symmetry: 'MIRROR' },
+] as const satisfies readonly import('./types').SurfaceLayer[];
+
 export const MORPHOLOGY_RECIPES = {
   STANDARD_FISH: {
     id: 'STANDARD_FISH', archetype: 'STANDARD_FISH', defaults: DEFAULT_STANDARD_GENES,
@@ -53,6 +61,26 @@ export const MORPHOLOGY_RECIPES = {
     surfaceLayers: STANDARD_VOLUME_LAYERS,
     motion: { ...STANDARD_MOTION, tailFrequency: 2.45 }, maxVisualExtent: 2.2,
   },
+  BLUE_TANG: {
+    id: 'BLUE_TANG', archetype: 'STANDARD_FISH',
+    defaults: { ...DEFAULT_STANDARD_GENES, bodyLength: 0.54, bodyDepth: 0.67, headRatio: 0.43, snoutLength: 0.3, tailPeduncle: 0.42, dorsalFinHeight: 0.62, pectoralFinSize: 0.58, tailFork: 0.56, eyeScale: 0.46 },
+    ranges: { ...standardRanges, bodyLength: [0.48, 0.58], bodyDepth: [0.62, 0.72], headRatio: [0.38, 0.48], tailFork: [0.48, 0.64] },
+    requiredParts: { dorsal: 'dorsal.long', pectoralLeft: 'pectoral.sickle', pelvicLeft: 'pelvic.sickle', tailFin: 'tail.classic' },
+    allowedTags: ['standard-fish', 'deep-body'],
+    material: { primaryColor: '#2563eb', secondaryColor: '#facc15', patternId: 'EDGE_TRIM', scaleId: 'SHINY', glow: 0.03 },
+    surfaceLayers: STANDARD_VOLUME_LAYERS,
+    motion: { ...STANDARD_MOTION, tailAmplitude: 0.21, tailFrequency: 2.7, turnBend: 0.62 }, maxVisualExtent: 2.35,
+  },
+  KOI: {
+    id: 'KOI', archetype: 'STANDARD_FISH',
+    defaults: { ...DEFAULT_STANDARD_GENES, bodyLength: 0.77, bodyDepth: 0.37, headRatio: 0.42, bellyCurve: 0.58, tailPeduncle: 0.34, dorsalFinHeight: 0.34, pectoralFinSize: 0.54, tailFork: 0.62, eyeScale: 0.43 },
+    ranges: { ...standardRanges, bodyLength: [0.72, 0.82], bodyDepth: [0.32, 0.42], headRatio: [0.36, 0.48], tailFork: [0.54, 0.72] },
+    requiredParts: { dorsal: 'dorsal.classic', pectoralLeft: 'pectoral.long', pelvicLeft: 'pelvic.ribbon', tailFin: 'tail.ribbon' },
+    allowedTags: ['standard-fish', 'deep-body'],
+    material: { primaryColor: '#f8fafc', secondaryColor: '#f97316', patternId: 'RING_SPOTS', scaleId: 'SHINY', glow: 0.02 },
+    surfaceLayers: STANDARD_VOLUME_LAYERS,
+    motion: { ...STANDARD_MOTION, tailAmplitude: 0.23, tailFrequency: 1.8, finFlutter: 0.16 }, maxVisualExtent: 2.7,
+  },
   DEEP_BODY: {
     id: 'DEEP_BODY', archetype: 'DEEP_BODY',
     defaults: { ...DEFAULT_STANDARD_GENES, bodyLength: 0.3, bodyDepth: 0.88, dorsalFinHeight: 0.72, pectoralFinSize: 0.58 },
@@ -70,8 +98,18 @@ export const MORPHOLOGY_RECIPES = {
     requiredParts: { dorsal: 'dorsal.classic', pectoralLeft: 'pectoral.classic', pelvicLeft: 'pelvic.round', tailFin: 'tail.classic' },
     allowedTags: ['standard-fish'],
     material: { primaryColor: '#a3e635', secondaryColor: '#ecfccb', patternId: 'SPOTS', scaleId: 'SPIKES', glow: 0 },
-    surfaceLayers: STANDARD_VOLUME_LAYERS,
+    surfaceLayers: PUFFER_SURFACE_LAYERS,
     motion: { ...STANDARD_MOTION, spineSections: 6, tailAmplitude: 0.1, tailFrequency: 2.8 }, maxVisualExtent: 2.1,
+  },
+  GREAT_WHITE: {
+    id: 'GREAT_WHITE', archetype: 'STANDARD_FISH',
+    defaults: { ...DEFAULT_STANDARD_GENES, bodyLength: 0.86, bodyDepth: 0.34, headRatio: 0.65, snoutLength: 0.58, tailPeduncle: 0.28, dorsalFinHeight: 0.78, pectoralFinSize: 0.68, tailFork: 0.82, eyeScale: 0.3 },
+    ranges: { ...standardRanges, bodyLength: [0.8, 0.92], bodyDepth: [0.28, 0.39], headRatio: [0.59, 0.72], snoutLength: [0.52, 0.66], tailFork: [0.75, 0.9] },
+    requiredParts: { dorsal: 'dorsal.long', pectoralLeft: 'pectoral.sickle', pelvicLeft: 'pelvic.sickle', tailFin: 'tail.classic' },
+    allowedTags: ['standard-fish', 'deep-body'],
+    material: { primaryColor: '#e5e7eb', secondaryColor: '#64748b', patternId: 'LATERAL_DOTS', scaleId: 'NONE', glow: 0 },
+    surfaceLayers: SHARK_SURFACE_LAYERS,
+    motion: { ...STANDARD_MOTION, tailAmplitude: 0.22, tailFrequency: 1.65, turnBend: 0.42 }, maxVisualExtent: 2.55,
   },
   EEL: {
     id: 'EEL', archetype: 'EEL',
@@ -112,5 +150,10 @@ export type MorphologyPartId = keyof typeof MORPHOLOGY_PARTS;
 export const getMorphologyPart = (id: string | undefined, fallback: MorphologyPartId): PartDefinition =>
   MORPHOLOGY_PARTS[id as MorphologyPartId] ?? MORPHOLOGY_PARTS[fallback];
 
-export const morphologyRecipeForCreature = (type: string, shape = 'FISH'): MorphologyRecipeId =>
-  shape === 'FISH' && type === 'CLOWN_FISH' ? 'CLOWN_FISH' : 'STANDARD_FISH';
+export const morphologyRecipeForCreature = (type: string, shape = 'FISH'): MorphologyRecipeId => {
+  if (type === 'PUFFER_FISH' && shape === 'PUFFER') return 'PUFFER';
+  if (type === 'GREAT_WHITE' && shape === 'SHARK') return 'GREAT_WHITE';
+  if (shape !== 'FISH') return 'STANDARD_FISH';
+  if (type === 'CLOWN_FISH' || type === 'BLUE_TANG' || type === 'KOI') return type;
+  return 'STANDARD_FISH';
+};

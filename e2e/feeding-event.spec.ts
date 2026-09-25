@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('FQ-07 投食事件接线', () => {
   test('RIVALS HUD 展示日程，并能进入带方向提示的争夺阶段', async ({ page }) => {
     await page.goto('/?mode=rivals');
-    await page.getByRole('button', { name: /开始游戏/ }).click();
+    await page.getByRole('button', { name: /驶入/ }).click();
     await expect(page.getByText(/玩家 \(/)).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('首次投食准备')).toBeVisible();
 

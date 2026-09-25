@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import MiniMap from '../components/MiniMap';
+import MiniMap, { createEndlessMiniMapProjection } from '../components/MiniMap';
 import { GameState, PlayerState, Portal, Treasure, Hazard, CreatureType } from '../types';
 
 // Mock lucide-react icons
@@ -384,5 +384,28 @@ describe('MiniMap Interactions', () => {
     const { container } = render(<MiniMap gameState={gameState} />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
+  });
+});
+
+describe('Endless MiniMap projection', () => {
+  it('keeps the player pinned to the radar center at large and negative coordinates', () => {
+    const projection = createEndlessMiniMapProjection({ x: 50_000, y: -40_000 });
+    expect(projection.toMap(50_000, -40_000)).toEqual({ x: 100, y: 100 });
+  });
+
+  it('round-trips nearby world coordinates without a finite-world clamp', () => {
+    const projection = createEndlessMiniMapProjection({ x: 50_000, y: -40_000 });
+    const world = { x: 52_250, y: -42_700 };
+    const map = projection.toMap(world.x, world.y);
+    const restored = projection.toWorld(map.x, map.y);
+    expect(restored.x).toBeCloseTo(world.x, 8);
+    expect(restored.y).toBeCloseTo(world.y, 8);
+  });
+
+  it('expands the radar range without moving the player off center', () => {
+    const compact = createEndlessMiniMapProjection({ x: -12_000, y: 8_000 });
+    const expanded = createEndlessMiniMapProjection({ x: -12_000, y: 8_000 }, true);
+    expect(expanded.range).toBeGreaterThan(compact.range);
+    expect(expanded.toMap(-12_000, 8_000)).toEqual({ x: 100, y: 100 });
   });
 });

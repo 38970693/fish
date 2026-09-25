@@ -1,0 +1,2631 @@
+{
+  "measuredAt": "2026-09-24T08:56:30.617Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "scenarios": [
+    {
+      "renderer": "canvas",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": null,
+      "rendererEnd": null,
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 7,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 310,
+      "frameMs": {
+        "p50": 35.400000000001455,
+        "p95": 36.10000000000218,
+        "p99": 53.5
+      },
+      "renderMs": {
+        "p50": 6.300000000745058,
+        "p95": 7.199999999254942
+      },
+      "loopMs": {
+        "p50": 9.399999998509884,
+        "p95": 14.400000002235174
+      },
+      "loopSteps": {
+        "1": 58,
+        "2": 214,
+        "3": 36,
+        "4": 2
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 309,
+          "p95": 36.10000000000218,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 35.20000000000073,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 7,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        }
+      ],
+      "framePairs": [
+        {
+          "delta": 8.299999999999272,
+          "renderMs": 7.5,
+          "renderCount": 47,
+          "loopMs": 8.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 46
+        },
+        {
+          "delta": 53.5,
+          "renderMs": 6.5,
+          "renderCount": 48,
+          "loopMs": 21.199999999254942,
+          "loopSteps": 4,
+          "loopSequence": 47
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 7.099999997764826,
+          "renderCount": 49,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 48
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 7.099999997764826,
+          "renderCount": 50,
+          "loopMs": 9.200000002980232,
+          "loopSteps": 2,
+          "loopSequence": 49
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 7.300000000745058,
+          "renderCount": 51,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 50
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 7.099999997764826,
+          "renderCount": 52,
+          "loopMs": 8.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 51
+        },
+        {
+          "delta": 35.39999999999782,
+          "renderMs": 6.400000002235174,
+          "renderCount": 53,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 52
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 7.300000000745058,
+          "renderCount": 54,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 53
+        },
+        {
+          "delta": 53.5,
+          "renderMs": 7.100000001490116,
+          "renderCount": 55,
+          "loopMs": 18.400000002235174,
+          "loopSteps": 4,
+          "loopSequence": 54
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.899999998509884,
+          "renderCount": 56,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 55
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 7.600000001490116,
+          "renderCount": 57,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 56
+        },
+        {
+          "delta": 34.400000000001455,
+          "renderMs": 7,
+          "renderCount": 58,
+          "loopMs": 8.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 57
+        },
+        {
+          "delta": 52.29999999999927,
+          "renderMs": 7,
+          "renderCount": 59,
+          "loopMs": 13.199999999254942,
+          "loopSteps": 3,
+          "loopSequence": 58
+        },
+        {
+          "delta": 35.89999999999782,
+          "renderMs": 7,
+          "renderCount": 60,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 59
+        },
+        {
+          "delta": 35.20000000000073,
+          "renderMs": 7.400000002235174,
+          "renderCount": 61,
+          "loopMs": 8.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 60
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 7.699999999254942,
+          "renderCount": 62,
+          "loopMs": 13.800000000745058,
+          "loopSteps": 3,
+          "loopSequence": 61
+        },
+        {
+          "delta": 34.29999999999927,
+          "renderMs": 7.300000000745058,
+          "renderCount": 63,
+          "loopMs": 8.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 62
+        },
+        {
+          "delta": 52.599999999998545,
+          "renderMs": 7.199999999254942,
+          "renderCount": 64,
+          "loopMs": 13.899999998509884,
+          "loopSteps": 3,
+          "loopSequence": 63
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 7.100000001490116,
+          "renderCount": 65,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 64
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 7,
+          "renderCount": 66,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 65
+        },
+        {
+          "delta": 34.69999999999709,
+          "renderMs": 6.699999999254942,
+          "renderCount": 67,
+          "loopMs": 8.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 66
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.800000000745058,
+          "renderCount": 68,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 67
+        },
+        {
+          "delta": 35,
+          "renderMs": 7.300000000745058,
+          "renderCount": 69,
+          "loopMs": 8.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 68
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 6.900000002235174,
+          "renderCount": 70,
+          "loopMs": 14.399999998509884,
+          "loopSteps": 3,
+          "loopSequence": 69
+        },
+        {
+          "delta": 53.5,
+          "renderMs": 7.099999997764826,
+          "renderCount": 71,
+          "loopMs": 14,
+          "loopSteps": 3,
+          "loopSequence": 70
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.599999997764826,
+          "renderCount": 72,
+          "loopMs": 9.200000002980232,
+          "loopSteps": 2,
+          "loopSequence": 71
+        },
+        {
+          "delta": 34.79999999999927,
+          "renderMs": 7,
+          "renderCount": 73,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 72
+        },
+        {
+          "delta": 35.89999999999782,
+          "renderMs": 6.799999997019768,
+          "renderCount": 74,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 73
+        },
+        {
+          "delta": 34.900000000001455,
+          "renderMs": 6.5,
+          "renderCount": 75,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 74
+        },
+        {
+          "delta": 52.20000000000073,
+          "renderMs": 6.900000002235174,
+          "renderCount": 76,
+          "loopMs": 13.800000000745058,
+          "loopSteps": 3,
+          "loopSequence": 75
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.900000002235174,
+          "renderCount": 77,
+          "loopMs": 13.800000000745058,
+          "loopSteps": 3,
+          "loopSequence": 76
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 6.600000001490116,
+          "renderCount": 78,
+          "loopMs": 9.200000002980232,
+          "loopSteps": 2,
+          "loopSequence": 77
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 7.299999997019768,
+          "renderCount": 79,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 78
+        },
+        {
+          "delta": 35.900000000001455,
+          "renderMs": 7,
+          "renderCount": 80,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 79
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 6.800000000745058,
+          "renderCount": 81,
+          "loopMs": 9.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 80
+        },
+        {
+          "delta": 35.900000000001455,
+          "renderMs": 6.799999997019768,
+          "renderCount": 82,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 81
+        },
+        {
+          "delta": 53.70000000000073,
+          "renderMs": 6.599999997764826,
+          "renderCount": 83,
+          "loopMs": 14.900000002235174,
+          "loopSteps": 3,
+          "loopSequence": 82
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.699999999254942,
+          "renderCount": 84,
+          "loopMs": 15,
+          "loopSteps": 3,
+          "loopSequence": 83
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.399999998509884,
+          "renderCount": 85,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 84
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.800000000745058,
+          "renderCount": 86,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 85
+        },
+        {
+          "delta": 53.19999999999709,
+          "renderMs": 6.099999997764826,
+          "renderCount": 87,
+          "loopMs": 13.5,
+          "loopSteps": 3,
+          "loopSequence": 86
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 7.399999998509884,
+          "renderCount": 88,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 87
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.599999997764826,
+          "renderCount": 89,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 88
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.800000000745058,
+          "renderCount": 90,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 89
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.899999998509884,
+          "renderCount": 91,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 90
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.5,
+          "renderCount": 92,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 91
+        },
+        {
+          "delta": 34.20000000000073,
+          "renderMs": 6.400000002235174,
+          "renderCount": 93,
+          "loopMs": 9.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 92
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.600000001490116,
+          "renderCount": 94,
+          "loopMs": 9.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 93
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 6.700000002980232,
+          "renderCount": 95,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 94
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.100000001490116,
+          "renderCount": 96,
+          "loopMs": 4.899999998509884,
+          "loopSteps": 1,
+          "loopSequence": 95
+        },
+        {
+          "delta": 52.29999999999927,
+          "renderMs": 6.100000001490116,
+          "renderCount": 97,
+          "loopMs": 14.599999997764826,
+          "loopSteps": 3,
+          "loopSequence": 96
+        },
+        {
+          "delta": 17,
+          "renderMs": 6,
+          "renderCount": 98,
+          "loopMs": 4.599999997764826,
+          "loopSteps": 1,
+          "loopSequence": 97
+        },
+        {
+          "delta": 35.10000000000218,
+          "renderMs": 6.199999999254942,
+          "renderCount": 99,
+          "loopMs": 10.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 98
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.100000001490116,
+          "renderCount": 100,
+          "loopMs": 9.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 99
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.799999997019768,
+          "renderCount": 101,
+          "loopMs": 14.300000000745058,
+          "loopSteps": 3,
+          "loopSequence": 100
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.199999999254942,
+          "renderCount": 102,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 101
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.100000001490116,
+          "renderCount": 103,
+          "loopMs": 10.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 102
+        },
+        {
+          "delta": 18.100000000002183,
+          "renderMs": 7,
+          "renderCount": 104,
+          "loopMs": 4.600000001490116,
+          "loopSteps": 1,
+          "loopSequence": 103
+        },
+        {
+          "delta": 36,
+          "renderMs": 7.300000000745058,
+          "renderCount": 105,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 104
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.100000001490116,
+          "renderCount": 106,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 105
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.300000000745058,
+          "renderCount": 107,
+          "loopMs": 14.799999997019768,
+          "loopSteps": 3,
+          "loopSequence": 106
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.100000001490116,
+          "renderCount": 108,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 107
+        },
+        {
+          "delta": 36,
+          "renderMs": 6,
+          "renderCount": 109,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 108
+        },
+        {
+          "delta": 18.100000000002183,
+          "renderMs": 6.300000000745058,
+          "renderCount": 110,
+          "loopMs": 5.199999999254942,
+          "loopSteps": 1,
+          "loopSequence": 109
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.399999998509884,
+          "renderCount": 111,
+          "loopMs": 9.200000002980232,
+          "loopSteps": 2,
+          "loopSequence": 110
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.399999998509884,
+          "renderCount": 112,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 111
+        },
+        {
+          "delta": 34.400000000001455,
+          "renderMs": 6.700000002980232,
+          "renderCount": 113,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 112
+        },
+        {
+          "delta": 34.599999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 114,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 113
+        },
+        {
+          "delta": 17.700000000000728,
+          "renderMs": 6.700000002980232,
+          "renderCount": 115,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 114
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.300000000745058,
+          "renderCount": 116,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 115
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.100000001490116,
+          "renderCount": 117,
+          "loopMs": 13.900000002235174,
+          "loopSteps": 3,
+          "loopSequence": 116
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.200000002980232,
+          "renderCount": 118,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 117
+        },
+        {
+          "delta": 18.100000000002183,
+          "renderMs": 6.599999997764826,
+          "renderCount": 119,
+          "loopMs": 4.800000000745058,
+          "loopSteps": 1,
+          "loopSequence": 118
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.300000000745058,
+          "renderCount": 120,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 119
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.300000000745058,
+          "renderCount": 121,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 120
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.200000002980232,
+          "renderCount": 122,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 121
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 6.199999999254942,
+          "renderCount": 123,
+          "loopMs": 9.799999997019768,
+          "loopSteps": 2,
+          "loopSequence": 122
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 124,
+          "loopMs": 4.800000000745058,
+          "loopSteps": 1,
+          "loopSequence": 123
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 7.099999997764826,
+          "renderCount": 125,
+          "loopMs": 15.199999999254942,
+          "loopSteps": 3,
+          "loopSequence": 124
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 6.400000002235174,
+          "renderCount": 126,
+          "loopMs": 10.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 125
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.600000001490116,
+          "renderCount": 127,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 126
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.5,
+          "renderCount": 128,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 127
+        },
+        {
+          "delta": 17.600000000002183,
+          "renderMs": 6.600000001490116,
+          "renderCount": 129,
+          "loopMs": 5.399999998509884,
+          "loopSteps": 1,
+          "loopSequence": 128
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.599999997764826,
+          "renderCount": 130,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 129
+        },
+        {
+          "delta": 34.79999999999927,
+          "renderMs": 6.600000001490116,
+          "renderCount": 131,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 130
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 6.100000001490116,
+          "renderCount": 132,
+          "loopMs": 10.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 131
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.299999997019768,
+          "renderCount": 133,
+          "loopMs": 9.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 132
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.299999997019768,
+          "renderCount": 134,
+          "loopMs": 9.200000002980232,
+          "loopSteps": 2,
+          "loopSequence": 133
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 6.600000001490116,
+          "renderCount": 135,
+          "loopMs": 9.799999997019768,
+          "loopSteps": 2,
+          "loopSequence": 134
+        },
+        {
+          "delta": 34.79999999999927,
+          "renderMs": 6.800000000745058,
+          "renderCount": 136,
+          "loopMs": 10.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 135
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.300000000745058,
+          "renderCount": 137,
+          "loopMs": 9.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 136
+        },
+        {
+          "delta": 17.599999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 138,
+          "loopMs": 5,
+          "loopSteps": 1,
+          "loopSequence": 137
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.299999997019768,
+          "renderCount": 139,
+          "loopMs": 10.200000002980232,
+          "loopSteps": 2,
+          "loopSequence": 138
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.400000002235174,
+          "renderCount": 140,
+          "loopMs": 10.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 139
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.400000002235174,
+          "renderCount": 141,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 140
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.300000000745058,
+          "renderCount": 142,
+          "loopMs": 9.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 141
+        },
+        {
+          "delta": 18.099999999998545,
+          "renderMs": 7.199999999254942,
+          "renderCount": 143,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 142
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.199999999254942,
+          "renderCount": 144,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 143
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6,
+          "renderCount": 145,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 144
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.199999999254942,
+          "renderCount": 146,
+          "loopMs": 9.700000002980232,
+          "loopSteps": 2,
+          "loopSequence": 145
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.399999998509884,
+          "renderCount": 147,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 146
+        },
+        {
+          "delta": 36.29999999999927,
+          "renderMs": 6.199999999254942,
+          "renderCount": 148,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 147
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.199999999254942,
+          "renderCount": 149,
+          "loopMs": 5.300000000745058,
+          "loopSteps": 1,
+          "loopSequence": 148
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.199999999254942,
+          "renderCount": 150,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 149
+        },
+        {
+          "delta": 35.10000000000218,
+          "renderMs": 6.199999999254942,
+          "renderCount": 151,
+          "loopMs": 14.699999999254942,
+          "loopSteps": 3,
+          "loopSequence": 150
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.199999999254942,
+          "renderCount": 152,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 151
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.300000000745058,
+          "renderCount": 153,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 152
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.399999998509884,
+          "renderCount": 154,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 153
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.300000000745058,
+          "renderCount": 155,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 154
+        },
+        {
+          "delta": 34.20000000000073,
+          "renderMs": 6.599999997764826,
+          "renderCount": 156,
+          "loopMs": 10.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 155
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.5,
+          "renderCount": 157,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 156
+        },
+        {
+          "delta": 35.10000000000218,
+          "renderMs": 6,
+          "renderCount": 158,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 157
+        },
+        {
+          "delta": 18,
+          "renderMs": 5.800000000745058,
+          "renderCount": 159,
+          "loopMs": 4.599999997764826,
+          "loopSteps": 1,
+          "loopSequence": 158
+        },
+        {
+          "delta": 36,
+          "renderMs": 6,
+          "renderCount": 160,
+          "loopMs": 13.899999998509884,
+          "loopSteps": 3,
+          "loopSequence": 159
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.800000000745058,
+          "renderCount": 161,
+          "loopMs": 10.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 160
+        },
+        {
+          "delta": 18.5,
+          "renderMs": 6.5,
+          "renderCount": 162,
+          "loopMs": 4.899999998509884,
+          "loopSteps": 1,
+          "loopSequence": 161
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.399999998509884,
+          "renderCount": 163,
+          "loopMs": 9.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 162
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.799999997019768,
+          "renderCount": 164,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 163
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.5,
+          "renderCount": 165,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 164
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 6.399999998509884,
+          "renderCount": 166,
+          "loopMs": 10.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 165
+        },
+        {
+          "delta": 17.899999999997817,
+          "renderMs": 6.5,
+          "renderCount": 167,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 166
+        },
+        {
+          "delta": 35.30000000000291,
+          "renderMs": 5.899999998509884,
+          "renderCount": 168,
+          "loopMs": 9.399999998509884,
+          "loopSteps": 2,
+          "loopSequence": 167
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.299999997019768,
+          "renderCount": 169,
+          "loopMs": 9.799999997019768,
+          "loopSteps": 2,
+          "loopSequence": 168
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.400000002235174,
+          "renderCount": 170,
+          "loopMs": 9.700000002980232,
+          "loopSteps": 2,
+          "loopSequence": 169
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.699999999254942,
+          "renderCount": 171,
+          "loopMs": 9.399999998509884,
+          "loopSteps": 2,
+          "loopSequence": 170
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.199999999254942,
+          "renderCount": 172,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 171
+        },
+        {
+          "delta": 17.299999999999272,
+          "renderMs": 6.400000002235174,
+          "renderCount": 173,
+          "loopMs": 5.099999997764826,
+          "loopSteps": 1,
+          "loopSequence": 172
+        },
+        {
+          "delta": 35,
+          "renderMs": 5.899999998509884,
+          "renderCount": 174,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 173
+        },
+        {
+          "delta": 34.900000000001455,
+          "renderMs": 6.100000001490116,
+          "renderCount": 175,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 174
+        },
+        {
+          "delta": 34.29999999999927,
+          "renderMs": 6.099999997764826,
+          "renderCount": 176,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 175
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.400000002235174,
+          "renderCount": 177,
+          "loopMs": 14.200000002980232,
+          "loopSteps": 3,
+          "loopSequence": 176
+        },
+        {
+          "delta": 17.600000000002183,
+          "renderMs": 6.5,
+          "renderCount": 178,
+          "loopMs": 4.600000001490116,
+          "loopSteps": 1,
+          "loopSequence": 177
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.300000000745058,
+          "renderCount": 179,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 178
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.200000002980232,
+          "renderCount": 180,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 179
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.300000000745058,
+          "renderCount": 181,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 180
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.100000001490116,
+          "renderCount": 182,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 181
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.099999997764826,
+          "renderCount": 183,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 182
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.200000002980232,
+          "renderCount": 184,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 183
+        },
+        {
+          "delta": 36,
+          "renderMs": 5.900000002235174,
+          "renderCount": 185,
+          "loopMs": 14.200000002980232,
+          "loopSteps": 3,
+          "loopSequence": 184
+        },
+        {
+          "delta": 18.599999999998545,
+          "renderMs": 6.099999997764826,
+          "renderCount": 186,
+          "loopMs": 4.5,
+          "loopSteps": 1,
+          "loopSequence": 185
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 187,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 186
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 6,
+          "renderCount": 188,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 187
+        },
+        {
+          "delta": 34.900000000001455,
+          "renderMs": 6.5,
+          "renderCount": 189,
+          "loopMs": 11.5,
+          "loopSteps": 2,
+          "loopSequence": 188
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.599999997764826,
+          "renderCount": 190,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 189
+        },
+        {
+          "delta": 18,
+          "renderMs": 6,
+          "renderCount": 191,
+          "loopMs": 5,
+          "loopSteps": 1,
+          "loopSequence": 190
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.099999997764826,
+          "renderCount": 192,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 191
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 6.199999999254942,
+          "renderCount": 193,
+          "loopMs": 8.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 192
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 6,
+          "renderCount": 194,
+          "loopMs": 14.600000001490116,
+          "loopSteps": 3,
+          "loopSequence": 193
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.399999998509884,
+          "renderCount": 195,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 194
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.299999997019768,
+          "renderCount": 196,
+          "loopMs": 4.800000000745058,
+          "loopSteps": 1,
+          "loopSequence": 195
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.300000000745058,
+          "renderCount": 197,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 196
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 5.899999998509884,
+          "renderCount": 198,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 197
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.299999997019768,
+          "renderCount": 199,
+          "loopMs": 9.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 198
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.100000001490116,
+          "renderCount": 200,
+          "loopMs": 5.5,
+          "loopSteps": 1,
+          "loopSequence": 199
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.5,
+          "renderCount": 201,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 200
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.199999999254942,
+          "renderCount": 202,
+          "loopMs": 15,
+          "loopSteps": 3,
+          "loopSequence": 201
+        },
+        {
+          "delta": 34.80000000000291,
+          "renderMs": 6.700000002980232,
+          "renderCount": 203,
+          "loopMs": 9.799999997019768,
+          "loopSteps": 2,
+          "loopSequence": 202
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6,
+          "renderCount": 204,
+          "loopMs": 5.400000002235174,
+          "loopSteps": 1,
+          "loopSequence": 203
+        },
+        {
+          "delta": 34.599999999998545,
+          "renderMs": 6.100000001490116,
+          "renderCount": 205,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 204
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6,
+          "renderCount": 206,
+          "loopMs": 9.799999997019768,
+          "loopSteps": 2,
+          "loopSequence": 205
+        },
+        {
+          "delta": 34.900000000001455,
+          "renderMs": 6.300000000745058,
+          "renderCount": 207,
+          "loopMs": 10.200000002980232,
+          "loopSteps": 2,
+          "loopSequence": 206
+        },
+        {
+          "delta": 36.5,
+          "renderMs": 6.200000002980232,
+          "renderCount": 208,
+          "loopMs": 10.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 207
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.299999997019768,
+          "renderCount": 209,
+          "loopMs": 4.800000000745058,
+          "loopSteps": 1,
+          "loopSequence": 208
+        },
+        {
+          "delta": 35.900000000001455,
+          "renderMs": 6.100000001490116,
+          "renderCount": 210,
+          "loopMs": 10.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 209
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.099999997764826,
+          "renderCount": 211,
+          "loopMs": 15,
+          "loopSteps": 3,
+          "loopSequence": 210
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.200000002980232,
+          "renderCount": 212,
+          "loopMs": 9.799999997019768,
+          "loopSteps": 2,
+          "loopSequence": 211
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.699999999254942,
+          "renderCount": 213,
+          "loopMs": 4.900000002235174,
+          "loopSteps": 1,
+          "loopSequence": 212
+        },
+        {
+          "delta": 34.900000000001455,
+          "renderMs": 6.299999997019768,
+          "renderCount": 214,
+          "loopMs": 9.700000002980232,
+          "loopSteps": 2,
+          "loopSequence": 213
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 215,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 214
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 5.899999998509884,
+          "renderCount": 216,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 215
+        },
+        {
+          "delta": 17.599999999998545,
+          "renderMs": 5.900000002235174,
+          "renderCount": 217,
+          "loopMs": 5.300000000745058,
+          "loopSteps": 1,
+          "loopSequence": 216
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 5.899999998509884,
+          "renderCount": 218,
+          "loopMs": 9.399999998509884,
+          "loopSteps": 2,
+          "loopSequence": 217
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 6,
+          "renderCount": 219,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 218
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 6.200000002980232,
+          "renderCount": 220,
+          "loopMs": 15.800000000745058,
+          "loopSteps": 3,
+          "loopSequence": 219
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.199999999254942,
+          "renderCount": 221,
+          "loopMs": 4.700000002980232,
+          "loopSteps": 1,
+          "loopSequence": 220
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 6.199999999254942,
+          "renderCount": 222,
+          "loopMs": 10.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 221
+        },
+        {
+          "delta": 35.29999999999927,
+          "renderMs": 7,
+          "renderCount": 223,
+          "loopMs": 10.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 222
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.5,
+          "renderCount": 224,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 223
+        },
+        {
+          "delta": 18.099999999998545,
+          "renderMs": 6.600000001490116,
+          "renderCount": 225,
+          "loopMs": 4.700000002980232,
+          "loopSteps": 1,
+          "loopSequence": 224
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.199999999254942,
+          "renderCount": 226,
+          "loopMs": 10.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 225
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.300000000745058,
+          "renderCount": 227,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 226
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 228,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 227
+        },
+        {
+          "delta": 17.600000000002183,
+          "renderMs": 6.100000001490116,
+          "renderCount": 229,
+          "loopMs": 4.399999998509884,
+          "loopSteps": 1,
+          "loopSequence": 228
+        },
+        {
+          "delta": 36,
+          "renderMs": 6,
+          "renderCount": 230,
+          "loopMs": 13.099999997764826,
+          "loopSteps": 3,
+          "loopSequence": 229
+        },
+        {
+          "delta": 35.19999999999709,
+          "renderMs": 6.400000002235174,
+          "renderCount": 231,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 230
+        },
+        {
+          "delta": 18.100000000002183,
+          "renderMs": 6,
+          "renderCount": 232,
+          "loopMs": 4.5,
+          "loopSteps": 1,
+          "loopSequence": 231
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.399999998509884,
+          "renderCount": 233,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 232
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.400000002235174,
+          "renderCount": 234,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 233
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 6.800000000745058,
+          "renderCount": 235,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 234
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.800000000745058,
+          "renderCount": 236,
+          "loopMs": 4.599999997764826,
+          "loopSteps": 1,
+          "loopSequence": 235
+        },
+        {
+          "delta": 36.5,
+          "renderMs": 6.800000000745058,
+          "renderCount": 237,
+          "loopMs": 14.799999997019768,
+          "loopSteps": 3,
+          "loopSequence": 236
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 238,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 237
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.300000000745058,
+          "renderCount": 239,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 238
+        },
+        {
+          "delta": 34.60000000000218,
+          "renderMs": 6.199999999254942,
+          "renderCount": 240,
+          "loopMs": 10.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 239
+        },
+        {
+          "delta": 35.29999999999927,
+          "renderMs": 6.300000000745058,
+          "renderCount": 241,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 240
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.199999999254942,
+          "renderCount": 242,
+          "loopMs": 6.300000000745058,
+          "loopSteps": 1,
+          "loopSequence": 241
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.099999997764826,
+          "renderCount": 243,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 242
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.300000000745058,
+          "renderCount": 244,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 243
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.100000001490116,
+          "renderCount": 245,
+          "loopMs": 13.800000000745058,
+          "loopSteps": 3,
+          "loopSequence": 244
+        },
+        {
+          "delta": 18.099999999998545,
+          "renderMs": 6.400000002235174,
+          "renderCount": 246,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 245
+        },
+        {
+          "delta": 34.900000000001455,
+          "renderMs": 6,
+          "renderCount": 247,
+          "loopMs": 10.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 246
+        },
+        {
+          "delta": 36,
+          "renderMs": 5.899999998509884,
+          "renderCount": 248,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 247
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.300000000745058,
+          "renderCount": 249,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 248
+        },
+        {
+          "delta": 35.39999999999782,
+          "renderMs": 6,
+          "renderCount": 250,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 249
+        },
+        {
+          "delta": 18.100000000002183,
+          "renderMs": 6.100000001490116,
+          "renderCount": 251,
+          "loopMs": 4.900000002235174,
+          "loopSteps": 1,
+          "loopSequence": 250
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 252,
+          "loopMs": 9.700000002980232,
+          "loopSteps": 2,
+          "loopSequence": 251
+        },
+        {
+          "delta": 35.20000000000073,
+          "renderMs": 6.199999999254942,
+          "renderCount": 253,
+          "loopMs": 11,
+          "loopSteps": 2,
+          "loopSequence": 252
+        },
+        {
+          "delta": 34.5,
+          "renderMs": 6.400000002235174,
+          "renderCount": 254,
+          "loopMs": 12.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 253
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6,
+          "renderCount": 255,
+          "loopMs": 13.699999999254942,
+          "loopSteps": 3,
+          "loopSequence": 254
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6,
+          "renderCount": 256,
+          "loopMs": 4.5,
+          "loopSteps": 1,
+          "loopSequence": 255
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 257,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 256
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.200000002980232,
+          "renderCount": 258,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 257
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.100000001490116,
+          "renderCount": 259,
+          "loopMs": 4.600000001490116,
+          "loopSteps": 1,
+          "loopSequence": 258
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 260,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 259
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.299999997019768,
+          "renderCount": 261,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 260
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 262,
+          "loopMs": 14,
+          "loopSteps": 3,
+          "loopSequence": 261
+        },
+        {
+          "delta": 17.100000000002183,
+          "renderMs": 6.300000000745058,
+          "renderCount": 263,
+          "loopMs": 4.599999997764826,
+          "loopSteps": 1,
+          "loopSequence": 262
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.300000000745058,
+          "renderCount": 264,
+          "loopMs": 8.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 263
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.099999997764826,
+          "renderCount": 265,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 264
+        },
+        {
+          "delta": 36,
+          "renderMs": 6,
+          "renderCount": 266,
+          "loopMs": 9.399999998509884,
+          "loopSteps": 2,
+          "loopSequence": 265
+        },
+        {
+          "delta": 17.600000000002183,
+          "renderMs": 6.199999999254942,
+          "renderCount": 267,
+          "loopMs": 4.400000002235174,
+          "loopSteps": 1,
+          "loopSequence": 266
+        },
+        {
+          "delta": 36,
+          "renderMs": 5.699999999254942,
+          "renderCount": 268,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 267
+        },
+        {
+          "delta": 35.19999999999709,
+          "renderMs": 6.5,
+          "renderCount": 269,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 268
+        },
+        {
+          "delta": 17.700000000000728,
+          "renderMs": 6.199999999254942,
+          "renderCount": 270,
+          "loopMs": 4.599999997764826,
+          "loopSteps": 1,
+          "loopSequence": 269
+        },
+        {
+          "delta": 35.29999999999927,
+          "renderMs": 5.900000002235174,
+          "renderCount": 271,
+          "loopMs": 9.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 270
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.399999998509884,
+          "renderCount": 272,
+          "loopMs": 14.400000002235174,
+          "loopSteps": 3,
+          "loopSequence": 271
+        },
+        {
+          "delta": 36.10000000000218,
+          "renderMs": 6.699999999254942,
+          "renderCount": 273,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 272
+        },
+        {
+          "delta": 17.799999999999272,
+          "renderMs": 6.300000000745058,
+          "renderCount": 274,
+          "loopMs": 4.800000000745058,
+          "loopSteps": 1,
+          "loopSequence": 273
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.099999997764826,
+          "renderCount": 275,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 274
+        },
+        {
+          "delta": 35.10000000000218,
+          "renderMs": 6.799999997019768,
+          "renderCount": 276,
+          "loopMs": 9.399999998509884,
+          "loopSteps": 2,
+          "loopSequence": 275
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.599999997764826,
+          "renderCount": 277,
+          "loopMs": 9.700000002980232,
+          "loopSteps": 2,
+          "loopSequence": 276
+        },
+        {
+          "delta": 36.60000000000218,
+          "renderMs": 6.199999999254942,
+          "renderCount": 278,
+          "loopMs": 9.399999998509884,
+          "loopSteps": 2,
+          "loopSequence": 277
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.100000001490116,
+          "renderCount": 279,
+          "loopMs": 9.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 278
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6,
+          "renderCount": 280,
+          "loopMs": 9.400000002235174,
+          "loopSteps": 2,
+          "loopSequence": 279
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.600000001490116,
+          "renderCount": 281,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 280
+        },
+        {
+          "delta": 17.399999999997817,
+          "renderMs": 6.300000000745058,
+          "renderCount": 282,
+          "loopMs": 5,
+          "loopSteps": 1,
+          "loopSequence": 281
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 5.900000002235174,
+          "renderCount": 283,
+          "loopMs": 8.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 282
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 6.100000001490116,
+          "renderCount": 284,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 283
+        },
+        {
+          "delta": 17.599999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 285,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 284
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.600000001490116,
+          "renderCount": 286,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 285
+        },
+        {
+          "delta": 34.89999999999782,
+          "renderMs": 6,
+          "renderCount": 287,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 286
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.100000001490116,
+          "renderCount": 288,
+          "loopMs": 10.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 287
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.699999999254942,
+          "renderCount": 289,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 288
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.300000000745058,
+          "renderCount": 290,
+          "loopMs": 13.699999999254942,
+          "loopSteps": 3,
+          "loopSequence": 289
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.099999997764826,
+          "renderCount": 291,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 290
+        },
+        {
+          "delta": 34.5,
+          "renderMs": 6,
+          "renderCount": 292,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 291
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 293,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 292
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 5.899999998509884,
+          "renderCount": 294,
+          "loopMs": 4.600000001490116,
+          "loopSteps": 1,
+          "loopSequence": 293
+        },
+        {
+          "delta": 34.70000000000073,
+          "renderMs": 6.300000000745058,
+          "renderCount": 295,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 294
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6.399999998509884,
+          "renderCount": 296,
+          "loopMs": 9.299999997019768,
+          "loopSteps": 2,
+          "loopSequence": 295
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.199999999254942,
+          "renderCount": 297,
+          "loopMs": 9.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 296
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 298,
+          "loopMs": 4.399999998509884,
+          "loopSteps": 1,
+          "loopSequence": 297
+        },
+        {
+          "delta": 35.099999999998545,
+          "renderMs": 6.5,
+          "renderCount": 299,
+          "loopMs": 9.599999997764826,
+          "loopSteps": 2,
+          "loopSequence": 298
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 6.200000002980232,
+          "renderCount": 300,
+          "loopMs": 14.699999999254942,
+          "loopSteps": 3,
+          "loopSequence": 299
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 6.600000001490116,
+          "renderCount": 301,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 300
+        },
+        {
+          "delta": 18.399999999997817,
+          "renderMs": 6.199999999254942,
+          "renderCount": 302,
+          "loopMs": 4.600000001490116,
+          "loopSteps": 1,
+          "loopSequence": 301
+        },
+        {
+          "delta": 36.29999999999927,
+          "renderMs": 6.900000002235174,
+          "renderCount": 303,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 302
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 6.199999999254942,
+          "renderCount": 304,
+          "loopMs": 8.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 303
+        },
+        {
+          "delta": 18.5,
+          "renderMs": 6.699999999254942,
+          "renderCount": 305,
+          "loopMs": 4.700000002980232,
+          "loopSteps": 1,
+          "loopSequence": 304
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.599999997764826,
+          "renderCount": 306,
+          "loopMs": 8.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 305
+        },
+        {
+          "delta": 35.79999999999927,
+          "renderMs": 7.300000000745058,
+          "renderCount": 307,
+          "loopMs": 13.100000001490116,
+          "loopSteps": 3,
+          "loopSequence": 306
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.300000000745058,
+          "renderCount": 308,
+          "loopMs": 4.599999997764826,
+          "loopSteps": 1,
+          "loopSequence": 307
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 309,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 308
+        },
+        {
+          "delta": 34.599999999998545,
+          "renderMs": 7.5,
+          "renderCount": 310,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 309
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.5,
+          "renderCount": 311,
+          "loopMs": 8.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 310
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.600000001490116,
+          "renderCount": 312,
+          "loopMs": 4.5,
+          "loopSteps": 1,
+          "loopSequence": 311
+        },
+        {
+          "delta": 35.10000000000218,
+          "renderMs": 6.599999997764826,
+          "renderCount": 313,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 312
+        },
+        {
+          "delta": 35.39999999999782,
+          "renderMs": 6.199999999254942,
+          "renderCount": 314,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 313
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 5.900000002235174,
+          "renderCount": 315,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 314
+        },
+        {
+          "delta": 18.5,
+          "renderMs": 6.400000002235174,
+          "renderCount": 316,
+          "loopMs": 4.600000001490116,
+          "loopSteps": 1,
+          "loopSequence": 315
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.299999997019768,
+          "renderCount": 317,
+          "loopMs": 13.800000000745058,
+          "loopSteps": 3,
+          "loopSequence": 316
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.199999999254942,
+          "renderCount": 318,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 317
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.099999997764826,
+          "renderCount": 319,
+          "loopMs": 4.5,
+          "loopSteps": 1,
+          "loopSequence": 318
+        },
+        {
+          "delta": 35.900000000001455,
+          "renderMs": 5.699999999254942,
+          "renderCount": 320,
+          "loopMs": 8.900000002235174,
+          "loopSteps": 2,
+          "loopSequence": 319
+        },
+        {
+          "delta": 35.70000000000073,
+          "renderMs": 6,
+          "renderCount": 321,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 320
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.899999998509884,
+          "renderCount": 322,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 321
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.300000000745058,
+          "renderCount": 323,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 322
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.899999998509884,
+          "renderCount": 324,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 323
+        },
+        {
+          "delta": 35.19999999999709,
+          "renderMs": 6.200000002980232,
+          "renderCount": 325,
+          "loopMs": 13.800000000745058,
+          "loopSteps": 3,
+          "loopSequence": 324
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.300000000745058,
+          "renderCount": 326,
+          "loopMs": 4.800000000745058,
+          "loopSteps": 1,
+          "loopSequence": 325
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 6.200000002980232,
+          "renderCount": 327,
+          "loopMs": 9.799999997019768,
+          "loopSteps": 2,
+          "loopSequence": 326
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.099999997764826,
+          "renderCount": 328,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 327
+        },
+        {
+          "delta": 35,
+          "renderMs": 5.599999997764826,
+          "renderCount": 329,
+          "loopMs": 8.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 328
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.199999999254942,
+          "renderCount": 330,
+          "loopMs": 4.600000001490116,
+          "loopSteps": 1,
+          "loopSequence": 329
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.100000001490116,
+          "renderCount": 331,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 330
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 5.900000002235174,
+          "renderCount": 332,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 331
+        },
+        {
+          "delta": 18,
+          "renderMs": 6.699999999254942,
+          "renderCount": 333,
+          "loopMs": 4.5,
+          "loopSteps": 1,
+          "loopSequence": 332
+        },
+        {
+          "delta": 35.400000000001455,
+          "renderMs": 6.5,
+          "renderCount": 334,
+          "loopMs": 13.900000002235174,
+          "loopSteps": 3,
+          "loopSequence": 333
+        },
+        {
+          "delta": 36,
+          "renderMs": 6.200000002980232,
+          "renderCount": 335,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 334
+        },
+        {
+          "delta": 17.599999999998545,
+          "renderMs": 6,
+          "renderCount": 336,
+          "loopMs": 4.5,
+          "loopSteps": 1,
+          "loopSequence": 335
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 6.800000000745058,
+          "renderCount": 337,
+          "loopMs": 9,
+          "loopSteps": 2,
+          "loopSequence": 336
+        },
+        {
+          "delta": 34.79999999999927,
+          "renderMs": 6.899999998509884,
+          "renderCount": 338,
+          "loopMs": 9.199999999254942,
+          "loopSteps": 2,
+          "loopSequence": 337
+        },
+        {
+          "delta": 35.29999999999927,
+          "renderMs": 6.199999999254942,
+          "renderCount": 339,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 338
+        },
+        {
+          "delta": 17.799999999999272,
+          "renderMs": 6.5,
+          "renderCount": 340,
+          "loopMs": 4.899999998509884,
+          "loopSteps": 1,
+          "loopSequence": 339
+        },
+        {
+          "delta": 35.20000000000073,
+          "renderMs": 6.399999998509884,
+          "renderCount": 341,
+          "loopMs": 9.699999999254942,
+          "loopSteps": 2,
+          "loopSequence": 340
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.5,
+          "renderCount": 342,
+          "loopMs": 9.5,
+          "loopSteps": 2,
+          "loopSequence": 341
+        },
+        {
+          "delta": 35,
+          "renderMs": 6.300000000745058,
+          "renderCount": 343,
+          "loopMs": 10,
+          "loopSteps": 2,
+          "loopSequence": 342
+        },
+        {
+          "delta": 18.099999999998545,
+          "renderMs": 6.199999999254942,
+          "renderCount": 344,
+          "loopMs": 10.5,
+          "loopSteps": 2,
+          "loopSequence": 343
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 345,
+          "loopMs": 9.399999998509884,
+          "loopSteps": 2,
+          "loopSequence": 344
+        },
+        {
+          "delta": 35.60000000000218,
+          "renderMs": 5.899999998509884,
+          "renderCount": 346,
+          "loopMs": 9.800000000745058,
+          "loopSteps": 2,
+          "loopSequence": 345
+        },
+        {
+          "delta": 17.5,
+          "renderMs": 6.100000001490116,
+          "renderCount": 347,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 346
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.199999999254942,
+          "renderCount": 348,
+          "loopMs": 9.899999998509884,
+          "loopSteps": 2,
+          "loopSequence": 347
+        },
+        {
+          "delta": 36.099999999998545,
+          "renderMs": 6.799999997019768,
+          "renderCount": 349,
+          "loopMs": 9.300000000745058,
+          "loopSteps": 2,
+          "loopSequence": 348
+        },
+        {
+          "delta": 18.100000000002183,
+          "renderMs": 7.599999997764826,
+          "renderCount": 350,
+          "loopMs": 4.699999999254942,
+          "loopSteps": 1,
+          "loopSequence": 349
+        },
+        {
+          "delta": 34.89999999999782,
+          "renderMs": 6.699999999254942,
+          "renderCount": 351,
+          "loopMs": 9.100000001490116,
+          "loopSteps": 2,
+          "loopSequence": 350
+        },
+        {
+          "delta": 35.20000000000073,
+          "renderMs": 6.800000000745058,
+          "renderCount": 352,
+          "loopMs": 9.099999997764826,
+          "loopSteps": 2,
+          "loopSequence": 351
+        },
+        {
+          "delta": 35.599999999998545,
+          "renderMs": 6.699999999254942,
+          "renderCount": 353,
+          "loopMs": 15.199999999254942,
+          "loopSteps": 3,
+          "loopSequence": 352
+        },
+        {
+          "delta": 18.100000000002183,
+          "renderMs": 6.699999999254942,
+          "renderCount": 354,
+          "loopMs": 4.900000002235174,
+          "loopSteps": 1,
+          "loopSequence": 353
+        },
+        {
+          "delta": 35.5,
+          "renderMs": 6.200000002980232,
+          "renderCount": 355,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 354
+        },
+        {
+          "delta": 35.20000000000073,
+          "renderMs": 6.599999997764826,
+          "renderCount": 356,
+          "loopMs": 9.600000001490116,
+          "loopSteps": 2,
+          "loopSequence": 355
+        }
+      ],
+      "logicMsPerFrame": 4.598333333308498,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 3.8658333332588275,
+          "share": 0.8407031533047568
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.48249999998758236,
+          "share": 0.10492932221606124
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.17666666666045786,
+          "share": 0.03841971728773005
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.018333333358168603,
+          "share": 0.003986951799550769
+        },
+        {
+          "name": "habitats",
+          "msPerFrame": 0.011666666685293118,
+          "share": 0.002537151145782413
+        }
+      ]
+    }
+  ]
+}

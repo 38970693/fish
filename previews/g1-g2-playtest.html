@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>G1/G2 真人试玩记录</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #eaf7ff; background: #102c48; }
+    * { box-sizing: border-box; }
+    body { max-width: 820px; margin: 0 auto; padding: 20px; line-height: 1.55; }
+    h1 { margin: 0 0 8px; font-size: 1.7rem; }
+    h2 { margin: 0 0 12px; font-size: 1.2rem; }
+    p { margin: 6px 0 14px; }
+    .muted { color: #b8d3e2; }
+    .card { background: #173c5d; border: 1px solid #3b7294; border-radius: 14px; padding: 18px; margin: 16px 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    label { display: grid; gap: 5px; font-weight: 600; }
+    input, select, textarea { width: 100%; color: #eaf7ff; background: #0c2943; border: 1px solid #6490a9; border-radius: 8px; padding: 9px; font: inherit; }
+    textarea { min-height: 75px; resize: vertical; }
+    button, .game-link { display: inline-block; border: 0; border-radius: 8px; background: #f4ba45; color: #13243b; padding: 10px 15px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; margin: 8px 8px 0 0; }
+    button.secondary { background: #a9d7e8; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .event { border-top: 1px solid #4c7894; padding: 10px 0; white-space: pre-wrap; }
+    .event small { color: #b8d3e2; display: block; }
+    #handoffChecklist { padding-left: 22px; }
+    #handoffChecklist li { margin: 6px 0; }
+    #handoffChecklist li[data-complete="true"] { color: #bde9c4; }
+    #status { min-height: 1.5em; color: #bde9c4; }
+  </style>
+</head>
+<body>
+  <h1>G1/G2 真人试玩记录</h1>
+  <p class="muted">本页只保存你手填的观察，不读取游戏状态，也不会自动判断 G1/G2 放行。草稿存在当前浏览器；请导出 JSON 留档。游戏无固定种子，各局不能逐数值配对。</p>
+  <a class="game-link" href="/?mode=rivals" target="_blank" rel="noopener">另开游戏窗口</a>
+
+  <section class="card">
+    <h2>准备</h2>
+    <div class="grid">
+      <label>试玩者<input id="participant" autocomplete="name" placeholder="姓名或代号"></label>
+      <label>设备与浏览器<input id="device" placeholder="如 Windows / Chrome / 1280×800"></label>
+      <label>录屏文件或链接<input id="recording" placeholder="可空；若录屏请记文件名"></label>
+    </div>
+    <p class="muted">建议顺序 A→B→C；时间允许再 C′→B′→A′。A 不按指令/R，B 可按 1/2/3，C 可按 1/2/3/R。不要按 G 无敌键；按过请在备注中标为练习局。</p>
+  </section>
+
+  <section class="card">
+    <h2>本局 · <span id="timer">未开始</span></h2>
+    <div class="grid">
+      <label>局别<select id="phase"><option>A</option><option>B</option><option>C</option><option>C′</option><option>B′</option><option>A′</option></select></label>
+      <label>结束方式<select id="outcome"><option value="">未填写</option><option value="victory">胜利</option><option value="death">死亡</option><option value="unfinished">未结束</option><option value="practice">练习/无效局</option></select></label>
+    </div>
+    <button id="start">开始本局</button>
+    <button id="finish" class="secondary" disabled>保存本局结果</button>
+    <div class="grid">
+      <label>最终 Lv / 体重<input id="result" placeholder="例如 Lv4 / 体重 230"></label>
+      <label>队员 / 核心<input id="squad" placeholder="例如 3 / 1"></label>
+      <label>首场争夺：抢、观望或放弃，为什么<textarea id="firstChoice"></textarea></label>
+      <label>第二场：是否想再抢，为什么<textarea id="secondChoice"></textarea></label>
+      <label>两队行为能否区分、是否能退出<textarea id="readability"></textarea></label>
+      <label>指令/附身的实际效果与预期<textarea id="commands"></textarea></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>可选录屏</h2>
+    <p class="muted">先开始本局，再由你点击授权并选择游戏窗口或屏幕。录屏只在本机处理，结束后下载独立视频文件；请确认浏览器确实保存了视频，并与 JSON 一起交接。拒绝授权不影响手填记录。</p>
+    <button id="startRecording" class="secondary" disabled>开始录屏</button>
+    <button id="stopRecording" class="secondary" disabled>结束录屏并下载</button>
+    <p id="recordingStatus" class="muted" aria-live="polite">尚未录屏</p>
+  </section>
+
+  <section class="card">
+    <h2>随时记一刻</h2>
+    <p class="muted">时间戳从“开始本局”算起；事实、原话与推测分开。没看见的事写“未发生”，不要补猜。</p>
+    <div class="grid">
+      <label>问题类别<select id="category"><option>看不懂</option><option>来不及操作</option><option>操作无效</option><option>节奏空白</option><option>压力过高</option><option>有趣时刻</option><option>其他</option></select></label>
+      <label>观察事实<textarea id="fact" placeholder="当时发生了什么？"></textarea></label>
+      <label>玩家原话<textarea id="quote" placeholder="尽量照原话记录，可空"></textarea></label>
+      <label>可能原因（推测）<textarea id="hypothesis" placeholder="可空；不要与事实混写"></textarea></label>
+    </div>
+    <button id="addObservation" class="secondary" disabled>记录此刻</button>
+    <div id="observations" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <h2>保存与交接</h2>
+    <p class="muted">导出文件标记为 <code>unreviewed</code>：需由真人确认记录、再由开发者复核；自动 E2E 仅能验证记录工具，不可充当试玩证据。</p>
+    <p class="muted">交接资料检查只提示缺漏，不判断体验或阻止导出；失败局和主动放弃也请如实保存。</p>
+    <ul id="handoffChecklist" aria-label="交接资料检查"></ul>
+    <button id="export">导出记录 JSON</button>
+    <p id="status" role="status"></p>
+  </section>
+
+  <script type="module">
+    const KEY = 'happy-fish-g1g2-playtest-v1';
+    const $ = id => document.getElementById(id);
+    const empty = () => ({ schemaVersion: 1, source: 'manual_self_report', reviewStatus: 'unreviewed',
+      participant: '', device: '', recording: '', activeSessionId: null, sessions: [] });
+    let report;
+    try { report = { ...empty(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
+    catch { report = empty(); }
+    report.source = 'manual_self_report';
+    report.reviewStatus = 'unreviewed';
+    if (!Array.isArray(report.sessions)) report.sessions = [];
+    let screenRecorder = null;
+    let screenStream = null;
+    let recordingSessionId = null;
+    let recordingChunks = [];
+    window.addEventListener('beforeunload', event => {
+      if (screenRecorder?.state !== 'recording') return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+    const current = () => report.sessions.find(item => item.id === report.activeSessionId);
+    const renderChecklist = () => {
+      const completed = report.sessions.filter(item => item.endedAt && item.outcome && item.outcome !== 'practice');
+      const hasText = value => typeof value === 'string' && value.trim().length > 0;
+      const checks = [
+        ['试玩者与设备已填写', hasText(report.participant) && hasText(report.device)],
+        ['A、B、C 各有一局已保存的非练习记录', ['A', 'B', 'C'].every(phase => completed.some(item => item.phase === phase))],
+        ['B 或 C 记下指令/附身的实际效果与预期', completed.some(item => ['B', 'C'].includes(item.phase) && hasText(item.commands))],
+        ['记下首场、第二场选择及两队可读性', ['firstChoice', 'secondChoice', 'readability'].every(field =>
+          completed.some(item => hasText(item[field])))],
+        ['至少一刻同时包含观察事实与玩家原话', completed.some(item => item.observations?.some(entry =>
+          hasText(entry.fact) && hasText(entry.quote)))],
+      ];
+      const list = $('handoffChecklist');
+      list.replaceChildren();
+      for (const [label, complete] of checks) {
+        const row = document.createElement('li');
+        row.dataset.complete = String(complete);
+        row.textContent = `${complete ? '已填' : '待补'} · ${label}`;
+        list.append(row);
+      }
+    };
+    const save = () => {
+      try { localStorage.setItem(KEY, JSON.stringify(report)); $('status').textContent = '草稿已保存在本浏览器'; }
+      catch { $('status').textContent = '本地保存失败，请立即导出 JSON'; }
+      renderChecklist();
+    };
+    const sessionFields = ['result', 'squad', 'firstChoice', 'secondChoice', 'readability', 'commands'];
+    const refresh = () => {
+      const session = current();
+      $('finish').disabled = !session;
+      $('addObservation').disabled = !session;
+      $('phase').disabled = !!session;
+      $('start').disabled = !!session;
+      $('startRecording').disabled = !session || !!screenRecorder;
+      $('stopRecording').disabled = !screenRecorder || screenRecorder.state !== 'recording';
+      $('timer').textContent = session ? `${session.phase} · ${Math.max(0, Math.floor((Date.now() - session.startedMs) / 1000))} 秒` : '未开始';
+      for (const field of sessionFields) $(field).value = session?.[field] ?? '';
+      $('outcome').value = session?.outcome ?? '';
+      const list = $('observations');
+      list.replaceChildren();
+      for (const item of session?.observations ?? []) {
+        const row = document.createElement('div');
+        row.className = 'event';
+        const head = document.createElement('small');
+        head.textContent = `${item.elapsedSeconds}s · ${item.category}`;
+        const body = document.createElement('div');
+        body.textContent = `事实：${item.fact}${item.quote ? `\n原话：${item.quote}` : ''}${item.hypothesis ? `\n推测：${item.hypothesis}` : ''}`;
+        row.append(head, body);
+        list.append(row);
+      }
+      renderChecklist();
+    };
+    for (const field of ['participant', 'device', 'recording']) {
+      $(field).value = report[field] ?? '';
+      $(field).addEventListener('input', () => { report[field] = $(field).value; save(); });
+    }
+    for (const field of sessionFields) $(field).addEventListener('input', () => {
+      const session = current();
+      if (session) { session[field] = $(field).value; save(); }
+    });
+    $('outcome').addEventListener('change', () => {
+      const session = current();
+      if (session) { session.outcome = $('outcome').value; save(); }
+    });
+    $('start').addEventListener('click', () => {
+      const now = Date.now();
+      const session = { id: `${now}-${report.sessions.length}`, phase: $('phase').value,
+        startedAt: new Date(now).toISOString(), startedMs: now, outcome: '', observations: [] };
+      report.sessions.push(session);
+      report.activeSessionId = session.id;
+      save(); refresh();
+    });
+    const stopRecording = () => new Promise(resolve => {
+      if (!screenRecorder || screenRecorder.state !== 'recording') { resolve(); return; }
+      screenRecorder.addEventListener('stop', resolve, { once: true });
+      screenRecorder.stop();
+      $('stopRecording').disabled = true;
+      $('recordingStatus').textContent = '正在生成视频文件…';
+    });
+    $('startRecording').addEventListener('click', async () => {
+      const session = current();
+      if (!session || screenRecorder) return;
+      if (!navigator.mediaDevices?.getDisplayMedia || typeof MediaRecorder === 'undefined') {
+        $('recordingStatus').textContent = '此浏览器不支持屏幕录制；可用其他录屏工具，并在上方填写文件名。';
+        return;
+      }
+      try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        const preferred = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']
+          .find(type => MediaRecorder.isTypeSupported(type));
+        screenRecorder = preferred ? new MediaRecorder(screenStream, { mimeType: preferred }) : new MediaRecorder(screenStream);
+        recordingSessionId = session.id;
+        recordingChunks = [];
+        screenRecorder.addEventListener('dataavailable', event => { if (event.data.size) recordingChunks.push(event.data); });
+        screenRecorder.addEventListener('stop', () => {
+          const blob = new Blob(recordingChunks, { type: screenRecorder.mimeType || 'video/webm' });
+          const savedSession = report.sessions.find(item => item.id === recordingSessionId);
+          if (blob.size && savedSession) {
+            const extension = blob.type.includes('mp4') ? 'mp4' : 'webm';
+            const filename = `g1-g2-${savedSession.phase}-${Date.now()}.${extension}`;
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            savedSession.recordingFile = filename;
+            savedSession.recordingStatus = 'download_requested';
+            report.recording = filename;
+            $('recording').value = filename;
+            save();
+            $('recordingStatus').textContent = `已请求下载 ${filename}；请检查视频文件是否实际保存。`;
+          } else {
+            $('recordingStatus').textContent = '未生成有效视频；请重试或使用其他录屏工具。';
+          }
+          screenStream?.getTracks().forEach(track => track.stop());
+          screenStream = null;
+          screenRecorder = null;
+          recordingSessionId = null;
+          recordingChunks = [];
+          refresh();
+        }, { once: true });
+        screenStream.getVideoTracks()[0]?.addEventListener('ended', () => {
+          if (screenRecorder?.state === 'recording') void stopRecording();
+        });
+        screenRecorder.start(1000);
+        $('recordingStatus').textContent = '正在录屏；结束时请下载并核对视频。';
+        refresh();
+      } catch (error) {
+        screenStream?.getTracks().forEach(track => track.stop());
+        screenStream = null;
+        screenRecorder = null;
+        $('recordingStatus').textContent = error?.name === 'NotAllowedError'
+          ? '未获得录屏授权；手填记录仍可继续。' : '录屏启动失败；手填记录仍可继续。';
+        refresh();
+      }
+    });
+    $('stopRecording').addEventListener('click', () => { void stopRecording(); });
+    $('addObservation').addEventListener('click', () => {
+      const session = current();
+      const fact = $('fact').value.trim();
+      if (!session || !fact) { $('status').textContent = '请先开始本局并填写观察事实'; return; }
+      session.observations.push({ elapsedSeconds: Math.max(0, Math.floor((Date.now() - session.startedMs) / 1000)),
+        recordedAt: new Date().toISOString(), category: $('category').value, fact,
+        quote: $('quote').value.trim(), hypothesis: $('hypothesis').value.trim() });
+      for (const field of ['fact', 'quote', 'hypothesis']) $(field).value = '';
+      save(); refresh();
+    });
+    $('finish').addEventListener('click', async () => {
+      const session = current();
+      if (!session) return;
+      if (!session.outcome) { $('status').textContent = '请先选择本局结束方式'; return; }
+      await stopRecording();
+      session.endedAt = new Date().toISOString();
+      session.durationSeconds = Math.max(0, Math.floor((Date.now() - session.startedMs) / 1000));
+      report.activeSessionId = null;
+      save(); refresh();
+    });
+    $('export').addEventListener('click', () => {
+      const data = { ...report, source: 'manual_self_report', reviewStatus: 'unreviewed', exportedAt: new Date().toISOString() };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `g1-g2-playtest-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $('status').textContent = '记录已导出；仍需真人确认与开发复核';
+    });
+    setInterval(() => { if (current()) $('timer').textContent = `${current().phase} · ${Math.max(0, Math.floor((Date.now() - current().startedMs) / 1000))} 秒`; }, 1000);
+    refresh();
+  </script>
+</body>
+</html>

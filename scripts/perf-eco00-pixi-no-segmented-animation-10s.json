@@ -1,0 +1,171 @@
+{
+  "measuredAt": "2026-09-24T02:42:55.915Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "scenarios": [
+    {
+      "renderer": "pixi",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": {
+        "lod0": 299,
+        "lod1": 1,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 319,
+        "lod2AnimatedUpdates": 0
+      },
+      "rendererEnd": {
+        "lod0": 282,
+        "lod1": 18,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 319,
+        "lod2AnimatedUpdates": 0
+      },
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 9,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 283,
+      "frameMs": {
+        "p50": 35.599999999998545,
+        "p95": 36.60000000000218,
+        "p99": 53.60000000000218
+      },
+      "renderMs": {
+        "p50": 21.699999999254942,
+        "p95": 23.800000000745058
+      },
+      "loopMs": {
+        "p50": 9.800000000745058,
+        "p95": 15.400000000372529
+      },
+      "loopSteps": {
+        "1": 11,
+        "2": 225,
+        "3": 46,
+        "4": 1
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 281,
+          "p95": 36.60000000000218,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 35.60000000000218,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 9,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 4.6125,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 3.869166666626309,
+          "share": 0.8388437217618014
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.4850000000093132,
+          "share": 0.10514905149253403
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.17166666666356226,
+          "share": 0.03721770550971539
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.025,
+          "share": 0.005420054200542005
+        },
+        {
+          "name": "feedingEvent",
+          "msPerFrame": 0.0125,
+          "share": 0.0027100271002710027
+        }
+      ]
+    }
+  ]
+}

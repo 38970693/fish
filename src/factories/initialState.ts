@@ -22,6 +22,21 @@ import { createFeedingEventState } from '../data/feedingEvents';
 import { createRivalSquads } from '../data/rivalSquads';
 import { createCurrentZones } from '../data/habitats';
 import { createExplorationEventState } from '../data/explorationEvents';
+import { createPondOpportunityState } from '../data/pondOpportunities';
+import {
+  generatePondLayout,
+  getSafePondLayout,
+  resolvePondLayoutMode,
+  resolvePondSeed,
+  validatePondLayoutReachability,
+  type PondLayoutMode,
+} from '../data/pondLayout';
+import {
+  createEndlessWorldState,
+  resolveWorldMode,
+  resolveWorldSeed,
+  type WorldMode,
+} from '../data/endlessWorld';
 
 export interface CreateInitialStateOptions {
   startType?: string;
@@ -36,6 +51,10 @@ export interface CreateInitialStateOptions {
    * 显式传入是为了让单测与探针能在**不使用全局开关**的前提下跑指定模式。
    */
   mode?: RunMode;
+  pondLayout?: PondLayoutMode;
+  pondSeed?: number;
+  worldMode?: WorldMode;
+  worldSeed?: number;
 }
 
 /** 读取存档的技能等级，读不到就当 1 级 */
@@ -53,11 +72,16 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
   // 「鱼群争霸」规则入口：LEGACY 时 createRunState 返回 undefined，state.run 保持缺省
   const mode = options.mode ?? resolveRunMode();
   const run = createRunState(mode);
+  const worldMode = resolveWorldMode(options.worldMode);
+  const endlessSeed = worldMode === 'ENDLESS' ? resolveWorldSeed(options.worldSeed ?? options.pondSeed) : undefined;
+  const pondLayoutMode = worldMode === 'ENDLESS' ? 'CLASSIC' : resolvePondLayoutMode(mode, options.pondLayout);
+  const layoutSeed = pondLayoutMode === 'PROCEDURAL' ? resolvePondSeed(options.pondSeed) : undefined;
+  let pondLayout = layoutSeed === undefined ? undefined : generatePondLayout(layoutSeed, pondId);
   // 单塘模式：不开塘际传送门，堵死「换塘重置对手与决战进度」这条路径
   const allowPondTravel = !run || RIVALS_RULES.allowPondTravel;
   const baseConfig = CREATURES[startType as CreatureType] ?? CREATURES[CreatureType.CLOWN_FISH];
-  const startX = MAP_SHAPE_CONFIG.CENTER_X;
-  const startY = MAP_SHAPE_CONFIG.CENTER_Y;
+  let startX = worldMode === 'ENDLESS' ? 0 : pondLayout?.spawn.x ?? MAP_SHAPE_CONFIG.CENTER_X;
+  let startY = worldMode === 'ENDLESS' ? 0 : pondLayout?.spawn.y ?? MAP_SHAPE_CONFIG.CENTER_Y;
   const startWeight = baseConfig.tier * 10 + 5;
 
   const player: GameState['player'] = {
@@ -106,6 +130,19 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     angerTimer: 0,
   };
 
+  let obstacles = options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createObstacles(pondId, pondLayout);
+  if (pondLayout && !options.skipWorldGen) {
+    const validation = validatePondLayoutReachability(pondLayout, obstacles, pondId);
+    if (!validation.ok && !pondLayout.fallbackReason) {
+      pondLayout = getSafePondLayout(layoutSeed!, pondId, validation.reason);
+      obstacles = createObstacles(pondId, pondLayout);
+      startX = pondLayout.spawn.x;
+      startY = pondLayout.spawn.y;
+      player.x = startX;
+      player.y = startY;
+    }
+  }
+
   return {
     status: GameStatus.MENU,
     player,
@@ -123,19 +160,27 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
       pendingActions: [],
     },
     particles: [],
-    obstacles: options.skipWorldGen ? [] : createObstacles(pondId),
+    obstacles,
     powerUps: [],
     hazards: [],
-    portals: options.skipWorldGen || !allowPondTravel ? [] : createPortals(pondId),
-    buildings: options.skipWorldGen ? [] : createBuildings(pondId),
-    currents: options.skipWorldGen ? [] : createCurrentZones(pondId),
+    portals: options.skipWorldGen || !allowPondTravel || worldMode === 'ENDLESS' ? [] : createPortals(pondId, pondLayout),
+    buildings: options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createBuildings(pondId, pondLayout),
+    currents: options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createCurrentZones(pondId, pondLayout),
     treasures: [],
     feedingEvent: run ? createFeedingEventState() : undefined,
     exploration: createExplorationEventState(),
+    pondOpportunity: pondLayoutMode === 'PROCEDURAL' && run ? createPondOpportunityState() : undefined,
     rivalSquads: run ? createRivalSquads() : undefined,
     fountains: [],
     labels: [],
     pondId,
+    worldMode,
+    endlessWorld: endlessSeed === undefined ? undefined : createEndlessWorldState(endlessSeed),
+    pondLayout,
+    pondLayoutMode,
+    layoutSeed,
+    layoutVersion: pondLayout?.version,
+    discoveredLandmarks: [],
     screenFlash: null,
     evolveOptions: [],
     run,

@@ -23,6 +23,9 @@ export interface PixiDebugMetrics {
   renderErrorCount: number;
   layerCount: number;
   visibleStaticObjects: number;
+  obstacleStaticBuilds: number;
+  obstacleStaticCacheHits: number;
+  obstacleAnimatedBuilds: number;
   displayObjects: number;
   creatureObjects: number;
   visibleCreatures: number;
@@ -86,6 +89,7 @@ const PixiGameCanvas: React.FC<PixiGameCanvasProps> = ({ gameState, onMouseMove,
     const debug: PixiDebugMetrics = {
       renderer: 'initializing', tickerStarted: false, width: 0, height: 0, renderCount: 0, lastRenderMs: 0, textures: 0,
       contextLostCount: 0, contextRestoredCount: 0, renderErrorCount: 0, layerCount: 0, visibleStaticObjects: 0,
+      obstacleStaticBuilds: 0, obstacleStaticCacheHits: 0, obstacleAnimatedBuilds: 0,
       displayObjects: 0, cameraX: 0, cameraY: 0, cameraZoom: 1,
       creatureObjects: 0, visibleCreatures: 0, standardFish: 0,
       creaturePoolSize: 0, creaturePoolCapacity: 0,
@@ -112,6 +116,9 @@ const PixiGameCanvas: React.FC<PixiGameCanvasProps> = ({ gameState, onMouseMove,
       debug.textures = metrics.textures;
       debug.layerCount = metrics.layerCount;
       debug.visibleStaticObjects = metrics.visibleStaticObjects;
+      debug.obstacleStaticBuilds = metrics.obstacleStaticBuilds;
+      debug.obstacleStaticCacheHits = metrics.obstacleStaticCacheHits;
+      debug.obstacleAnimatedBuilds = metrics.obstacleAnimatedBuilds;
       debug.displayObjects = metrics.displayObjects;
       debug.creatureObjects = metrics.creatureObjects;
       debug.visibleCreatures = metrics.visibleCreatures;

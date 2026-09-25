@@ -1,0 +1,1364 @@
+{
+  "eventCount": 318841,
+  "threads": [
+    {
+      "pid": 0,
+      "tid": 0,
+      "name": "swapper"
+    },
+    {
+      "pid": 18188,
+      "tid": 32148,
+      "name": "Compositor"
+    },
+    {
+      "pid": 14892,
+      "tid": 10840,
+      "name": "PerfettoTrace"
+    },
+    {
+      "pid": 14892,
+      "tid": 18984,
+      "name": "CrBrowserMain"
+    },
+    {
+      "pid": 8320,
+      "tid": 14340,
+      "name": "PerfettoTrace"
+    },
+    {
+      "pid": 14892,
+      "tid": 28364,
+      "name": "Chrome_IOThread"
+    },
+    {
+      "pid": 8320,
+      "tid": 7312,
+      "name": "Chrome_ChildIOThread"
+    },
+    {
+      "pid": 8320,
+      "tid": 33340,
+      "name": "CrGpuMain"
+    },
+    {
+      "pid": 18188,
+      "tid": 21360,
+      "name": "CrRendererMain"
+    },
+    {
+      "pid": 18188,
+      "tid": 32856,
+      "name": "Chrome_ChildIOThread"
+    },
+    {
+      "pid": 18188,
+      "tid": 28780,
+      "name": "PerfettoTrace"
+    },
+    {
+      "pid": 14892,
+      "tid": 32884,
+      "name": "DevToolsPipeHandlerWriteThread"
+    },
+    {
+      "pid": 8320,
+      "tid": 22252,
+      "name": "GpuVSyncThread"
+    },
+    {
+      "pid": 8320,
+      "tid": 16700,
+      "name": "VizCompositorThread"
+    },
+    {
+      "pid": 18188,
+      "tid": 18644,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 7152,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 4112,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 15636,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 22224,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 33720,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 23724,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 21628,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 14892,
+      "tid": 34596,
+      "name": "StackSamplingProfiler"
+    },
+    {
+      "pid": 14892,
+      "tid": 30600,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 31220,
+      "name": "ThreadPoolServiceThread"
+    },
+    {
+      "pid": 8320,
+      "tid": 4064,
+      "name": "StackSamplingProfiler"
+    },
+    {
+      "pid": 8320,
+      "tid": 13932,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 14892,
+      "tid": 32408,
+      "name": "ThreadPoolServiceThread"
+    },
+    {
+      "pid": 14892,
+      "tid": 17532,
+      "name": "ThreadPoolSingleThreadCOMSTASharedForegroundBlocking0"
+    },
+    {
+      "pid": 18188,
+      "tid": 13980,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 14520,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 18928,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 8320,
+      "tid": 14748,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 14892,
+      "tid": 7244,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 30100,
+      "name": "ThreadPoolBackgroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 21664,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 33812,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 34448,
+      "name": "ThreadPoolForegroundWorker"
+    },
+    {
+      "pid": 18188,
+      "tid": 31136,
+      "name": "ThreadPoolForegroundWorker"
+    }
+  ],
+  "longest": [
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29109068431,
+      "durationMs": 34.438
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29109068432,
+      "durationMs": 34.422
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29109068435,
+      "durationMs": 34.417
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29109068448,
+      "durationMs": 34.157
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29109068452,
+      "durationMs": 34.153
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29109068458,
+      "durationMs": 34.145
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29109068483,
+      "durationMs": 34.114
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104389998,
+      "durationMs": 32.75
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104389998,
+      "durationMs": 32.734
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104389999,
+      "durationMs": 32.732
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104390010,
+      "durationMs": 32.475
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104390013,
+      "durationMs": 32.471
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104390016,
+      "durationMs": 32.467
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104390042,
+      "durationMs": 32.438
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105704984,
+      "durationMs": 31.131
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105704984,
+      "durationMs": 31.115
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105704985,
+      "durationMs": 31.112
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105704993,
+      "durationMs": 30.883
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105704996,
+      "durationMs": 30.88
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105704998,
+      "durationMs": 30.877
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105705016,
+      "durationMs": 30.856
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113681420,
+      "durationMs": 30.041
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113681421,
+      "durationMs": 30.02
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113681422,
+      "durationMs": 30.017
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113681429,
+      "durationMs": 29.746
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113681432,
+      "durationMs": 29.742
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113681434,
+      "durationMs": 29.739
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113681454,
+      "durationMs": 29.716
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107879981,
+      "durationMs": 29.715
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110171264,
+      "durationMs": 29.709
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107879982,
+      "durationMs": 29.701
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110171264,
+      "durationMs": 29.697
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110171265,
+      "durationMs": 29.695
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107879990,
+      "durationMs": 29.687
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110171273,
+      "durationMs": 29.47
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110171276,
+      "durationMs": 29.466
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110171278,
+      "durationMs": 29.463
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107879997,
+      "durationMs": 29.444
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107879999,
+      "durationMs": 29.441
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110171298,
+      "durationMs": 29.44
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107880001,
+      "durationMs": 29.438
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107880021,
+      "durationMs": 29.415
+    },
+    {
+      "name": "FireAnimationFrame",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104393045,
+      "durationMs": 29.392
+    },
+    {
+      "name": "AsyncTask Run",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104393046,
+      "durationMs": 29.39
+    },
+    {
+      "name": "v8.callFunction",
+      "category": "v8",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104393048,
+      "durationMs": 29.364
+    },
+    {
+      "name": "FunctionCall",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29104393048,
+      "durationMs": 29.358
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29112566314,
+      "durationMs": 28.584
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29112566314,
+      "durationMs": 28.57
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29112566315,
+      "durationMs": 28.568
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29112566326,
+      "durationMs": 28.324
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29112566328,
+      "durationMs": 28.32
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29112566331,
+      "durationMs": 28.316
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29112566352,
+      "durationMs": 28.292
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113215633,
+      "durationMs": 28.034
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113215633,
+      "durationMs": 28.019
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113215635,
+      "durationMs": 28.016
+    },
+    {
+      "name": "ThreadPool_RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 4112,
+      "startUs": 29108445451,
+      "durationMs": 27.97
+    },
+    {
+      "name": "ThreadPool_RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 4112,
+      "startUs": 29107616435,
+      "durationMs": 27.816
+    },
+    {
+      "name": "FireAnimationFrame",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105708092,
+      "durationMs": 27.752
+    },
+    {
+      "name": "AsyncTask Run",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105708092,
+      "durationMs": 27.751
+    },
+    {
+      "name": "v8.callFunction",
+      "category": "v8",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105708094,
+      "durationMs": 27.733
+    },
+    {
+      "name": "FunctionCall",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29105708094,
+      "durationMs": 27.726
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106792270,
+      "durationMs": 27.672
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113215647,
+      "durationMs": 27.667
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106792270,
+      "durationMs": 27.658
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106792272,
+      "durationMs": 27.654
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113215713,
+      "durationMs": 27.599
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113215716,
+      "durationMs": 27.594
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29113215745,
+      "durationMs": 27.562
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106792281,
+      "durationMs": 27.419
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106792283,
+      "durationMs": 27.416
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106792286,
+      "durationMs": 27.412
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106792316,
+      "durationMs": 27.379
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29111420703,
+      "durationMs": 27.005
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29111420704,
+      "durationMs": 26.992
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29111420705,
+      "durationMs": 26.989
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106820137,
+      "durationMs": 26.982
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106820137,
+      "durationMs": 26.97
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "category": "cc,benchmark",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106820138,
+      "durationMs": 26.969
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29111420712,
+      "durationMs": 26.748
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29111420715,
+      "durationMs": 26.744
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29111420717,
+      "durationMs": 26.74
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106820147,
+      "durationMs": 26.725
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106820149,
+      "durationMs": 26.722
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "category": "blink,rail",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106820151,
+      "durationMs": 26.719
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29111420735,
+      "durationMs": 26.719
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29106820169,
+      "durationMs": 26.695
+    },
+    {
+      "name": "FireAnimationFrame",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110174420,
+      "durationMs": 26.288
+    },
+    {
+      "name": "AsyncTask Run",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110174421,
+      "durationMs": 26.287
+    },
+    {
+      "name": "v8.callFunction",
+      "category": "v8",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110174423,
+      "durationMs": 26.268
+    },
+    {
+      "name": "FunctionCall",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29110174423,
+      "durationMs": 26.261
+    },
+    {
+      "name": "FireAnimationFrame",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107883235,
+      "durationMs": 26.173
+    },
+    {
+      "name": "AsyncTask Run",
+      "category": "blink",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107883236,
+      "durationMs": 26.172
+    },
+    {
+      "name": "v8.callFunction",
+      "category": "v8",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107883237,
+      "durationMs": 26.155
+    },
+    {
+      "name": "FunctionCall",
+      "category": "devtools.timeline",
+      "pid": 18188,
+      "tid": 21360,
+      "startUs": 29107883237,
+      "durationMs": 26.148
+    },
+    {
+      "name": "RunTask",
+      "category": "disabled-by-default-devtools.timeline",
+      "pid": 8320,
+      "tid": 33340,
+      "startUs": 29109534701,
+      "durationMs": 25.63
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "category": "toplevel",
+      "pid": 8320,
+      "tid": 33340,
+      "startUs": 29109534702,
+      "durationMs": 25.628
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "category": "gpu,toplevel.flow",
+      "pid": 8320,
+      "tid": 33340,
+      "startUs": 29109534703,
+      "durationMs": 25.625
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "category": "gpu",
+      "pid": 8320,
+      "tid": 33340,
+      "startUs": 29109534704,
+      "durationMs": 25.614
+    },
+    {
+      "name": "SharedImageStub::OnCreateSharedImage",
+      "category": "gpu",
+      "pid": 8320,
+      "tid": 33340,
+      "startUs": 29109534705,
+      "durationMs": 25.609
+    }
+  ],
+  "topEvents": [
+    {
+      "name": "RunTask",
+      "count": 21286,
+      "totalMs": 22816.770000001707,
+      "maxMs": 34.438
+    },
+    {
+      "name": "ThreadControllerImpl::RunTask",
+      "count": 20795,
+      "totalMs": 22760.818000001935,
+      "maxMs": 34.422
+    },
+    {
+      "name": "WaitForVSync Sleep",
+      "count": 568,
+      "totalMs": 10026.664000000002,
+      "maxMs": 18.485
+    },
+    {
+      "name": "v8.callFunction",
+      "count": 2702,
+      "totalMs": 9809.517000000014,
+      "maxMs": 29.364
+    },
+    {
+      "name": "FunctionCall",
+      "count": 2702,
+      "totalMs": 9789.213999999982,
+      "maxMs": 29.358
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "count": 507,
+      "totalMs": 9408.923000000006,
+      "maxMs": 34.417
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "count": 507,
+      "totalMs": 9274.502999999995,
+      "maxMs": 34.157
+    },
+    {
+      "name": "AsyncTask Run",
+      "count": 2168,
+      "totalMs": 9272.505000000016,
+      "maxMs": 29.39
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "count": 507,
+      "totalMs": 9271.627,
+      "maxMs": 34.153
+    },
+    {
+      "name": "PageAnimator::serviceScriptedAnimations",
+      "count": 507,
+      "totalMs": 9269.836999999996,
+      "maxMs": 34.145
+    },
+    {
+      "name": "FireAnimationFrame",
+      "count": 2030,
+      "totalMs": 9260.606000000042,
+      "maxMs": 29.392
+    },
+    {
+      "name": "FrameRequestCallbackCollection::ExecuteFrameCallbacks",
+      "count": 507,
+      "totalMs": 9257.028000000008,
+      "maxMs": 34.114
+    },
+    {
+      "name": "ThreadPool_RunTask",
+      "count": 3708,
+      "totalMs": 3483.1060000000016,
+      "maxMs": 27.97
+    },
+    {
+      "name": "Scheduler::RunTask",
+      "count": 3088,
+      "totalMs": 2193.113999999994,
+      "maxMs": 25.625
+    },
+    {
+      "name": "V8.GC_SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL",
+      "count": 1605,
+      "totalMs": 2000.563999999999,
+      "maxMs": 2.038
+    },
+    {
+      "name": "GpuChannel::ExecuteDeferredRequest",
+      "count": 2011,
+      "totalMs": 1948.5979999999993,
+      "maxMs": 25.614
+    },
+    {
+      "name": "GPUTask",
+      "count": 1971,
+      "totalMs": 1885.9910000000027,
+      "maxMs": 8.03
+    },
+    {
+      "name": "CommandBuffer::Flush",
+      "count": 1969,
+      "totalMs": 1851.444999999999,
+      "maxMs": 7.991
+    },
+    {
+      "name": "CommandBufferStub::OnAsyncFlush",
+      "count": 1969,
+      "totalMs": 1849.6980000000003,
+      "maxMs": 7.989
+    },
+    {
+      "name": "CommandBufferService:PutChanged",
+      "count": 1969,
+      "totalMs": 1839.3350000000005,
+      "maxMs": 7.984
+    },
+    {
+      "name": "WebGL",
+      "count": 1803,
+      "totalMs": 1750.1450000000016,
+      "maxMs": 7.994
+    },
+    {
+      "name": "SimpleWatcher::OnHandleReady",
+      "count": 4562,
+      "totalMs": 605.2949999999925,
+      "maxMs": 5.834
+    },
+    {
+      "name": "MessagePort::Accept",
+      "count": 262,
+      "totalMs": 551.6730000000002,
+      "maxMs": 5.826
+    },
+    {
+      "name": "V8.GC_MC_BACKGROUND_MARKING",
+      "count": 219,
+      "totalMs": 475.42699999999985,
+      "maxMs": 8.424
+    },
+    {
+      "name": "MinorGC",
+      "count": 224,
+      "totalMs": 416.28799999999995,
+      "maxMs": 2.557
+    },
+    {
+      "name": "V8.GCScavenger",
+      "count": 224,
+      "totalMs": 409.7270000000002,
+      "maxMs": 2.505
+    },
+    {
+      "name": "V8.GC_SCAVENGER",
+      "count": 224,
+      "totalMs": 407.97000000000014,
+      "maxMs": 2.493
+    },
+    {
+      "name": "V8.GC_SCAVENGER_SCAVENGE",
+      "count": 224,
+      "totalMs": 400.7539999999998,
+      "maxMs": 2.47
+    },
+    {
+      "name": "V8.GC_SCAVENGER_SCAVENGE_PARALLEL_PHASE",
+      "count": 224,
+      "totalMs": 330.474,
+      "maxMs": 2.08
+    },
+    {
+      "name": "V8.GC_SCAVENGER_SCAVENGE_PARALLEL",
+      "count": 238,
+      "totalMs": 245.53499999999983,
+      "maxMs": 1.861
+    },
+    {
+      "name": "IOHandler::OnIOCompleted",
+      "count": 9451,
+      "totalMs": 126.79500000000286,
+      "maxMs": 0.202
+    },
+    {
+      "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+      "count": 147,
+      "totalMs": 114.79700000000004,
+      "maxMs": 2.858
+    },
+    {
+      "name": "RendererMainThread",
+      "count": 157,
+      "totalMs": 101.707,
+      "maxMs": 1.302
+    },
+    {
+      "name": "MajorGC",
+      "count": 9,
+      "totalMs": 84.13000000000001,
+      "maxMs": 10.527
+    },
+    {
+      "name": "V8.GCFinalizeMC",
+      "count": 9,
+      "totalMs": 83.887,
+      "maxMs": 10.501
+    },
+    {
+      "name": "V8.GC_MARK_COMPACTOR",
+      "count": 9,
+      "totalMs": 83.81200000000001,
+      "maxMs": 10.48
+    },
+    {
+      "name": "WebFrameWidgetImpl::UpdateLifecycle",
+      "count": 507,
+      "totalMs": 83.35400000000013,
+      "maxMs": 0.86
+    },
+    {
+      "name": "ProxyImpl::ScheduledActionDraw",
+      "count": 568,
+      "totalMs": 81.44600000000007,
+      "maxMs": 0.406
+    },
+    {
+      "name": "MainFrame.Draw",
+      "count": 568,
+      "totalMs": 80.95000000000003,
+      "maxMs": 0.405
+    },
+    {
+      "name": "Receive mojo message",
+      "count": 4378,
+      "totalMs": 79.00800000000086,
+      "maxMs": 0.305
+    },
+    {
+      "name": "ProxyImpl::ReadyToCommit",
+      "count": 507,
+      "totalMs": 75.59100000000016,
+      "maxMs": 0.299
+    },
+    {
+      "name": "DXGISwapChainImageBacking::Present",
+      "count": 568,
+      "totalMs": 58.24099999999998,
+      "maxMs": 0.323
+    },
+    {
+      "name": "SharedImageStub::OnCreateSharedImage",
+      "count": 13,
+      "totalMs": 54.25800000000001,
+      "maxMs": 25.609
+    },
+    {
+      "name": "V8.GC_MC_FINISH",
+      "count": 9,
+      "totalMs": 52.161,
+      "maxMs": 6.867
+    },
+    {
+      "name": "RasterDecoderImpl::DoEndRasterCHROMIUM",
+      "count": 162,
+      "totalMs": 51.836000000000034,
+      "maxMs": 0.72
+    },
+    {
+      "name": "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush",
+      "count": 162,
+      "totalMs": 50.06100000000002,
+      "maxMs": 0.706
+    },
+    {
+      "name": "LayerTreeHostImpl::CommitComplete",
+      "count": 507,
+      "totalMs": 46.775000000000034,
+      "maxMs": 0.249
+    },
+    {
+      "name": "LocalFrameView::RunStyleAndLayoutLifecyclePhases",
+      "count": 517,
+      "totalMs": 38.331000000000024,
+      "maxMs": 0.476
+    },
+    {
+      "name": "Commit",
+      "count": 507,
+      "totalMs": 36.769999999999996,
+      "maxMs": 0.173
+    },
+    {
+      "name": "LocalFrameView::UpdateStyleAndLayout",
+      "count": 517,
+      "totalMs": 35.248999999999974,
+      "maxMs": 0.47
+    },
+    {
+      "name": "Blink.Style.UpdateTime",
+      "count": 507,
+      "totalMs": 30.56699999999994,
+      "maxMs": 0.364
+    },
+    {
+      "name": "UpdateLayoutTree",
+      "count": 507,
+      "totalMs": 28.81999999999994,
+      "maxMs": 0.356
+    },
+    {
+      "name": "V8.GC_MC_BACKGROUND_EVACUATE_COPY",
+      "count": 67,
+      "totalMs": 28.097,
+      "maxMs": 0.654
+    },
+    {
+      "name": "V8.GC_SCAVENGER_SCAVENGE_ROOTS",
+      "count": 224,
+      "totalMs": 27.713,
+      "maxMs": 1.624
+    },
+    {
+      "name": "CommandBufferHelper::Flush",
+      "count": 1870,
+      "totalMs": 26.98899999999989,
+      "maxMs": 0.085
+    },
+    {
+      "name": "LayerTreeHostImpl::PrepareToDraw",
+      "count": 568,
+      "totalMs": 26.902000000000026,
+      "maxMs": 0.147
+    },
+    {
+      "name": "RasterDecoderImpl::DoRasterCHROMIUM",
+      "count": 162,
+      "totalMs": 26.580000000000016,
+      "maxMs": 0.252
+    },
+    {
+      "name": "LayerTreeImpl::UpdateDrawProperties",
+      "count": 1075,
+      "totalMs": 26.36000000000008,
+      "maxMs": 0.09
+    },
+    {
+      "name": "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing",
+      "count": 162,
+      "totalMs": 26.194000000000006,
+      "maxMs": 0.249
+    },
+    {
+      "name": "Document::updateStyle",
+      "count": 507,
+      "totalMs": 24.783000000000044,
+      "maxMs": 0.344
+    }
+  ]
+}

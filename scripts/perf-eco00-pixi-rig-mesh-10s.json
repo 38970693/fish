@@ -1,0 +1,169 @@
+{
+  "measuredAt": "2026-09-24T02:53:56.986Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "scenarios": [
+    {
+      "renderer": "pixi",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": {
+        "lod0": 299,
+        "lod1": 1,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 319,
+        "lod2AnimatedUpdates": 0
+      },
+      "rendererEnd": {
+        "lod0": 282,
+        "lod1": 18,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 319,
+        "lod2AnimatedUpdates": 0
+      },
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 1,
+        "treasures": 0,
+        "powerUps": 8,
+        "hazards": 0,
+        "particles": 10,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 563,
+      "frameMs": {
+        "p50": 17.80000000000291,
+        "p95": 18.10000000000582,
+        "p99": 18.5
+      },
+      "renderMs": {
+        "p50": 10.099999999627471,
+        "p95": 11.300000000745058
+      },
+      "loopMs": {
+        "p50": 4.900000000372529,
+        "p95": 9.200000001117587
+      },
+      "loopSteps": {
+        "1": 524,
+        "2": 39
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 561,
+          "p95": 18.10000000000582,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 17.400000000001455,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 1,
+            "treasures": 0,
+            "powerUps": 8,
+            "hazards": 0,
+            "particles": 8,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 4.277500000006209,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 3.5916666666201005,
+          "share": 0.8396649132939538
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.4433333333271245,
+          "share": 0.10364309370578165
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.16583333336748182,
+          "share": 0.03876875122553854
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.019166666719441613,
+          "share": 0.004480810454567806
+        },
+        {
+          "name": "feedingEvent",
+          "msPerFrame": 0.015000000006208818,
+          "share": 0.0035067212171097707
+        }
+      ]
+    }
+  ]
+}

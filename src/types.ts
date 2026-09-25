@@ -270,6 +270,8 @@ export interface Entity {
   currentZoneId?: string;
   /** 洋流边缘渐入强度（0～1），仅供 HUD/表现读取。 */
   currentStrength?: number;
+  /** 程序化深渊事件中的临时路线跟随。完成最后一个 waypoint 后由 AI 清除。 */
+  eventRoute?: { routeId: string; waypointIndex: number };
 }
 
 export interface PlayerState extends Entity {
@@ -489,6 +491,18 @@ export interface ExplorationEventState {
   lastResult: { text: string; timer: number } | null;
 }
 
+export interface PondOpportunityState {
+  kind: 'LILY_OBSERVATION';
+  targetLandmarkId: string | null;
+  phase: 'AVAILABLE' | 'OBSERVING' | 'COMPLETED';
+  timer: number;
+  duration: number;
+  interactHeld: boolean;
+  claimedByPond: Partial<Record<PondId, true>>;
+  prompt: string | null;
+  lastResult: { text: string; timer: number } | null;
+}
+
 export interface Treasure {
   id: string;
   x: number;
@@ -630,12 +644,29 @@ export interface GameState {
   feedingEvent?: FeedingEventState;
   /** 单一主要探索事件；当前首版为深渊塘沉船搜索。 */
   exploration?: ExplorationEventState;
+  /** 程序化布局中的次要环境机会；不占主要事件槽。 */
+  pondOpportunity?: PondOpportunityState;
+  /** 塘事件因主要冲突被延后时的单个待执行槽。 */
+  pendingPondEvent?: { pondId: PondId; scheduledAt: number } | null;
+  /** 防止同一逻辑帧被重复调用时重复结算塘事件。 */
+  lastPondEventFrame?: number;
   /** RIVALS 的稳定敌队身份和局内资源；LEGACY 缺省。 */
   rivalSquads?: RivalSquadState[];
   fountains: Fountain[];
   labels: Label[];
   /** 当前所在的鱼塘（「多鱼塘」阶段 1：开局选塘，影响刷怪/计分/开局生态区） */
   pondId: PondId;
+  /** 地图拓扑：FINITE=现有三塘边界；ENDLESS=按玩家周边区块流式生成的无限海域。 */
+  worldMode?: import('./data/endlessWorld').WorldMode;
+  /** 无限海域的确定性 seed / 已加载区块状态。FINITE 时缺省。 */
+  endlessWorld?: import('./data/endlessWorld').EndlessWorldState;
+  /** RIVALS 实验地图：一局内唯一空间布局真值；CLASSIC/LEGACY 缺省。 */
+  pondLayout?: import('./data/pondLayout').PondLayout;
+  pondLayoutMode?: import('./data/pondLayout').PondLayoutMode;
+  layoutSeed?: number;
+  layoutVersion?: number;
+  /** 已发现的互动地点 id；小地图只完整展示这些地点。 */
+  discoveredLandmarks?: string[];
   /**
    * 过场闪屏（「多鱼塘」阶段 2a）：塘际传送瞬间全屏染一次目标塘的颜色，
    * 由 GameCanvas 按 timer 递减绘制。null / 缺省 = 不画。

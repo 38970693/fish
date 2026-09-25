@@ -43,14 +43,12 @@ describe('V3-01 共享鱼体体积层', () => {
     }
   });
 
-  it('鱼体旋转后局部高光仍还原为同一个世界光方向', () => {
+  it('鱼体旋转后高光仍沿鱼体中线，维持上下视觉对称', () => {
     const world = resolveMorphology(fish).volume.worldLight;
     for (const angle of [0, Math.PI / 3, Math.PI, -Math.PI / 2]) {
       const local = localLightDirection(world, angle);
-      const worldX = local.x * Math.cos(angle) - local.y * Math.sin(angle);
-      const worldY = local.x * Math.sin(angle) + local.y * Math.cos(angle);
-      expect(worldX).toBeCloseTo(world.x, 3);
-      expect(worldY).toBeCloseTo(world.y, 3);
+      expect(local.y).toBe(0);
+      expect(local.x).toBe(world.x);
     }
   });
 

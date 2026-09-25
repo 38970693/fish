@@ -74,13 +74,20 @@ const PICKUP_HANDLERS: Record<PowerUp['type'], PickupHandler> = {
 
 export const itemsSystem = (state: GameState, ctx: FrameContext): void => {
   const player = state.player;
+  const randomWorldPoint = (minDistance = 480, maxDistance = 2200): { x: number; y: number } => {
+    if (state.worldMode !== 'ENDLESS') {
+      return { x: Math.random() * WORLD_SIZE, y: Math.random() * WORLD_SIZE };
+    }
+    const angle = Math.random() * Math.PI * 2;
+    const distance = minDistance + Math.random() * Math.max(0, maxDistance - minDistance);
+    return { x: player.x + Math.cos(angle) * distance, y: player.y + Math.sin(angle) * distance };
+  };
 
   /* ── 1. 随机投放漂流瓶 / 贝壳 ── */
   if (Math.random() < 0.007 && state.powerUps.length < MAX_POWERUPS) {
     const isShell = Math.random() < 0.3;
-    const x = Math.random() * WORLD_SIZE;
-    const y = Math.random() * WORLD_SIZE;
-    if (isPositionValid(x, y, 100)) {
+    const { x, y } = randomWorldPoint();
+    if (isPositionValid(x, y, 100, state.pondId, state.worldMode)) {
       state.powerUps.push({
         id: uuid(),
         x,
@@ -93,9 +100,8 @@ export const itemsSystem = (state: GameState, ctx: FrameContext): void => {
 
   /* ── 1.5 金币成簇投放：一滩 3~5 枚，散落在小半径里，捡起来像刮清一波 ── */
   if (state.time % 480 === 0 && state.powerUps.length < MAX_POWERUPS - 5) {
-    const cx = Math.random() * WORLD_SIZE;
-    const cy = Math.random() * WORLD_SIZE;
-    if (isPositionValid(cx, cy, 120)) {
+    const { x: cx, y: cy } = randomWorldPoint(620, 1900);
+    if (isPositionValid(cx, cy, 120, state.pondId, state.worldMode)) {
       const count = 3 + Math.floor(Math.random() * 3); // 3~5 枚
       for (let i = 0; i < count; i += 1) {
         const ang = (i / count) * Math.PI * 2 + Math.random() * 0.6;
@@ -125,4 +131,3 @@ export const itemsSystem = (state: GameState, ctx: FrameContext): void => {
   }
   state.powerUps = state.powerUps.filter((p) => p.radius > 0);
 };
-

@@ -1,0 +1,268 @@
+{
+  "measuredAt": "2026-09-24T08:27:05.927Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 60000,
+  "scenarios": [
+    {
+      "renderer": "pixi",
+      "name": "natural-fixed",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": false,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 1,
+        "obstacleCount": 36,
+        "fingerprint": "9875716c"
+      },
+      "rendererStart": {
+        "lod0": 47,
+        "lod1": 3,
+        "lod2": 0,
+        "renderCount": 93,
+        "renderErrors": 3,
+        "visible": 50,
+        "standardFish": 19,
+        "riggedAppendages": 10,
+        "segmentedBodies": 4,
+        "cacheHits": 0,
+        "cacheMisses": 73,
+        "lod2AnimatedUpdates": 0
+      },
+      "rendererEnd": {
+        "lod0": 44,
+        "lod1": 3,
+        "lod2": 0,
+        "renderCount": 3487,
+        "renderErrors": 3,
+        "visible": 47,
+        "standardFish": 19,
+        "riggedAppendages": 8,
+        "segmentedBodies": 4,
+        "cacheHits": 0,
+        "cacheMisses": 73,
+        "lod2AnimatedUpdates": 0
+      },
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 300,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 2,
+        "treasures": 1,
+        "powerUps": 34,
+        "hazards": 0,
+        "particles": 20,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 60000,
+      "frameCount": 3391,
+      "frameMs": {
+        "p50": 17.69999999999709,
+        "p95": 18.19999999999709,
+        "p99": 18.5
+      },
+      "renderMs": {
+        "p50": 2,
+        "p95": 2.300000000745058
+      },
+      "loopMs": {
+        "p50": 3.099999997764826,
+        "p95": 5.600000001490116
+      },
+      "loopSteps": {
+        "1": 3181,
+        "2": 210
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 566,
+          "p95": 18.19999999999891,
+          "workload": {
+            "entities": 300,
+            "activeAI": 300,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 565,
+          "p95": 18.19999999999709,
+          "workload": {
+            "entities": 300,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 1,
+            "treasures": 0,
+            "powerUps": 8,
+            "hazards": 0,
+            "particles": 8,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 20,
+          "frameCount": 565,
+          "p95": 18.19999999999709,
+          "workload": {
+            "entities": 300,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 14,
+            "hazards": 0,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 30,
+          "frameCount": 564,
+          "p95": 18.19999999999709,
+          "workload": {
+            "entities": 300,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 17,
+            "hazards": 0,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 40,
+          "frameCount": 565,
+          "p95": 18.19999999999709,
+          "workload": {
+            "entities": 300,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 21,
+            "hazards": 0,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 50,
+          "frameCount": 565,
+          "p95": 18.19999999999709,
+          "workload": {
+            "entities": 300,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 0,
+            "powerUps": 27,
+            "hazards": 1,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 60,
+          "frameCount": 1,
+          "p95": 18,
+          "workload": {
+            "entities": 300,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 2,
+            "treasures": 1,
+            "powerUps": 34,
+            "hazards": 0,
+            "particles": 16,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 2.2991666666852932,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 1.779166666728755,
+          "share": 0.7738310982447297
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.2766666665673256,
+          "share": 0.12033345410587207
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.1991666665300727,
+          "share": 0.08662558892140304
+        },
+        {
+          "name": "habitats",
+          "msPerFrame": 0.013333333407839138,
+          "share": 0.005799202641999762
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.01083333333954215,
+          "share": 0.004711852122995745
+        }
+      ]
+    }
+  ]
+}

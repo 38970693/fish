@@ -4,13 +4,32 @@ import { BIOME_CONFIGS } from '../constants';
 import { POND_DATA, type PondId } from '../data/ponds';
 import { OCEAN_REGIONS, OCEAN_ROUTES, getOceanRegion } from '../data/oceanRegions';
 import { getPondSpecialties } from '../data/pondEvents';
+import { getMapBoundaryRadius } from '../systems/terrain';
+
+const SHAPE_NAMES = { LOTUS: '莲瓣水岸', ATOLL: '礁环海湾', TRENCH: '深海裂谷' } as const;
+
+const pondShapePath = (id: PondId): string => {
+  const points = Array.from({ length: 64 }, (_, index) => {
+    const angle = index * Math.PI / 32;
+    const radius = getMapBoundaryRadius(angle, id) * 0.0093;
+    return `${index === 0 ? 'M' : 'L'}${(36 + Math.cos(angle) * radius).toFixed(1)},${(36 + Math.sin(angle) * radius).toFixed(1)}`;
+  });
+  return `${points.join(' ')} Z`;
+};
 
 interface GlobalOceanMapProps {
   selected: PondId;
   onSelect: (id: PondId) => void;
+  procedural?: boolean;
 }
 
-export const GlobalOceanMap: React.FC<GlobalOceanMapProps> = ({ selected, onSelect }) => {
+const PROCEDURAL_FEATURE: Record<PondId, string> = {
+  CLEAR: '本局机会：睡莲观察（E · 2秒）',
+  CORAL: '本局事件：产卵场锚定 · 6 枚金币',
+  ABYSS: '本局事件：沉船附近三点星光鱼群路线',
+};
+
+export const GlobalOceanMap: React.FC<GlobalOceanMapProps> = ({ selected, onSelect, procedural = false }) => {
   const selectedRegion = getOceanRegion(selected);
   const selectedPond = POND_DATA[selected];
   const specialties = getPondSpecialties(selected);
@@ -100,7 +119,22 @@ export const GlobalOceanMap: React.FC<GlobalOceanMapProps> = ({ selected, onSele
           </div>
           <span className="ml-auto text-xs font-black text-amber-300">{'★'.repeat(selectedPond.difficulty)}</span>
         </div>
+        <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-700/70 bg-slate-950/40 px-2 py-1">
+          <svg viewBox="0 0 72 72" className="h-12 w-12 shrink-0" aria-hidden="true">
+            <path d={pondShapePath(selected)} fill={selectedPond.waterColor} stroke={selectedPond.shoreColor} strokeWidth="2.5" />
+            <circle cx="36" cy="36" r="2.2" fill={selectedPond.shoreColor} />
+          </svg>
+          <div className="text-[11px] leading-relaxed text-slate-300">
+            <b className="text-white">{SHAPE_NAMES[selectedPond.shape]}</b><br />
+            {selectedPond.shape === 'LOTUS' ? '水草与睡莲散布于宽阔水面' : selectedPond.shape === 'ATOLL' ? '珊瑚枝与多湾岸线构成迷宫' : '幽光生物点亮曲折海沟'}
+          </div>
+        </div>
         <p className="mt-2 text-sm font-bold" style={{ color: selectedPond.color }}>{selectedRegion.gameplay}</p>
+        {procedural && (
+          <p className="mt-1 rounded-md border border-cyan-700/60 bg-cyan-950/35 px-2 py-1 text-[10px] font-bold text-cyan-100">
+            程序化布局实验 · {PROCEDURAL_FEATURE[selected]}
+          </p>
+        )}
         <p className="mt-1 text-xs leading-relaxed text-slate-300">{selectedRegion.description}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {selectedRegion.environment.map(item => (

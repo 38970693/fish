@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * 关键路径 e2e：首页渲染 → 选择鱼 → 开始游戏 → HUD 出现 → 世界在跑。
+ * 关键路径 e2e：首页渲染 → 选择鱼 → 驶入海域 → HUD 出现 → 世界在跑。
  * 断言基于玩家可见的真实 UI（旧版测试盯的是 DEBUG console 日志和已删除的 #start-game-btn）。
  */
 
@@ -11,7 +11,7 @@ test.describe('游戏关键路径', () => {
 
     await expect(page.getByRole('heading', { name: '欢乐鱼塘' })).toBeVisible();
     await expect(page.getByText('选择你的初始鱼类')).toBeVisible();
-    await expect(page.getByRole('button', { name: /开始游戏/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /驶入/ })).toBeVisible();
     await expect(page.getByRole('button', { name: '装扮我的鱼' })).toBeVisible();
   });
 
@@ -20,7 +20,7 @@ test.describe('游戏关键路径', () => {
 
     // 选灯笼鱼（用户点名的鱼，卡片上有技能说明）
     await page.getByRole('button', { name: /灯笼鱼/ }).click();
-    await page.getByRole('button', { name: /开始游戏/ }).click();
+    await page.getByRole('button', { name: /驶入/ }).click();
 
     // 进入游玩状态：玩家血条与技能信息出现
     await expect(page.getByText(/玩家 \(灯笼鱼\)/)).toBeVisible({ timeout: 5000 });
@@ -40,7 +40,7 @@ test.describe('游戏关键路径', () => {
    */
   test('菜单横向铺开：常见视口不需要滚动', async ({ page }) => {
     const title = page.getByRole('heading', { name: '欢乐鱼塘' });
-    const startBtn = page.getByRole('button', { name: /开始游戏/ });
+    const startBtn = page.getByRole('button', { name: /驶入/ });
 
     // 1280×560 是「装得下」的下沿；1440×900 是最常见的桌面视口
     for (const [W, H] of [[1280, 560], [1440, 900]] as const) {
@@ -70,7 +70,7 @@ test.describe('游戏关键路径', () => {
     await page.goto('/');
 
     const title = page.getByRole('heading', { name: '欢乐鱼塘' });
-    const startBtn = page.getByRole('button', { name: /开始游戏/ });
+    const startBtn = page.getByRole('button', { name: /驶入/ });
 
     // 先确认「真的溢出了」，否则这条用例是空的（装得下就没有裁切风险）
     const titleBox0 = await title.boundingBox();
@@ -91,7 +91,7 @@ test.describe('游戏关键路径', () => {
 
   test('游戏开始后世界在推进（小地图渲染）', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: /开始游戏/ }).click();
+    await page.getByRole('button', { name: /驶入/ }).click();
 
     // 小地图 canvas 存在且在绘制（取消隐藏）
     const minimap = page.locator('canvas').nth(1);

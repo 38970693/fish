@@ -4,7 +4,7 @@ test.describe('G2 三分钟自然开局切片', () => {
   test('能经历首场获益、主动退出并在三分钟内再次遇敌', async ({ page }) => {
     test.setTimeout(90_000);
     await page.goto('/?mode=rivals');
-    await page.getByRole('button', { name: /开始游戏/ }).click();
+    await page.getByRole('button', { name: /驶入/ }).click();
     await expect(page.getByText(/玩家 \(/)).toBeVisible({ timeout: 5000 });
 
     const opening = await page.evaluate(() => {
@@ -103,18 +103,27 @@ test.describe('G2 三分钟自然开局切片', () => {
         if (event.id !== firstId && event.phase === 'WARNING') break;
       }
       const state = debug.state();
+      const squads = state.rivalSquads.map((squad: any) => {
+        const members = state.entities.filter((entity: any) => squad.memberIds.includes(entity.id) && entity.health > 0);
+        const averageHealth = members.length > 0
+          ? members.reduce((sum: number, member: any) => sum + member.health / member.maxHealth, 0) / members.length
+          : null;
+        return { kind: squad.kind, status: squad.status, members: members.length, averageHealth };
+      });
       return {
         advanced,
         eventId: state.feedingEvent.id,
         phase: state.feedingEvent.phase,
-        statuses: state.rivalSquads.map((squad: any) => squad.status),
+        statuses: squads.map((squad: any) => squad.status),
+        squads,
         rivalCount: state.entities.filter((entity: any) => entity.ownerId?.startsWith('rival-')).length,
       };
     }, firstWarning.eventId);
     expect(secondEncounter.eventId).not.toBe(firstWarning.eventId);
     expect(secondEncounter.phase).toBe('WARNING');
     expect(secondEncounter.advanced).toBeLessThanOrEqual(120 * 60);
-    expect(secondEncounter.statuses.every((status: string) => status === 'APPROACHING')).toBe(true);
+    // 有限补员规则允许一队在两场之间被生态彻底消耗；切片只保证再次遇敌。
+    expect(secondEncounter.statuses.some((status: string) => status === 'APPROACHING'), JSON.stringify(secondEncounter.squads)).toBe(true);
     expect(secondEncounter.rivalCount).toBeGreaterThan(0);
 
     console.log('[G2 slice]', JSON.stringify({ opening, firstWarning, participation, exit, secondEncounter }));

@@ -7,7 +7,10 @@ import { MORPHOLOGY_PARTS } from './registry';
 import { PATTERN_SAMPLE_MATERIALS } from './materials/patternGrammar';
 import { resolveMorphology } from './resolveMorphology';
 import { resolveMorphologyMotion } from './motion/resolveMotionState';
-import type { FishAppearanceV2, MorphologyGene, PartSlot } from './types';
+import { measureMorphologySymmetry } from './labDiagnostics';
+import { generateMorphologyGallery } from './labGallery';
+import { summarizeLabPerformance } from './labPerformance';
+import type { FishAppearanceV2, MorphologyGene, PartSlot, SurfaceLayerKind } from './types';
 
 const geneLabels: Record<MorphologyGene, string> = {
   bodyLength: '身体长度', bodyDepth: '身体高度', headRatio: '头部占比', bellyCurve: '腹线饱满',
@@ -39,6 +42,8 @@ let lodTextureSignature = '';
 let showRig = false;
 let showMask = false;
 let showBounds = false;
+let showAxis = false;
+const hiddenSurfaceLayers = new Set<SurfaceLayerKind>();
 let soloLayerId: string | undefined;
 let showPattern = true;
 let volumeOnly = false;
@@ -54,6 +59,10 @@ const applyMotionPreset = (preset: MotionPreset) => {
   else if (preset === 'BRAKE') fish.vx = fish.speed * 0.15;
   else if (preset === 'BOOST') { fish.vx = fish.speed * 1.8; fish.speedBoostTimer = 60; }
   else { fish.vx = 0; fish.isIdle = true; fish.hitReactionTimer = 8; }
+  const select = document.querySelector<HTMLSelectElement>('#motion-preset-select');
+  if (select) select.value = preset;
+  document.querySelectorAll<HTMLButtonElement>('[data-motion-preset]').forEach(button =>
+    button.setAttribute('aria-pressed', String(button.dataset.motionPreset === preset)));
 };
 
 const geneInputs = new Map<MorphologyGene, HTMLInputElement>();
@@ -65,7 +74,7 @@ const renderControls = () => {
   const recipeRow = document.createElement('div'); recipeRow.className = 'selectrow'; recipeRow.innerHTML = '<label>recipeId</label>';
   const recipeSelect = document.createElement('select');
   recipeSelect.id = 'recipe-select';
-  for (const recipeId of ['CLOWN_FISH', 'STANDARD_FISH', 'DEEP_BODY', 'PUFFER', 'EEL']) {
+  for (const recipeId of ['CLOWN_FISH', 'BLUE_TANG', 'KOI', 'PUFFER', 'GREAT_WHITE', 'STANDARD_FISH', 'DEEP_BODY', 'EEL']) {
     const option = new Option(recipeId, recipeId); option.selected = fish.appearanceV2!.recipeId === recipeId; recipeSelect.add(option);
   }
   recipeSelect.addEventListener('change', () => {
@@ -131,6 +140,19 @@ const renderControls = () => {
     select.addEventListener('change', () => { fish.appearanceV2!.parts = { ...fish.appearanceV2!.parts, [slot]: select.value }; refreshJson(); });
     row.append(select); controls.append(row);
   }
+  const surfaceHeading = document.createElement('h2'); surfaceHeading.textContent = '表面层预览'; controls.append(surfaceHeading);
+  for (const layer of resolved.surfaceLayers) {
+    const label = document.createElement('label'); label.className = 'selectrow';
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox';
+    checkbox.checked = !hiddenSurfaceLayers.has(layer.kind);
+    checkbox.dataset.surfaceLayer = layer.kind;
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) hiddenSurfaceLayers.delete(layer.kind);
+      else hiddenSurfaceLayers.add(layer.kind);
+    });
+    const name = document.createElement('span'); name.textContent = `${layer.kind} · ${layer.symmetry}`;
+    label.append(name, checkbox); controls.append(label);
+  }
   const patternHeading = document.createElement('h2'); patternHeading.textContent = '花纹层控制'; controls.append(patternHeading);
   for (const [defaultOrder, layer] of resolved.patternLayers.entries()) {
     const override = fish.appearanceV2!.patternLayers?.find(item => item.id === layer.id) ?? { id: layer.id };
@@ -177,6 +199,9 @@ const renderControls = () => {
 
 const refreshJson = () => { json.value = JSON.stringify(fish.appearanceV2, null, 2); };
 renderControls(); refreshJson();
+document.querySelectorAll<HTMLButtonElement>('[data-motion-preset]').forEach(button =>
+  button.addEventListener('click', () => applyMotionPreset(button.dataset.motionPreset as MotionPreset)));
+applyMotionPreset('IDLE');
 
 document.querySelector('#reroll')!.addEventListener('click', () => {
   fish.appearanceV2!.seed = Math.floor(crypto.getRandomValues(new Uint32Array(1))[0]);
@@ -199,6 +224,13 @@ document.querySelector('#toggle-volume')!.addEventListener('click', event => {
 document.querySelector('#toggle-motion')!.addEventListener('click', event => {
   running = !running; (event.currentTarget as HTMLButtonElement).textContent = running ? '暂停游动' : '继续游动';
 });
+document.querySelector('#toggle-axis')!.addEventListener('click', event => {
+  showAxis = !showAxis;
+  const button = event.currentTarget as HTMLButtonElement;
+  button.textContent = showAxis ? '隐藏中轴' : '显示中轴';
+  button.setAttribute('aria-pressed', String(showAxis));
+  document.querySelectorAll('.view').forEach(view => view.classList.toggle('axis-on', showAxis));
+});
 document.querySelector('#toggle-rig')!.addEventListener('click', event => {
   showRig = !showRig; (event.currentTarget as HTMLButtonElement).textContent = showRig ? '隐藏骨架' : '显示骨架';
 });
@@ -212,6 +244,36 @@ document.querySelector('#lod')!.addEventListener('click', event => {
   lod = lod === 2 ? 0 : (lod + 1) as 0 | 1 | 2; (event.currentTarget as HTMLButtonElement).textContent = `LOD ${lod}`;
 });
 document.querySelector('#export')!.addEventListener('click', async () => navigator.clipboard?.writeText(json.value));
+const loadPerformanceReport = async () => {
+  const target = document.querySelector<HTMLElement>('#perf-report')!;
+  try {
+    const response = await fetch('/scripts/perf-v3-06-final.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const summary = summarizeLabPerformance(await response.json());
+    target.className = summary.passed ? 'ok' : 'warning';
+    target.textContent = `${summary.passed ? '预算放行' : '预算未放行'}\n${summary.lines.join('\n')}`;
+  } catch {
+    target.className = 'warning';
+    target.textContent = '尚无 V3-06 正式报告。先运行 300 实体 × 60 秒探针，再点击“读取最新报告”。';
+  }
+};
+document.querySelector('#perf-refresh')!.addEventListener('click', loadPerformanceReport);
+void loadPerformanceReport();
+document.querySelector<HTMLButtonElement>('#gallery-export')!.addEventListener('click', event => {
+  const button = event.currentTarget as HTMLButtonElement;
+  button.disabled = true; button.textContent = '生成中…';
+  try {
+    const gallery = generateMorphologyGallery(app);
+    const link = document.createElement('a');
+    link.href = gallery.toDataURL('image/png');
+    link.download = 'happy-fish-v3-06-gallery.png';
+    link.click();
+    button.textContent = '图集已生成';
+  } catch (error) {
+    diagnostics.textContent = `图集生成失败：${error instanceof Error ? error.message : String(error)}`;
+    button.textContent = '重试生成图集';
+  } finally { button.disabled = false; }
+});
 document.querySelector('#import')!.addEventListener('click', () => {
   try {
     const value = JSON.parse(json.value) as FishAppearanceV2;
@@ -234,9 +296,13 @@ const frame = (time: number) => {
     },
   } : fish;
   const morphology = resolveMorphology(previewFish);
+  const symmetry = measureMorphologySymmetry(morphology);
   const motion = resolveMorphologyMotion(previewFish, morphology);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawCuteFish(ctx, previewFish, frozenTime / 16.667, false, { showPattern, volumeOnly, lod });
+  drawCuteFish(ctx, previewFish, frozenTime / 16.667, false, {
+    showPattern, volumeOnly, lod,
+    visibleSurfaceLayers: morphology.surfaceLayers.filter(layer => !hiddenSurfaceLayers.has(layer.kind)).map(layer => layer.kind),
+  });
   if (showMask || showBounds) {
     ctx.save(); ctx.translate(fish.x, fish.y); ctx.rotate(fish.angle);
     ctx.beginPath(); morphology.geometry.outline.forEach((point, index) => index ? ctx.lineTo(point.x * fish.radius, point.y * fish.radius) : ctx.moveTo(point.x * fish.radius, point.y * fish.radius)); ctx.closePath();
@@ -253,6 +319,7 @@ const frame = (time: number) => {
   }
   const pixiEntity = { ...previewFish, x: pixiHost.clientWidth / 2, y: pixiHost.clientHeight / 2 };
   display.setPresentationMode(volumeOnly ? 'VOLUME_ONLY' : showPattern ? 'FULL' : 'NO_PATTERN');
+  display.setHiddenSurfaceLayers(hiddenSurfaceLayers);
   if (lod === 2) {
     display.update(pixiEntity, frozenTime, false, 0, true);
     const signature = display.appearanceSignature();
@@ -274,6 +341,9 @@ const frame = (time: number) => {
     `种子: ${morphology.seed}`,
     `边界: ${morphology.geometry.bounds.radius.toFixed(3)}r / 上限 ${morphology.maxVisualExtent}r`,
     `表面层: ${morphology.surfaceLayers.map(layer => `${layer.kind}:${layer.symmetry}`).join(', ')}`,
+    `表面预览: ${morphology.surfaceLayers.map(layer => `${layer.kind}=${hiddenSurfaceLayers.has(layer.kind) ? '关' : '开'}`).join(', ')}`,
+    `镜像误差: 轮廓 ${symmetry.outlineError.toFixed(5)}r / 插槽 ${symmetry.anchorError.toFixed(5)}r`,
+    `成对插槽: ${symmetry.pairedSlots.map(pair => `${pair.name} ${pair.leftPart} ↔ ${pair.rightPart} ${pair.mirrored ? '✓' : '✗'}`).join('；')}`,
     `花纹层: ${morphology.patternLayers.map(layer => `${layer.id}:${layer.kind}[${layer.primitives.length}]/LOD${layer.lodPriority}`).join(', ') || 'NONE'}`,
     `视图: ${volumeOnly ? '仅体积' : showPattern ? '完整外观' : '无花纹'}`,
     `调试: ${soloLayerId ? `仅层 ${soloLayerId}` : '全部层'} / 遮罩 ${showMask ? '开' : '关'} / 边界 ${showBounds ? '开' : '关'} / LOD ${lod}`,

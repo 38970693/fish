@@ -278,6 +278,13 @@ export const CREATURE_DATA = {
     shape: 'SEAL',
     desc: '圆润灵活，翻滚躲避攻击。',
   },
+  SEA_LION: {
+    name: '海狮', tier: 3, radius: 43, color: '#b77945',
+    speed: 1.15, health: 135, damage: 13, weight: 58,
+    behavior: 'PASSIVE', biome: 'REEF', skill: 'ROLL',
+    shape: 'SEAL', ponds: ['CORAL'],
+    desc: '圆脑袋、长胡须的珊瑚塘访客，喜欢在鱼群旁翻滚。',
+  },
 
   /* ─────────────── TIER 4 · 顶级 ─────────────── */
   GREAT_WHITE: {
@@ -363,6 +370,7 @@ const CREATURE_SCHOOLS: Record<string, SchoolId> = {
   PUFFER_FISH: 'SURVIVAL',
   OARFISH: 'SURVIVAL',
   FUR_SEAL: 'SURVIVAL',
+  SEA_LION: 'SURVIVAL',
   GREAT_WHITE: 'SURVIVAL',
   ORCA: 'SURVIVAL',
   KRAKEN: 'SURVIVAL',

@@ -91,10 +91,11 @@ export const applyWildRareVariant = (entity: Entity, roll?: number): Entity => {
 
 /** 在地图内随机位置生成一条鱼（位置不合法则放弃，返回 null） */
 export const spawnCreature = (state: GameState, type: string): Entity | null => {
+  if (state.worldMode === 'ENDLESS') return spawnCreatureNearPlayer(state, type);
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const x = Math.random() * WORLD_SIZE;
     const y = Math.random() * WORLD_SIZE;
-    if (!isPositionValid(x, y, 50)) continue;
+    if (!isPositionValid(x, y, 50, state.pondId, state.worldMode)) continue;
     const entity = applyWildRareVariant(createEntity(type, x, y));
     state.entities.push(entity);
     return entity;
@@ -103,7 +104,7 @@ export const spawnCreature = (state: GameState, type: string): Entity | null => 
 };
 
 const isNearbySpawnClear = (state: GameState, x: number, y: number): boolean => {
-  if (!isPositionValid(x, y, RIVALS_SPAWN_CONFIG.SPAWN_BUFFER)) return false;
+  if (!isPositionValid(x, y, RIVALS_SPAWN_CONFIG.SPAWN_BUFFER, state.pondId, state.worldMode)) return false;
   const blockedByObstacle = state.obstacles.some(
     (obstacle) => obstacle.featureState !== 'BROKEN'
       && Math.hypot(x - obstacle.x, y - obstacle.y) < obstacle.radius + RIVALS_SPAWN_CONFIG.SPAWN_BUFFER
@@ -177,7 +178,12 @@ export const spawnSystem = (state: GameState, _ctx: FrameContext): void => {
     ['WARNING', 'DROPPING', 'LINGERING'].includes(feeding.phase)
     || feeding.timer <= RIVALS_SPAWN_CONFIG.RESERVE_LEAD_FRAMES
   );
-  const entityLimit = reserveForEvent ? MAX_ENTITIES - RIVALS_SPAWN_CONFIG.RESERVED_EVENT_SLOTS : MAX_ENTITIES;
+  const globalEntityLimit = reserveForEvent
+    ? MAX_ENTITIES - RIVALS_SPAWN_CONFIG.RESERVED_EVENT_SLOTS
+    : MAX_ENTITIES;
+  const entityLimit = state.worldMode === 'ENDLESS'
+    ? Math.floor(globalEntityLimit / 2)
+    : globalEntityLimit;
   if (state.entities.length >= entityLimit) return;
 
   if (state.run) {

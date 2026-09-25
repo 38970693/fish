@@ -15,7 +15,7 @@ test.describe('Game Core Flow', () => {
   });
 
   test('should show start button', async ({ page }) => {
-    const startButton = page.getByRole('button', { name: /开始|Start/i });
+    const startButton = page.getByRole('button', { name: /驶入/ });
     await expect(startButton).toBeVisible();
   });
 });
@@ -23,7 +23,7 @@ test.describe('Game Core Flow', () => {
 test.describe('Player Movement', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    const startButton = page.getByRole('button', { name: /开始|Start/i });
+    const startButton = page.getByRole('button', { name: /驶入/ });
     await startButton.click();
     await page.waitForTimeout(1000);
   });
@@ -55,7 +55,7 @@ test.describe('Player Movement', () => {
 test.describe('UI Elements', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    const startButton = page.getByRole('button', { name: /开始|Start/i });
+    const startButton = page.getByRole('button', { name: /驶入/ });
     await startButton.click();
     await page.waitForTimeout(2000);
   });
@@ -81,7 +81,7 @@ test.describe('UI Elements', () => {
 test.describe('Game Mechanics', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    const startButton = page.getByRole('button', { name: /开始|Start/i });
+    const startButton = page.getByRole('button', { name: /驶入/ });
     await startButton.click();
     await page.waitForTimeout(3000);
   });

@@ -15,8 +15,7 @@
  *   世界内容（阶段 2a，走塘际传送门重建时生效）
  *     - obstacleScale   障碍物密度倍率（珊瑚塘礁石密布、深渊塘空旷）
  *
- * ⚠️ 世界**尺寸与形状**仍是全局的（WORLD_SIZE / MAP_SHAPE_CONFIG 被 terrain.ts 在模块级解构，
- * 参数化要动十余处调用点）—— 那是阶段 2b 的事，本表先不碰。
+ * 世界尺寸与中心保持统一；shape 控制每塘真实的水岸边界，生成、碰撞与两套渲染共用。
  *
  * 出生点固定在花瓣地图中心 (3000,3000)，与既有约定一致。
  * 加一个新塘：POND_DATA 里加一条即可，类型、菜单、刷怪、计分、塘际门全部自动生效。
@@ -40,6 +39,10 @@ export interface PondConfig {
   signatureBiome: BiomeType;
   /** 障碍物密度倍率（塘际传送重建世界时生效） */
   obstacleScale: number;
+  /** 水岸轮廓与环境装饰的共同主题 */
+  shape: 'LOTUS' | 'ATOLL' | 'TRENCH';
+  waterColor: string;
+  shoreColor: string;
 }
 
 export const POND_DATA = {
@@ -53,6 +56,9 @@ export const POND_DATA = {
     scoreMult: 1,
     signatureBiome: 'SHALLOWS',
     obstacleScale: 1,
+    shape: 'LOTUS',
+    waterColor: '#197ca7',
+    shoreColor: '#8ce2d4',
   },
   CORAL: {
     name: '珊瑚塘',
@@ -64,6 +70,9 @@ export const POND_DATA = {
     scoreMult: 1.5,
     signatureBiome: 'REEF',
     obstacleScale: 1.6,
+    shape: 'ATOLL',
+    waterColor: '#116e86',
+    shoreColor: '#f5b88b',
   },
   ABYSS: {
     name: '深渊塘',
@@ -75,6 +84,9 @@ export const POND_DATA = {
     scoreMult: 2.5,
     signatureBiome: 'ABYSS',
     obstacleScale: 0.6,
+    shape: 'TRENCH',
+    waterColor: '#172552',
+    shoreColor: '#8b8ce5',
   },
 } as const;
 

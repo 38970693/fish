@@ -1,7 +1,7 @@
-import { Application, Container, Graphics, Text, type Texture, type WebGLRenderer } from 'pixi.js';
+import { Application, Container, FillGradient, Graphics, Text, type Texture, type WebGLRenderer } from 'pixi.js';
 import { BUILDING_CONFIGS, COMBAT_CONFIG, FEEDING_EVENT_CONFIG, MAP_SHAPE_CONFIG, TREASURE_COLORS, getPond } from '../../constants';
 import { getMapBoundaryRadius } from '../../gameEngine';
-import type { Building, Entity, GameState, Portal, PowerUp, Treasure } from '../../types';
+import type { Building, Entity, GameState, Obstacle, Portal, PowerUp, Treasure } from '../../types';
 import type { WaterCurrentZone } from '../../data/habitats';
 import { CameraAdapter } from '../camera';
 import type { GameRenderer, RenderMetrics, Viewport } from '../types';
@@ -23,6 +23,7 @@ import {
 } from './CreatureLod';
 import { drawObstaclePixi } from './ObstaclePixiRenderer';
 import { OBSTACLE_ECOLOGY } from '../../data/obstacleEcology';
+import { getPondScenery } from '../../data/pondScenery';
 
 export const PIXI_LAYER_NAMES = [
   'background', 'terrain', 'underEffects', 'creatures', 'worldItems', 'overEffects', 'worldLabels',
@@ -34,6 +35,9 @@ export interface PixiWorldMetrics extends RenderMetrics {
   tickerStarted: boolean;
   layerCount: number;
   visibleStaticObjects: number;
+  obstacleStaticBuilds: number;
+  obstacleStaticCacheHits: number;
+  obstacleAnimatedBuilds: number;
   creatureObjects: number;
   visibleCreatures: number;
   standardFish: number;
@@ -79,6 +83,13 @@ const BUILDING_GLYPHS: Record<string, string> = {
 };
 const WORLD_LABEL_CAPACITY = 128;
 
+const obstacleIsAnimated = (obstacle: Obstacle): boolean => obstacle.featureState !== 'BROKEN'
+  && (obstacle.type === 'SEAWEED'
+    || (obstacle.feature === 'VENT' && (obstacle.featureState === 'WARNING' || obstacle.featureState === 'ACTIVE')));
+
+const obstacleVisualKey = (obstacle: Obstacle): string =>
+  `${obstacle.id}|${obstacle.type}|${obstacle.x}|${obstacle.y}|${obstacle.radius}|${obstacle.feature ?? ''}|${obstacle.featureState ?? ''}`;
+
 const portalColors = (portal: Portal): [string, string] => {
   if (portal.kind === 'POND') return [getPond(portal.targetPond).color, '#fcd34d'];
   if (portal.name?.includes('浅滩')) return ['#22d3ee', '#67e8f9'];
@@ -94,7 +105,23 @@ export class PixiGameRenderer implements GameRenderer {
   private worldRoot = new Container();
   private layers = new Map<PixiLayerName, Container>();
   private screenBackground = new Graphics();
+  private screenGradient = new FillGradient({
+    type: 'linear',
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 1 },
+    colorStops: [
+      { offset: 0, color: '#071c3d' },
+      { offset: 0.55, color: '#0c2f63' },
+      { offset: 1, color: '#155da5' },
+    ],
+    textureSpace: 'local',
+  });
   private worldBackground = new Graphics();
+  private backgroundPondId: string | null = null;
+  private currentGraphics = new Graphics();
+  private obstacleLayer = new Container();
+  private obstacleDisplays = new Map<string, { graphics: Graphics; visualKey: string }>();
+  private obstacleOrderKey = '';
   private terrainGraphics = new Graphics();
   private underEffectsGraphics = new Graphics();
   private worldItemsGraphics = new Graphics();
@@ -111,6 +138,7 @@ export class PixiGameRenderer implements GameRenderer {
   private currentMetrics: PixiWorldMetrics = {
     renderer: 'pixi', renderCount: 0, lastRenderMs: 0, displayObjects: 0, textures: 0,
     rendererName: 'initializing', tickerStarted: false, layerCount: 0, visibleStaticObjects: 0,
+    obstacleStaticBuilds: 0, obstacleStaticCacheHits: 0, obstacleAnimatedBuilds: 0,
     creatureObjects: 0, visibleCreatures: 0, standardFish: 0,
     creaturePoolSize: 0, creaturePoolCapacity: CREATURE_POOL_CAPACITY,
     creatureDisplaysCreated: 0, creatureDisplaysReused: 0, creatureDisplaysEvicted: 0,
@@ -158,13 +186,12 @@ export class PixiGameRenderer implements GameRenderer {
       this.worldRoot.addChild(layer);
     }
     this.layers.get('background')?.addChild(this.worldBackground);
-    this.layers.get('terrain')?.addChild(this.terrainGraphics);
+    this.layers.get('terrain')?.addChild(this.currentGraphics, this.obstacleLayer, this.terrainGraphics);
     this.layers.get('underEffects')?.addChild(this.underEffectsGraphics);
     this.layers.get('worldItems')?.addChild(this.worldItemsGraphics);
     this.layers.get('overEffects')?.addChild(this.overEffectsGraphics);
     this.currentMetrics.rendererName = app.renderer.constructor.name;
     this.currentMetrics.layerCount = this.layers.size;
-    this.drawWorldBackground();
     this.resize(viewport);
   }
 
@@ -174,15 +201,19 @@ export class PixiGameRenderer implements GameRenderer {
     this.screenBackground
       .clear()
       .rect(0, 0, viewport.width, viewport.height)
-      .fill({ color: '#071c3d' })
-      .rect(0, viewport.height * 0.45, viewport.width, viewport.height * 0.55)
-      .fill({ color: '#0c2f63', alpha: 0.82 });
+      .fill(this.screenGradient);
   }
 
   render(state: Readonly<GameState>, now: number): RenderMetrics {
     const app = this.app;
     if (!app) throw new Error('PixiGameRenderer.render() called before init()');
     const startedAt = performance.now();
+    const backgroundKey = state.worldMode === 'ENDLESS'
+      ? `endless:${state.endlessWorld?.seed ?? 0}`
+      : state.pondLayout
+      ? `${state.pondId}:${state.pondLayout.version}:${state.pondLayout.seed}`
+      : state.pondId;
+    if (this.backgroundPondId !== backgroundKey) this.drawWorldBackground(state.pondId, state.pondLayout, state.worldMode, state.endlessWorld?.seed);
     this.camera.update(state.camera, this.viewport);
     const transform = this.camera.transform();
     this.worldRoot.pivot.set(transform.pivot.x, transform.pivot.y);
@@ -220,9 +251,12 @@ export class PixiGameRenderer implements GameRenderer {
   }
 
   destroy(): void {
+    this.screenGradient.destroy();
     for (const entry of this.lodTextureCache.values()) entry.asset.texture.destroy(true);
     this.lodTextureCache.clear();
     this.labels.clear();
+    this.obstacleDisplays.clear();
+    this.obstacleOrderKey = '';
     this.creatures.clear();
     this.creaturePool.length = 0;
     this.pendingCreatureDisposals.length = 0;
@@ -239,39 +273,122 @@ export class PixiGameRenderer implements GameRenderer {
       && screen.y >= -padding && screen.y <= this.viewport.height + padding;
   }
 
-  private drawWorldBackground(): void {
+  private drawWorldBackground(
+    pondId: string,
+    layout?: GameState['pondLayout'],
+    worldMode: GameState['worldMode'] = 'FINITE',
+    endlessSeed = 0,
+  ): void {
+    this.backgroundPondId = worldMode === 'ENDLESS'
+      ? `endless:${endlessSeed}`
+      : layout ? `${pondId}:${layout.version}:${layout.seed}` : pondId;
+    const pond = getPond(pondId);
     const g = this.worldBackground.clear();
-    g.circle(MAP_SHAPE_CONFIG.CENTER_X, MAP_SHAPE_CONFIG.CENTER_Y, MAP_SHAPE_CONFIG.BASE_RADIUS + MAP_SHAPE_CONFIG.PETAL_VARIANCE + 220)
-      .fill({ color: '#155da5', alpha: 0.5 });
+    if (worldMode === 'ENDLESS') return;
     const steps = 128;
+    const points: number[] = [];
+    for (let i = 0; i < steps; i += 1) {
+      const angle = (i / steps) * Math.PI * 2;
+      const radius = getMapBoundaryRadius(angle, pondId);
+      points.push(MAP_SHAPE_CONFIG.CENTER_X + Math.cos(angle) * radius,
+        MAP_SHAPE_CONFIG.CENTER_Y + Math.sin(angle) * radius);
+    }
+    g.poly(points).fill({ color: pond.waterColor, alpha: 0.58 });
     for (let layer = 0; layer < 4; layer += 1) {
+      const ring: number[] = [];
       for (let i = 0; i <= steps; i += 1) {
         const angle = (i / steps) * Math.PI * 2;
-        const radius = getMapBoundaryRadius(angle) + layer * 55;
+        const radius = getMapBoundaryRadius(angle, pondId) + layer * 55;
         const x = MAP_SHAPE_CONFIG.CENTER_X + Math.cos(angle) * radius;
         const y = MAP_SHAPE_CONFIG.CENTER_Y + Math.sin(angle) * radius;
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        ring.push(x, y);
       }
-      g.stroke({ color: '#3b82f6', width: Math.max(8, 34 - layer * 7), alpha: 0.09 });
+      g.poly(ring).stroke({ color: pond.shoreColor, width: Math.max(8, 32 - layer * 7), alpha: 0.28 - layer * 0.05 });
+    }
+    if (layout) {
+      const routeColor = pondId === 'CLEAR' ? '#bae6fd' : pondId === 'CORAL' ? '#99f6e4' : '#c4b5fd';
+      for (const route of layout.routes) {
+        if (route.points.length < 2) continue;
+        const points = route.points.flatMap(point => [point.x, point.y]);
+        g.poly(points).stroke({ color: routeColor, width: 9, alpha: 0.14 });
+      }
+    }
+    for (const mark of getPondScenery(pondId, layout)) {
+      const r = mark.radius;
+      if (mark.kind === 'LILY') {
+        g.ellipse(mark.x, mark.y, r, r * 0.6).fill({ color: '#70d6a0', alpha: 0.14 })
+          .stroke({ color: '#b7f7c7', width: 2, alpha: 0.24 });
+        g.circle(mark.x + r * 0.16, mark.y - r * 0.1, r * 0.12).fill({ color: '#f8d2e5', alpha: 0.45 });
+      } else if (mark.kind === 'CORAL') {
+        for (const offset of [-0.55, 0, 0.55]) {
+          g.moveTo(mark.x, mark.y + r * 0.45)
+            .lineTo(mark.x + offset * r, mark.y - r * (0.45 + Math.abs(offset) * 0.2))
+            .stroke({ color: '#ffb698', width: 4, alpha: 0.34, cap: 'round' });
+        }
+        g.circle(mark.x, mark.y + r * 0.4, r * 0.28).fill({ color: '#f8d4a4', alpha: 0.13 });
+      } else {
+        g.circle(mark.x, mark.y, r * 0.55).fill({ color: '#a58cff', alpha: 0.1 })
+          .stroke({ color: '#b9a4ff', width: 2, alpha: 0.3 });
+        g.circle(mark.x, mark.y, r * 0.15).fill({ color: '#d7c8ff', alpha: 0.55 });
+      }
+    }
+    if (layout) {
+      for (const landmark of layout.landmarks) {
+        const color = landmark.kind === 'LILY' ? '#86efac'
+          : landmark.kind === 'NURSERY' || landmark.kind === 'PEARL_BED' ? '#5eead4' : '#c4b5fd';
+        g.circle(landmark.x, landmark.y, landmark.radius)
+          .stroke({ color, width: 5, alpha: 0.75 });
+      }
     }
   }
 
   private drawTerrain(state: Readonly<GameState>, now: number): number {
+    const currents = this.currentGraphics.clear();
     const g = this.terrainGraphics.clear();
     let visible = 0;
     for (const zone of state.currents ?? []) {
       const radius = Math.hypot(zone.length, zone.width) / 2;
       if (!this.isVisible(zone.x, zone.y, radius)) continue;
-      this.drawWaterCurrent(g, zone, now);
+      this.drawWaterCurrent(currents, zone, now);
       visible += 1;
     }
+    const activeObstacleIds = new Set<string>();
+    const orderedObstacleGraphics: Graphics[] = [];
     for (const obstacle of state.obstacles) {
+      activeObstacleIds.add(obstacle.id);
+      let entry = this.obstacleDisplays.get(obstacle.id);
+      if (!entry) {
+        entry = { graphics: new Graphics(), visualKey: '' };
+        this.obstacleDisplays.set(obstacle.id, entry);
+      }
+      orderedObstacleGraphics.push(entry.graphics);
       const visualRadius = obstacle.feature === 'VENT' && obstacle.featureState !== 'IDLE'
         ? obstacle.radius + OBSTACLE_ECOLOGY.VENT_RANGE
         : obstacle.radius;
-      if (!this.isVisible(obstacle.x, obstacle.y, visualRadius)) continue;
-      drawObstaclePixi(g, obstacle, now / 16);
+      entry.graphics.visible = this.isVisible(obstacle.x, obstacle.y, visualRadius);
+      if (!entry.graphics.visible) continue;
+      const visualKey = obstacleVisualKey(obstacle);
+      const animated = obstacleIsAnimated(obstacle);
+      if (animated || entry.visualKey !== visualKey) {
+        drawObstaclePixi(entry.graphics.clear(), obstacle, now / 16);
+        entry.visualKey = visualKey;
+        if (animated) this.currentMetrics.obstacleAnimatedBuilds += 1;
+        else this.currentMetrics.obstacleStaticBuilds += 1;
+      } else {
+        this.currentMetrics.obstacleStaticCacheHits += 1;
+      }
       visible += 1;
+    }
+    for (const [id, entry] of this.obstacleDisplays) {
+      if (activeObstacleIds.has(id)) continue;
+      entry.graphics.destroy();
+      this.obstacleDisplays.delete(id);
+    }
+    const orderKey = state.obstacles.map(obstacle => obstacle.id).join('\0');
+    if (orderKey !== this.obstacleOrderKey) {
+      this.obstacleLayer.removeChildren();
+      this.obstacleLayer.addChild(...orderedObstacleGraphics);
+      this.obstacleOrderKey = orderKey;
     }
     for (const building of state.buildings) {
       if (!this.isVisible(building.x, building.y, building.radius)) continue;
@@ -807,12 +924,16 @@ export class PixiGameRenderer implements GameRenderer {
   private setLabel(key: string, value: string, x: number, y: number, size: number, color: string): void {
     let label = this.labels.get(key);
     if (!label) {
-      if (this.labels.size >= WORLD_LABEL_CAPACITY) {
-        const reusable = [...this.labels.entries()].find(([, candidate]) => !candidate.visible);
-        if (reusable) {
-          this.labels.delete(reusable[0]);
-          label = reusable[1];
-        }
+      // 每帧 syncLabels 开头会把旧标签全部设为 invisible；新世界/新布局的建筑和门
+      // 往往换了一批 id。旧实现只有塞满 128 个后才复用，导致连续重开时对象树会
+      // 一局一局增长，直到碰到硬上限。隐藏标签此时没有任何屏幕职责，可以立即换 key
+      // 复用；同一帧已经重新启用的标签 visible=true，不会被抢走。
+      const reusable = [...this.labels.entries()].find(([, candidate]) => !candidate.visible);
+      if (reusable) {
+        this.labels.delete(reusable[0]);
+        label = reusable[1];
+      } else if (this.labels.size >= WORLD_LABEL_CAPACITY) {
+        return;
       }
       if (!label) {
         label = new Text({ text: value, style: { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: size, fontWeight: 'bold', fill: color, align: 'center' } });

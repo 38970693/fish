@@ -101,7 +101,7 @@ test.describe('PXR-00～06 Pixi 世界渲染', () => {
     page.on('pageerror', (error) => pageErrors.push(error.message));
     await page.goto('/?renderer=pixi');
     await expect(page.locator('canvas[data-renderer="pixi"]')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.getByRole('button', { name: /驶入/ }).click();
     await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThanOrEqual(8);
 
     const gallery = await page.evaluate(() => {
@@ -132,12 +132,104 @@ test.describe('PXR-00～06 Pixi 世界渲染', () => {
     expect(pageErrors).toEqual([]);
   });
 
+  test('LOD2 快照包含多关节附肢，缓存后不重复更新动画', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    await page.goto('/?renderer=pixi');
+    await page.getByRole('button', { name: /驶入/ }).click();
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThanOrEqual(8);
+    await page.evaluate(() => {
+      const debug = (window as unknown as { __FISH_DEBUG__?: { pixiLodStressScene: () => unknown } }).__FISH_DEBUG__;
+      debug?.pixiLodStressScene();
+    });
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.lod2Creatures ?? 0)).toBeGreaterThanOrEqual(150);
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.lodTextureCacheSize ?? 0)).toBeGreaterThan(0);
+    const before = await page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0);
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThan(before + 8);
+    expect(await page.evaluate(() => window.__PIXI_PROBE__?.lod2AnimatedUpdates)).toBe(0);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('静态障碍只建一次图形，外观改变后重新构建', async ({ page }) => {
+    await page.goto('/?renderer=pixi');
+    await page.getByRole('button', { name: /驶入/ }).click();
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThanOrEqual(8);
+    const before = await page.evaluate(() => {
+      const debug = (window as unknown as { __FISH_DEBUG__: { state: () => { player: { x: number; y: number }; obstacles: unknown[] } } }).__FISH_DEBUG__;
+      const state = debug.state();
+      state.obstacles = [{ id: 'pixi-static-cache-test', x: state.player.x + 140, y: state.player.y,
+        radius: 70, type: 'ROCK', ecologyInitialized: true }];
+      return window.__PIXI_PROBE__!.obstacleStaticBuilds;
+    });
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.obstacleStaticBuilds ?? 0)).toBeGreaterThan(before);
+    const built = await page.evaluate(() => ({ count: window.__PIXI_PROBE__!.renderCount,
+      builds: window.__PIXI_PROBE__!.obstacleStaticBuilds, hits: window.__PIXI_PROBE__!.obstacleStaticCacheHits }));
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThan(built.count + 8);
+    expect(await page.evaluate(() => window.__PIXI_PROBE__!.obstacleStaticBuilds)).toBe(built.builds);
+    expect(await page.evaluate(() => window.__PIXI_PROBE__!.obstacleStaticCacheHits)).toBeGreaterThan(built.hits);
+    await page.evaluate(() => {
+      const state = (window as unknown as { __FISH_DEBUG__: { state: () => { obstacles: Array<{ radius: number }> } } }).__FISH_DEBUG__.state();
+      state.obstacles[0].radius += 10;
+    });
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.obstacleStaticBuilds ?? 0)).toBe(built.builds + 1);
+  });
+
+  test('水草与喷口动画逐帧更新，回到静态状态后复用图形', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    await page.goto('/?renderer=pixi');
+    await page.getByRole('button', { name: /驶入/ }).click();
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThanOrEqual(8);
+    await page.evaluate(() => {
+      const state = (window as unknown as { __FISH_DEBUG__: { state: () => {
+        player: { x: number; y: number; vx: number; vy: number }; obstacles: unknown[];
+      } } }).__FISH_DEBUG__.state();
+      state.player.vx = 0;
+      state.player.vy = 0;
+      state.obstacles = [{ id: 'pixi-obstacle-animation-test', x: state.player.x + 180, y: state.player.y,
+        radius: 70, type: 'SEAWEED', ecologyInitialized: true }];
+    });
+    const seaweedStart = await page.evaluate(() => ({ frames: window.__PIXI_PROBE__!.renderCount,
+      animated: window.__PIXI_PROBE__!.obstacleAnimatedBuilds }));
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThan(seaweedStart.frames + 8);
+    expect(await page.evaluate(() => window.__PIXI_PROBE__!.obstacleAnimatedBuilds)).toBeGreaterThan(seaweedStart.animated + 8);
+
+    await page.evaluate(() => {
+      const obstacle = (window as unknown as { __FISH_DEBUG__: { state: () => { obstacles: Array<{
+        type: string; feature?: string; featureState?: string; featureTimer?: number;
+      }> } } }).__FISH_DEBUG__.state().obstacles[0];
+      obstacle.type = 'ROCK';
+      obstacle.feature = 'VENT';
+      obstacle.featureState = 'WARNING';
+      obstacle.featureTimer = 1000;
+    });
+    const ventStart = await page.evaluate(() => ({ frames: window.__PIXI_PROBE__!.renderCount,
+      animated: window.__PIXI_PROBE__!.obstacleAnimatedBuilds }));
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThan(ventStart.frames + 8);
+    expect(await page.evaluate(() => window.__PIXI_PROBE__!.obstacleAnimatedBuilds)).toBeGreaterThan(ventStart.animated + 8);
+
+    await page.evaluate(() => {
+      const obstacle = (window as unknown as { __FISH_DEBUG__: { state: () => { obstacles: Array<{
+        featureState: string; featureTimer: number;
+      }> } } }).__FISH_DEBUG__.state().obstacles[0];
+      obstacle.featureState = 'IDLE';
+      obstacle.featureTimer = 1000;
+    });
+    const idleStart = await page.evaluate(() => ({ frames: window.__PIXI_PROBE__!.renderCount,
+      animated: window.__PIXI_PROBE__!.obstacleAnimatedBuilds,
+      hits: window.__PIXI_PROBE__!.obstacleStaticCacheHits }));
+    await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThan(idleStart.frames + 8);
+    expect(await page.evaluate(() => window.__PIXI_PROBE__!.obstacleAnimatedBuilds)).toBe(idleStart.animated);
+    expect(await page.evaluate(() => window.__PIXI_PROBE__!.obstacleStaticCacheHits)).toBeGreaterThan(idleStart.hits);
+    expect(pageErrors).toEqual([]);
+  });
+
   test('渲染投食、宝藏、道具、敌队标记与反击预告', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.goto('/?renderer=pixi');
     await expect(page.locator('canvas[data-renderer="pixi"]')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.getByRole('button', { name: /驶入/ }).click();
     await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThanOrEqual(8);
     const fixture = await page.evaluate(() => {
       const debug = (window as unknown as {
@@ -157,7 +249,7 @@ test.describe('PXR-00～06 Pixi 世界渲染', () => {
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.goto('/?renderer=pixi');
     await expect(page.locator('canvas[data-renderer="pixi"]')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.getByRole('button', { name: /驶入/ }).click();
     await expect.poll(async () => page.evaluate(() => window.__PIXI_PROBE__?.renderCount ?? 0)).toBeGreaterThanOrEqual(8);
     const fixture = await page.evaluate(() => {
       const debug = (window as unknown as {

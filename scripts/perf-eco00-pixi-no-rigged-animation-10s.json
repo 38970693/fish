@@ -1,0 +1,170 @@
+{
+  "measuredAt": "2026-09-24T02:39:37.825Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "scenarios": [
+    {
+      "renderer": "pixi",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": {
+        "lod0": 299,
+        "lod1": 1,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 322,
+        "lod2AnimatedUpdates": 0
+      },
+      "rendererEnd": {
+        "lod0": 282,
+        "lod1": 18,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 323,
+        "lod2AnimatedUpdates": 0
+      },
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 300,
+        "activeAI": 300,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 1,
+        "treasures": 0,
+        "powerUps": 8,
+        "hazards": 0,
+        "particles": 8,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 491,
+      "frameMs": {
+        "p50": 18,
+        "p95": 35.599999999998545,
+        "p99": 36.099999999998545
+      },
+      "renderMs": {
+        "p50": 12.300000000745058,
+        "p95": 13.600000001490116
+      },
+      "loopMs": {
+        "p50": 4.900000000372529,
+        "p95": 10.700000001117587
+      },
+      "loopSteps": {
+        "1": 388,
+        "2": 95,
+        "3": 8
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 489,
+          "p95": 35.599999999998545,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 17.799999999999272,
+          "workload": {
+            "entities": 300,
+            "activeAI": 300,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 1,
+            "treasures": 0,
+            "powerUps": 8,
+            "hazards": 0,
+            "particles": 8,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 4.444166666657353,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 3.736666666607683,
+          "share": 0.8408025501478747
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.4775000000217309,
+          "share": 0.10744421526856887
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.15833333330228924,
+          "share": 0.03562722669475816
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.01916666670391957,
+          "share": 0.004312769556488221
+        },
+        {
+          "name": "habitats",
+          "msPerFrame": 0.015833333289871614,
+          "share": 0.0035627226603948533
+        }
+      ]
+    }
+  ]
+}

@@ -12,7 +12,7 @@ export const getRivalMembers = (state: GameState, squad: RivalSquadState): Entit
 };
 
 const isSpawnClear = (state: GameState, x: number, y: number): boolean => {
-  if (!isPositionValid(x, y, 60)) return false;
+  if (!isPositionValid(x, y, 60, state.pondId, state.worldMode)) return false;
   return !state.obstacles.some((item) => item.featureState !== 'BROKEN' && Math.hypot(x - item.x, y - item.y) < item.radius + 45);
 };
 

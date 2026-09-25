@@ -67,7 +67,7 @@ const pointMouseAt = async (page: Page, entityId: string): Promise<void> => {
 
 const startGame = async (page: Page) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /开始游戏/ }).click();
+  await page.getByRole('button', { name: /驶入/ }).click();
   await expect(page.getByText(/玩家 \(/)).toBeVisible({ timeout: 5000 });
 };
 

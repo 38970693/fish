@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // 冷缓存页面导航最长可用 60s；用例总时限必须覆盖它和后续交互。
+  timeout: 90_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

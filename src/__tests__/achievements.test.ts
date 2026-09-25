@@ -243,9 +243,9 @@ describe('成就 · 解锁与持久化', () => {
 
 describe('成就 · 多鱼塘（阶段 3a 特产的变现）', () => {
   it('图鉴目标由塘特产种数推导，不是写死的数字', () => {
-    // 清水塘 2 种（小丑鱼 / 锦鲤）、珊瑚塘 3 种、深渊塘 7 种
+    // 清水塘 2 种（小丑鱼 / 锦鲤）、珊瑚塘 4 种（新增海狮）、深渊塘 7 种
     expect(view('dex-clear').goal).toBe(2);
-    expect(view('dex-coral').goal).toBe(3);
+    expect(view('dex-coral').goal).toBe(4);
     expect(view('dex-abyss').goal).toBe(7);
   });
 

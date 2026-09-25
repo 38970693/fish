@@ -18,7 +18,7 @@ page.on('console', (message) => {
 });
 
 await page.goto('http://localhost:3000/?mode=rivals', { waitUntil: 'load', timeout: 60_000 });
-await page.getByRole('button', { name: /开始游戏/ }).click();
+await page.getByRole('button', { name: /驶入/ }).click();
 await page.waitForFunction(() => window.__FISH_DEBUG__?.state().status === 'PLAYING');
 await page.evaluate(() => {
   const state = window.__FISH_DEBUG__.state();

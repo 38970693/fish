@@ -16,6 +16,8 @@ import MiniMap from './MiniMap';
 import CosmeticsPanel from './CosmeticsPanel';
 import { GlobalOceanMap } from './GlobalOceanMap';
 import { getOceanRegion } from '../data/oceanRegions';
+import type { WorldMode } from '../data/endlessWorld';
+import { formatEndlessGlobalCoordinate } from '../data/endlessWorld';
 
 // 宝物倒计时组件
 interface TreasureCountdownProps {
@@ -209,6 +211,25 @@ const ExplorationAlert: React.FC<{ gameState: GameState }> = ({ gameState }) => 
   );
 };
 
+const PondOpportunityAlert: React.FC<{ gameState: GameState }> = ({ gameState }) => {
+  const opportunity = gameState.pondOpportunity;
+  if (!opportunity || (!opportunity.prompt && !opportunity.lastResult)) return null;
+  const observing = opportunity.phase === 'OBSERVING';
+  const progress = observing ? Math.max(0, Math.min(1, 1 - opportunity.timer / opportunity.duration)) : 0;
+  return (
+    <div className="absolute top-44 left-1/2 -translate-x-1/2 z-40 min-w-72 pointer-events-none">
+      <div className="bg-emerald-950/90 px-4 py-2.5 rounded-xl border border-emerald-300/70 shadow-xl backdrop-blur-sm text-center">
+        <div className="text-sm font-black text-emerald-200">{opportunity.prompt ?? opportunity.lastResult?.text}</div>
+        {observing && (
+          <div className="mt-2 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-full bg-emerald-300 transition-all" style={{ width: `${progress * 100}%` }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /**
  * 流派技能槽（P1-3）。
  * 流派由当前生物决定，技能按等级逐档解锁（Lv3 / 6 / 9 / 12），Q 键释放。
@@ -260,7 +281,7 @@ const SchoolSkillBar: React.FC<{ player: PlayerState }> = ({ player }) => {
 
 interface UIOverlayProps {
   gameState: GameState;
-  onStart: (selectedType?: CreatureType, pondId?: PondId) => void;
+  onStart: (selectedType?: CreatureType, pondId?: PondId, worldMode?: WorldMode) => void;
   onStartBattleTest?: () => void;
   onEvolve: (type: CreatureType) => void;
   onRestart: () => void;
@@ -593,6 +614,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   const possessCooldown = gameState.squad.switchCooldown;
   const [selectedStarter, setSelectedStarter] = useState<CreatureType>(CreatureType.CLOWN_FISH);
   const [selectedPond, setSelectedPond] = useState<PondId>(DEFAULT_POND);
+  const [selectedWorldMode, setSelectedWorldMode] = useState<WorldMode>(gameState.worldMode ?? 'FINITE');
   const [showCosmetics, setShowCosmetics] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
@@ -620,13 +642,31 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
       // 内层 `min-h-full` 负责矮时居中。别再退回「竖向堆一长条」（旧版被裁掉且滚不到）。
       <div className="absolute inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40">
         <div className="min-h-full flex items-center justify-center p-3 sm:p-4 lg:p-5">
-        <div className="flex flex-col items-center text-center">
+        <div className="menu-content flex flex-col items-center text-center">
             <div className="bg-slate-900/80 p-3 sm:p-5 rounded-3xl border border-slate-700 shadow-2xl backdrop-blur-md">
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-2 sm:mb-3">欢乐鱼塘</h1>
 
                 <div className="flex flex-col gap-2 sm:gap-3">
-                    <h2 className="text-base sm:text-lg text-white font-bold">选择全球海域</h2>
-                    <GlobalOceanMap selected={selectedPond} onSelect={setSelectedPond} />
+                    <div className="flex items-center justify-center gap-3">
+                      <h2 className="text-base sm:text-lg text-white font-bold">
+                        {selectedWorldMode === 'ENDLESS' ? '选择无限海域的生态主题' : '选择全球海域'}
+                      </h2>
+                      <button
+                        type="button"
+                        aria-pressed={selectedWorldMode === 'ENDLESS'}
+                        onClick={() => setSelectedWorldMode(mode => mode === 'ENDLESS' ? 'FINITE' : 'ENDLESS')}
+                        className={`rounded-full border px-3 py-1 text-xs font-black transition-all ${selectedWorldMode === 'ENDLESS'
+                          ? 'border-fuchsia-300 bg-fuchsia-500/20 text-fuchsia-100 shadow-[0_0_16px_rgba(217,70,239,0.25)]'
+                          : 'border-slate-600 bg-slate-800/80 text-slate-300 hover:border-fuchsia-400 hover:text-white'}`}
+                      >
+                        ∞ 无限大地图
+                      </button>
+                    </div>
+                    <GlobalOceanMap
+                      selected={selectedPond}
+                      onSelect={setSelectedPond}
+                      procedural={gameState.run?.mode === 'RIVALS' && gameState.pondLayoutMode === 'PROCEDURAL'}
+                    />
 
                     <h2 className="text-base sm:text-lg text-white font-bold">选择你的初始鱼类</h2>
                     <div className="flex gap-1.5 sm:gap-2 justify-center flex-wrap max-w-6xl">
@@ -650,8 +690,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     </div>
                     
                     <div className="mt-2.5 sm:mt-3.5 grid grid-cols-1 sm:grid-cols-3 items-center gap-3 sm:gap-4 w-full">
-                    <button onClick={() => onStart(selectedStarter, selectedPond)} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:order-2 sm:justify-self-center">
-                        <Play size={26} fill="white" /> 驶入{getOceanRegion(selectedPond).name}
+                    <button onClick={() => onStart(selectedStarter, selectedPond, selectedWorldMode)} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:order-2 sm:justify-self-center">
+                        <Play size={26} fill="white" /> {selectedWorldMode === 'ENDLESS' ? '驶入无限海域' : `驶入${getOceanRegion(selectedPond).name}`}
                     </button>
 
                     <button onClick={() => setShowCosmetics(true)} className="px-5 sm:px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm sm:text-base rounded-full border border-slate-600 hover:border-cyan-400 transition-all flex items-center justify-center gap-2 sm:order-1 sm:justify-self-end">
@@ -706,6 +746,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         {/* RIVALS 显示主要投食目标；旧模式继续显示宝藏倒计时 */}
         {gameState.run ? <FeedingEventAlert gameState={gameState} /> : <TreasureCountdown gameState={gameState} />}
         <ExplorationAlert gameState={gameState} />
+        <PondOpportunityAlert gameState={gameState} />
 
         {/* 宝藏预警提示 */}
         <TreasureAlert treasures={gameState.treasures} />
@@ -717,11 +758,27 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 <div className="flex items-center gap-2 mb-1">
                     <span
                         className="text-[11px] font-black px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: `${getPond(gameState.pondId).color}33`, color: getPond(gameState.pondId).color }}
+                        style={{
+                          backgroundColor: gameState.worldMode === 'ENDLESS' ? '#d946ef22' : `${getPond(gameState.pondId).color}33`,
+                          color: gameState.worldMode === 'ENDLESS' ? '#f0abfc' : getPond(gameState.pondId).color,
+                        }}
                     >
-                        {getOceanRegion(gameState.pondId).name}
+                        {gameState.worldMode === 'ENDLESS' ? '∞ 无限海域' : getOceanRegion(gameState.pondId).name}
                     </span>
                     <span className="text-[11px] text-slate-400">得分 ×{getPond(gameState.pondId).scoreMult}</span>
+                    {gameState.worldMode === 'ENDLESS' && gameState.endlessWorld && (
+                      <span
+                        className="text-[10px] font-mono text-fuchsia-200/80"
+                        title="worldSeed 可重放同一无限海域；坐标为浮动原点换算后的全局位置"
+                      >
+                        seed {gameState.endlessWorld.seed} · X {formatEndlessGlobalCoordinate(player.x, gameState.endlessWorld.originChunkX)} · Y {formatEndlessGlobalCoordinate(player.y, gameState.endlessWorld.originChunkY)}
+                      </span>
+                    )}
+                    {gameState.pondLayout && (
+                      <span className="text-[10px] font-mono text-cyan-200/80" title="可用 pondSeed 参数重放当前空间布局">
+                        seed {gameState.pondLayout.seed}
+                      </span>
+                    )}
                     {/* 隐蔽提示（藏在水草里 / 开着隐身技能）：告诉玩家「现在追不到我」 */}
                     {isConcealed(player) && (
                         <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 border border-green-400/40 animate-pulse">

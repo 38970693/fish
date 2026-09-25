@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-19T14:02:13.465Z",
+  "measuredAt": "2026-09-23T10:52:28.548Z",
   "viewport": {
     "width": 1280,
     "height": 800
@@ -11,108 +11,108 @@
       "name": "natural-calm",
       "workload": {
         "entities": 280,
-        "activeAI": 190,
-        "obstacles": 55,
+        "activeAI": 195,
+        "obstacles": 54,
         "buildings": 6,
         "portals": 0,
-        "fountains": 2,
+        "fountains": 0,
         "treasures": 0,
-        "powerUps": 29,
+        "powerUps": 24,
         "hazards": 0,
-        "particles": 100,
-        "labels": 11,
+        "particles": 266,
+        "labels": 37,
         "status": "PLAYING",
-        "rivals": 0,
-        "feedingPhase": "WAITING",
+        "rivals": 7,
+        "feedingPhase": "WARNING",
         "drops": 0
       },
-      "logicMsPerFrame": 3.2623333333184323,
+      "logicMsPerFrame": 3.9976666666691503,
       "topLogicSystems": [
         {
           "name": "ai",
-          "msPerFrame": 2.1549999999503293,
-          "share": 0.6605701440564543
+          "msPerFrame": 2.730999999841054,
+          "share": 0.6831485032534039
         },
         {
           "name": "combat",
-          "msPerFrame": 0.4890000002086163,
-          "share": 0.14989271489042091
+          "msPerFrame": 0.5583333333581686,
+          "share": 0.13966480447539942
         },
         {
           "name": "world",
-          "msPerFrame": 0.44233333331843216,
-          "share": 0.13558802492708263
-        },
-        {
-          "name": "concealment",
-          "msPerFrame": 0.050333333363135654,
-          "share": 0.015428629824266545
+          "msPerFrame": 0.4173333331818382,
+          "share": 0.10439422992952029
         },
         {
           "name": "squad",
-          "msPerFrame": 0.02433333339790503,
-          "share": 0.007458874036379742
+          "msPerFrame": 0.10633333346496025,
+          "share": 0.026598849361684534
+        },
+        {
+          "name": "concealment",
+          "msPerFrame": 0.04766666663189729,
+          "share": 0.011923622104194367
         }
       ],
       "frameMs": {
-        "p50": 16.69999999999709,
-        "p95": 17,
-        "p99": 66.20000000000073,
-        "max": 117.10000000000218
+        "p50": 36,
+        "p95": 70.70000000000073,
+        "p99": 75.39999999999964,
+        "max": 127.60000000000036
       }
     },
     {
       "name": "three-team-contest",
       "workload": {
         "entities": 280,
-        "activeAI": 169,
-        "obstacles": 55,
+        "activeAI": 166,
+        "obstacles": 54,
         "buildings": 6,
         "portals": 0,
-        "fountains": 2,
+        "fountains": 0,
         "treasures": 0,
-        "powerUps": 33,
+        "powerUps": 30,
         "hazards": 0,
-        "particles": 104,
-        "labels": 9,
+        "particles": 250,
+        "labels": 25,
         "status": "PLAYING",
         "rivals": 7,
         "feedingPhase": "DROPPING",
-        "drops": 1
+        "drops": 0
       },
-      "logicMsPerFrame": 2.980999999990066,
+      "logicMsPerFrame": 3.817999999995033,
       "topLogicSystems": [
         {
           "name": "ai",
-          "msPerFrame": 1.8340000000099341,
-          "share": 0.6152297886669057
+          "msPerFrame": 2.4649999999379117,
+          "share": 0.6456259821742061
         },
         {
           "name": "combat",
-          "msPerFrame": 0.4833333333084981,
-          "share": 0.16213798500842294
+          "msPerFrame": 0.6180000000074506,
+          "share": 0.16186485070933854
         },
         {
           "name": "world",
-          "msPerFrame": 0.40133333325386045,
-          "share": 0.1346304371872519
+          "msPerFrame": 0.42000000016142924,
+          "share": 0.1100052383871073
         },
         {
           "name": "rivalSquads",
-          "msPerFrame": 0.07666666676600774,
-          "share": 0.0257184390359823
+          "msPerFrame": 0.08600000005215407,
+          "share": 0.022524882150933984
         },
         {
-          "name": "feedingEvent",
-          "msPerFrame": 0.05633333327869574,
-          "share": 0.01889746168362411
+          "name": "concealment",
+          "msPerFrame": 0.05800000000745058,
+          "share": 0.015191199582903624
         }
       ],
       "frameMs": {
-        "p50": 16.700000000000728,
-        "p95": 17,
-        "p99": 50,
-        "max": 50
+        "p50": 52.900000000001455,
+        "p95": 71.60000000000218,
+        "p99": 90.60000000000218,
+        "max": 106.29999999999927
       }
     }
   ]

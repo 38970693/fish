@@ -74,6 +74,7 @@ export type SurfaceLayerKind =
   | 'LATERAL_LINE'
   | 'NOSTRIL'
   | 'SCALES'
+  | 'RADIAL_SPINES'
   | 'PATTERN';
 
 export type SurfaceSymmetry = 'MIRROR' | 'CENTER' | 'LIGHTING';
@@ -85,6 +86,7 @@ export interface SurfaceLayer {
   alpha: number;
   width?: number;
   density?: number;
+  count?: number;
   symmetry: SurfaceSymmetry;
 }
 

@@ -39,9 +39,16 @@ export const spawnTreasure = (state: GameState, ctx: FrameContext): void => {
   let y = 0;
   let valid = false;
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    x = Math.random() * WORLD_SIZE;
-    y = Math.random() * WORLD_SIZE;
-    if (isPositionValid(x, y, 100)) {
+    if (state.worldMode === 'ENDLESS') {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 700 + Math.random() * 1800;
+      x = state.player.x + Math.cos(angle) * distance;
+      y = state.player.y + Math.sin(angle) * distance;
+    } else {
+      x = Math.random() * WORLD_SIZE;
+      y = Math.random() * WORLD_SIZE;
+    }
+    if (isPositionValid(x, y, 100, state.pondId, state.worldMode)) {
       valid = true;
       break;
     }
@@ -124,9 +131,16 @@ const spawnMeteor = (state: GameState, ctx: FrameContext): void => {
   let y = 0;
   let valid = false;
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    x = Math.random() * WORLD_SIZE;
-    y = Math.random() * WORLD_SIZE;
-    if (isPositionValid(x, y, METEOR_CONFIG.RADIUS)) {
+    if (state.worldMode === 'ENDLESS') {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 900 + Math.random() * 1700;
+      x = state.player.x + Math.cos(angle) * distance;
+      y = state.player.y + Math.sin(angle) * distance;
+    } else {
+      x = Math.random() * WORLD_SIZE;
+      y = Math.random() * WORLD_SIZE;
+    }
+    if (isPositionValid(x, y, METEOR_CONFIG.RADIUS, state.pondId, state.worldMode)) {
       valid = true;
       break;
     }
@@ -187,9 +201,18 @@ export const updateMeteors = (state: GameState, ctx: FrameContext): void => {
 
 const updateFountains = (state: GameState, ctx: FrameContext): void => {
   if (Math.random() < 0.001 && state.fountains.length < 2) {
-    const x = Math.random() * WORLD_SIZE;
-    const y = Math.random() * WORLD_SIZE;
-    if (isPositionValid(x, y, 100)) {
+    let x: number;
+    let y: number;
+    if (state.worldMode === 'ENDLESS') {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 800 + Math.random() * 1800;
+      x = state.player.x + Math.cos(angle) * distance;
+      y = state.player.y + Math.sin(angle) * distance;
+    } else {
+      x = Math.random() * WORLD_SIZE;
+      y = Math.random() * WORLD_SIZE;
+    }
+    if (isPositionValid(x, y, 100, state.pondId, state.worldMode)) {
       state.fountains.push({ id: uuid(), x, y, timer: 3600, radius: 100 }); // 3600 帧 = 1 分钟
       // 秘境开张，广而告之（飘字 + 拾取音效）
       ctx.events.emit('building', { x, y, label: '发现秘境！饼干喷泉开启 1 分钟', color: '#fbbf24' });

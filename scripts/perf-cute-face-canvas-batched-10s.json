@@ -1,0 +1,172 @@
+{
+  "measuredAt": "2026-09-24T14:35:29.511Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "naturalRun": false,
+  "scenarios": [
+    {
+      "renderer": "canvas",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": null,
+      "rendererEnd": null,
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 2,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 1,
+        "treasures": 0,
+        "powerUps": 5,
+        "hazards": 0,
+        "particles": 8,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 122,
+      "frameMs": {
+        "p50": 83.29999999999927,
+        "p95": 100.10000000000036,
+        "p99": 133.1999999999989
+      },
+      "renderMs": {
+        "p50": 14.199999995529652,
+        "p95": 24.5
+      },
+      "loopMs": {
+        "p50": 51.600000001490116,
+        "p95": 70.89999999850988
+      },
+      "loopSteps": {
+        "4": 32,
+        "5": 68,
+        "6": 18,
+        "7": 2,
+        "8": 1,
+        "10": 1
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 120,
+          "p95": 100.19999999999891,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 2,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING",
+            "run": {
+              "mode": "RIVALS",
+              "ruleVersion": 7,
+              "phase": "EARLY",
+              "clock": 122,
+              "practice": true,
+              "practiceReason": "无敌模式",
+              "bossId": null
+            },
+            "feedingPhase": "DROPPING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 66.5,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 1,
+            "treasures": 0,
+            "powerUps": 5,
+            "hazards": 0,
+            "particles": 8,
+            "labels": 0,
+            "status": "PLAYING",
+            "run": {
+              "mode": "RIVALS",
+              "ruleVersion": 7,
+              "phase": "EARLY",
+              "clock": 718,
+              "practice": true,
+              "practiceReason": "无敌模式",
+              "bossId": null
+            },
+            "feedingPhase": "DROPPING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 9.558333333333334,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 8.042499999826154,
+          "share": 0.8414123801038695
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.9041666666045785,
+          "share": 0.09459459458809888
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.3758333339045445,
+          "share": 0.03931996518617728
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.06583333301047484,
+          "share": 0.006887532660206609
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.05166666669150193,
+          "share": 0.00540540540800369
+        }
+      ]
+    }
+  ]
+}

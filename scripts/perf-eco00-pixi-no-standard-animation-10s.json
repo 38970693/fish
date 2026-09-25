@@ -1,0 +1,171 @@
+{
+  "measuredAt": "2026-09-24T02:33:11.501Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "scenarios": [
+    {
+      "renderer": "pixi",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": {
+        "lod0": 299,
+        "lod1": 1,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 321,
+        "lod2AnimatedUpdates": 0
+      },
+      "rendererEnd": {
+        "lod0": 282,
+        "lod1": 18,
+        "lod2": 0,
+        "visible": 300,
+        "standardFish": 100,
+        "riggedAppendages": 50,
+        "segmentedBodies": 30,
+        "cacheHits": 0,
+        "cacheMisses": 321,
+        "lod2AnimatedUpdates": 0
+      },
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 0,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 1,
+        "treasures": 0,
+        "powerUps": 5,
+        "hazards": 0,
+        "particles": 8,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 284,
+      "frameMs": {
+        "p50": 35.599999999998545,
+        "p95": 36.599999999998545,
+        "p99": 53.79999999999927
+      },
+      "renderMs": {
+        "p50": 21.40000000037253,
+        "p95": 23.300000000745058
+      },
+      "loopMs": {
+        "p50": 10.200000001117587,
+        "p95": 15.800000000745058
+      },
+      "loopSteps": {
+        "1": 12,
+        "2": 225,
+        "3": 46,
+        "4": 1
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 282,
+          "p95": 36.599999999998545,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 0,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 36,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 1,
+            "treasures": 0,
+            "powerUps": 5,
+            "hazards": 0,
+            "particles": 8,
+            "labels": 0,
+            "status": "PLAYING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 4.354999999996895,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 3.670833333348855,
+          "share": 0.8429008802184781
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.4408333333209157,
+          "share": 0.10122464599798621
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.16166666670081517,
+          "share": 0.03712208190606898
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.02083333331781129,
+          "share": 0.00478377343692908
+        },
+        {
+          "name": "squad",
+          "msPerFrame": 0.011666666669771075,
+          "share": 0.0026789131273890683
+        }
+      ]
+    }
+  ]
+}

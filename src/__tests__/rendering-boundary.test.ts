@@ -26,6 +26,18 @@ describe('渲染边界', () => {
     });
   });
 
+  it('相机在负坐标和远距离坐标下仍保持可逆', () => {
+    const camera = new CameraAdapter(
+      { x: -275_000, y: 410_000, zoom: 0.65 },
+      { width: 1440, height: 900, resolution: 1 }
+    );
+    const world = { x: -273_456.25, y: 407_890.5 };
+    const screen = camera.toScreen(world);
+    const restored = camera.toWorld(screen);
+    expect(restored.x).toBeCloseTo(world.x, 8);
+    expect(restored.y).toBeCloseTo(world.y, 8);
+  });
+
   it('Canvas 适配器统一处理 resize、单帧指标与销毁', async () => {
     const draw = vi.fn();
     const renderer = new CanvasGameRenderer(draw);

@@ -1,0 +1,172 @@
+{
+  "measuredAt": "2026-09-24T14:33:43.351Z",
+  "seed": 20260923,
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "durationMs": 10000,
+  "naturalRun": false,
+  "scenarios": [
+    {
+      "renderer": "canvas",
+      "name": "dense-contest",
+      "fixture": {
+        "injected": true,
+        "entities": 300,
+        "contest": true,
+        "expectedLod": {
+          "lod0": 5,
+          "lod1": 15,
+          "lod2": 280
+        },
+        "zoom": 0.65,
+        "obstacleCount": 36,
+        "fingerprint": "389fd3de"
+      },
+      "rendererStart": null,
+      "rendererEnd": null,
+      "startupRetries": 0,
+      "errors": [],
+      "start": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 1,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 1,
+        "status": "PLAYING"
+      },
+      "end": {
+        "entities": 299,
+        "activeAI": 299,
+        "obstacles": 36,
+        "buildings": 0,
+        "portals": 0,
+        "fountains": 0,
+        "treasures": 0,
+        "powerUps": 5,
+        "hazards": 0,
+        "particles": 0,
+        "labels": 0,
+        "status": "PLAYING"
+      },
+      "durationMs": 10000,
+      "frameCount": 116,
+      "frameMs": {
+        "p50": 83.30000000000291,
+        "p95": 100.40000000000146,
+        "p99": 133.5
+      },
+      "renderMs": {
+        "p50": 15.199999995529652,
+        "p95": 24.200000002980232
+      },
+      "loopMs": {
+        "p50": 51.19999999552965,
+        "p95": 67.60000000149012
+      },
+      "loopSteps": {
+        "4": 9,
+        "5": 79,
+        "6": 23,
+        "7": 3,
+        "8": 1,
+        "10": 1
+      },
+      "segments": [
+        {
+          "startSecond": 0,
+          "frameCount": 115,
+          "p95": 100.40000000000146,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 1,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 1,
+            "status": "PLAYING",
+            "run": {
+              "mode": "RIVALS",
+              "ruleVersion": 7,
+              "phase": "EARLY",
+              "clock": 107,
+              "practice": true,
+              "practiceReason": "无敌模式",
+              "bossId": null
+            },
+            "feedingPhase": "DROPPING"
+          }
+        },
+        {
+          "startSecond": 10,
+          "frameCount": 1,
+          "p95": 83.59999999999854,
+          "workload": {
+            "entities": 299,
+            "activeAI": 299,
+            "obstacles": 36,
+            "buildings": 0,
+            "portals": 0,
+            "fountains": 0,
+            "treasures": 0,
+            "powerUps": 5,
+            "hazards": 0,
+            "particles": 0,
+            "labels": 0,
+            "status": "PLAYING",
+            "run": {
+              "mode": "RIVALS",
+              "ruleVersion": 7,
+              "phase": "EARLY",
+              "clock": 708,
+              "practice": true,
+              "practiceReason": "无敌模式",
+              "bossId": null
+            },
+            "feedingPhase": "DROPPING"
+          }
+        }
+      ],
+      "logicMsPerFrame": 8.914999999975164,
+      "topLogicSystems": [
+        {
+          "name": "ai",
+          "msPerFrame": 7.457500000049671,
+          "share": 0.8365114974840657
+        },
+        {
+          "name": "combat",
+          "msPerFrame": 0.9308333330477278,
+          "share": 0.10441203960183072
+        },
+        {
+          "name": "world",
+          "msPerFrame": 0.3283333339417974,
+          "share": 0.03682931395880113
+        },
+        {
+          "name": "rivalSquads",
+          "msPerFrame": 0.05583333323399226,
+          "share": 0.006262852858569579
+        },
+        {
+          "name": "habitats",
+          "msPerFrame": 0.027499999664723874,
+          "share": 0.0030846886892653374
+        }
+      ]
+    }
+  ]
+}

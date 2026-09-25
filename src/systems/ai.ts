@@ -34,12 +34,15 @@ const LURE_RANGE_SQ = 800 * 800;
 type AIHandler = (entity: Entity, state: GameState) => void;
 
 /** 转向灵敏度：越大越笨重。生态区可追加惩罚（珊瑚区大鱼转向变慢） */
-const getAgility = (entity: Entity): number => {
+const getAgility = (entity: Entity, state: GameState): number => {
   const base = Math.max(
     0.02,
     GAME_MECHANICS.BASE_TURN_SPEED - entity.radius * GAME_MECHANICS.SIZE_AGILITY_PENALTY
   );
-  const biome = (entity.currentBiome ?? getBiome(entity.x, entity.y)) as BiomeType;
+  const biome = (entity.currentBiome ?? getBiome(
+    entity.x, entity.y, state.worldMode, state.endlessWorld?.seed,
+    state.endlessWorld?.originChunkX, state.endlessWorld?.originChunkY,
+  )) as BiomeType;
   const penalty = BIOME_EFFECTS[biome]?.bigFishTurnPenalty ?? 0;
   // 心境：警觉的鱼转得快，瞌睡的鱼迟钝
   return Math.max(0.02, base * (1 - penalty) * getMood(entity.moodId).agilityMult);
@@ -120,17 +123,18 @@ const findNearest = (
     const other = candidateTree.itemAt(queryBuf[k]);
     if (other === origin || other.id === origin.id) continue;
     if (other.health <= 0) continue;
-    if (!predicate(other)) continue;
     const d = dist2(origin, other);
+    // 已不可能成为最近目标时，跳过阵营/行为筛选与隐蔽判定。
+    // 平局只允许更早的原数组下标胜出；初始 rangeSq 边界仍严格排除。
+    if (d > bestSq || (d === bestSq && (bestIdx < 0 || queryBuf[k] >= bestIdx))) continue;
+    if (!predicate(other)) continue;
     // ⚠️ 隐蔽门闸刻意放在**这里**：6 种行为 + 大鱼反制挑目标全都走 findNearest，
     //    收口一处，就不会出现「A 行为尊重隐蔽、B 行为照追」的半吊子状态。
     //    副作用（有意为之）：躲在水草里的大鱼，小鱼也看不见它 —— 天然的伏击。
     if (!ignoreConcealment && !canPerceive(origin, other, d)) continue;
-    if (d < bestSq || (bestIdx >= 0 && d === bestSq && queryBuf[k] < bestIdx)) {
-      bestSq = d;
-      best = other;
-      bestIdx = queryBuf[k];
-    }
+    bestSq = d;
+    best = other;
+    bestIdx = queryBuf[k];
   }
 
   // 锁定迟滞：上一帧锁的是谁，这帧就还是谁 —— 除非别人明显更近（见上方注释）。
@@ -162,7 +166,10 @@ const wander = (entity: Entity, state: GameState, agility: number): void => {
 };
 
 const moveForward = (entity: Entity, state: GameState, speedMult = 1): void => {
-  const biome = (entity.currentBiome ?? getBiome(entity.x, entity.y)) as BiomeType;
+  const biome = (entity.currentBiome ?? getBiome(
+    entity.x, entity.y, state.worldMode, state.endlessWorld?.seed,
+    state.endlessWorld?.originChunkX, state.endlessWorld?.originChunkY,
+  )) as BiomeType;
   const effect = BIOME_EFFECTS[biome];
   // 心境：饥饿 / 狂躁的鱼游得快，瞌睡的鱼慢吞吞
   let speed = entity.speed * speedMult * getMood(entity.moodId).speedMult;
@@ -324,7 +331,7 @@ const chaseTo = (entity: Entity, prey: Entity, state: GameState, agility: number
 
 /** 温顺：随机游荡，只有被逼近才躲 */
 const passiveBehavior: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
   const threat = findNearest(
     entity,
     (other) => other !== state.player && canHarm(entity, other) && other.level > entity.level,
@@ -345,7 +352,7 @@ const passiveBehavior: AIHandler = (entity, state) => {
 
 /** 胆小：持续逃离更大的目标 */
 const fleeBehavior: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
   const threat = findNearest(
     entity,
     (other) => canHarm(entity, other) && other.level > entity.level,
@@ -364,7 +371,7 @@ const fleeBehavior: AIHandler = (entity, state) => {
 
 /** 主动：追击比自己小的目标（含玩家） */
 const aggressiveBehavior: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
   const prey = findNearest(
     entity,
     (other) => canHarm(entity, other) && other.level < entity.level,
@@ -380,7 +387,7 @@ const aggressiveBehavior: AIHandler = (entity, state) => {
 
 /** 埋伏：静止漂浮，猎物进入范围才暴起 */
 const ambushBehavior: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
 
   /* 威胁优先（2026-09-13 需求：灯笼鱼「来的鱼比自己大则逃跑」）：
    * 体型比自己大的敌人进入感知范围 → 收起诱饵、掉头就跑。
@@ -427,7 +434,7 @@ const ambushBehavior: AIHandler = (entity, state) => {
 
 /** 首领：大范围巡逻，见小就吃，转向稳但压迫感强 */
 const bossBehavior: AIHandler = (entity, state) => {
-  const agility = getAgility(entity) * 0.7;
+  const agility = getAgility(entity, state) * 0.7;
   const prey = findNearest(
     entity,
     (other) => canHarm(entity, other) && other.level < entity.level,
@@ -477,7 +484,7 @@ const sleepyMood: AIHandler = (entity, state) => {
     entity.moodId = 'ALERT';
     entity.moodTimer = randomMoodTimer();
     entity.isIdle = false;
-    fleeFrom(entity, threat.entity, state, getAgility(entity));
+    fleeFrom(entity, threat.entity, state, getAgility(entity, state));
     return;
   }
   entity.isIdle = true;
@@ -488,7 +495,7 @@ const sleepyMood: AIHandler = (entity, state) => {
 
 /** 好奇：远远跟着玩家，不太近也不动手 —— 像被围观，不像被追杀 */
 const curiousMood: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
   const d = Math.sqrt(dist2(entity, state.player));
   if (d < CURIOUS_STANDOFF) {
     // 太近：掉头拉开距离。滑出 280 之后会被下面的停泊带接住减速，不会形成往返抖动
@@ -520,7 +527,7 @@ const curiousMood: AIHandler = (entity, state) => {
 
 /** 群聚：往最近的同类身边凑，到位就配对悬停，形成鱼群 */
 const sociableMood: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
   const mate = findNearest(
     entity,
     (other) => other !== state.player && other.type === entity.type,
@@ -548,7 +555,7 @@ const sociableMood: AIHandler = (entity, state) => {
 
 /** 饥饿：主动搜寻比自己小的目标，连温顺的鱼也开荤 */
 const hungryMood: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
   const prey = findNearest(
     entity,
     (other) => canHarm(entity, other) && other.level < entity.level,
@@ -564,7 +571,7 @@ const hungryMood: AIHandler = (entity, state) => {
 
 /** 狂躁：无视体型差距，见谁咬谁（稀有且危险） */
 const frenzyMood: AIHandler = (entity, state) => {
-  const agility = getAgility(entity);
+  const agility = getAgility(entity, state);
   const foe = findNearest(
     entity,
     (other) => canHarm(entity, other),
@@ -710,6 +717,31 @@ const showConfused = (entity: Entity): void => {
   entity.speechBubble = { text: '?', timer: 45, color: '#94a3b8' };
 };
 
+const followEventRoute = (entity: Entity, state: GameState): boolean => {
+  const marker = entity.eventRoute;
+  const route = marker && state.pondLayout?.routes.find(candidate => candidate.id === marker.routeId);
+  if (!marker || !route || route.points.length === 0) {
+    entity.eventRoute = undefined;
+    return false;
+  }
+  const index = Math.max(0, Math.min(marker.waypointIndex, route.points.length - 1));
+  const point = route.points[index];
+  const dx = point.x - entity.x;
+  const dy = point.y - entity.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance < Math.max(80, entity.radius * 2)) {
+    if (index >= route.points.length - 1) {
+      entity.eventRoute = undefined;
+      return false;
+    }
+    marker.waypointIndex = index + 1;
+    return true;
+  }
+  entity.angle = turnToward(entity.angle, Math.atan2(dy, dx), Math.max(0.055, getAgility(entity, state)));
+  moveForward(entity, state, 1.18);
+  return true;
+};
+
 export const aiSystem = (state: GameState, ctx: FrameContext): void => {
   /* ── 本帧空间索引：只建一次，下面所有 findNearest 共享 ──
    * 顺序必须是 player 在前（旧版 [player, ...entities] 的原数组顺序），
@@ -750,6 +782,9 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
     // 这里必须跳过，否则两个系统每帧各写一次位置，成员会原地抽搐。
     if (entity.ownerId && managedOwnerIds.has(entity.ownerId)) continue;
 
+    // 深渊星光鱼群的短期路线优先于普通种族 AI；路线完成后恢复原本 FLEE 行为。
+    if (entity.eventRoute && followEventRoute(entity, state)) continue;
+
     // 远离玩家的鱼不必每帧思考
     if (dist2(entity, state.player) > AI_ACTIVE_RANGE_SQ) continue;
 
@@ -763,7 +798,7 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
     // 比自己大的鱼不受骗 —— 它们没兴趣，肉块对它们只是可疑物。
     // （灯笼鱼玩家注意：大鱼不会来，但来的小鱼就是送上门的食物）
     if (lurer && entity.radius < lurer.radius && dist2(entity, lurer) < LURE_RANGE_SQ) {
-      const agility = getAgility(entity);
+      const agility = getAgility(entity, state);
       chaseTo(entity, lurer, state, agility, 1.5);
       continue;
     }
@@ -774,7 +809,7 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
       if (treasure.status !== 'ACTIVE') continue;
       if (dist2(entity, treasure) > TREASURE_CONFIG.SWARM_DETECTION_RANGE ** 2) continue;
       const toward = Math.atan2(treasure.y - entity.y, treasure.x - entity.x);
-      entity.angle = turnToward(entity.angle, toward, getAgility(entity));
+      entity.angle = turnToward(entity.angle, toward, getAgility(entity, state));
       moveForward(entity, state, TREASURE_CONFIG.SWARM_SPEED_BOOST);
       lured = true;
       break;
@@ -784,7 +819,7 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
     // 优先级 3：愤怒中 —— 刚被咬过，不讲体型差距，直接扑向附近的敌人，转向也变灵活
     if (entity.angerTimer && entity.angerTimer > 0) {
       tryCounterSkill(entity, state, ctx);
-      const agility = getAgility(entity) * COMBAT_CONFIG.ANGER_AGILITY_MULT;
+      const agility = getAgility(entity, state) * COMBAT_CONFIG.ANGER_AGILITY_MULT;
       const foe = findNearest(
         entity,
         (other) => canHarm(entity, other),
