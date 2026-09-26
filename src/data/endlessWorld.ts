@@ -2,6 +2,32 @@ import { BiomeType } from './biomes';
 
 export type WorldMode = 'FINITE' | 'ENDLESS';
 
+export type EndlessLocationKind = 'SHIPWRECK' | 'WARM_SHELTER';
+
+export interface EndlessExplorationLocation {
+  id: string;
+  kind: EndlessLocationKind;
+  x: number;
+  y: number;
+  radius: number;
+  discoveryRadius: number;
+  regionX: string;
+  regionY: string;
+}
+
+export interface EndlessExplorationState {
+  discoveredIds: string[];
+  completedIds: string[];
+  targetId: string | null;
+  activeLocations: EndlessExplorationLocation[];
+  phase: 'IDLE' | 'SEARCHING' | 'RESTING';
+  timer: number;
+  duration: number;
+  startHitCounter: number;
+  interactHeld: boolean;
+  lastResult: { text: string; timer: number } | null;
+}
+
 export interface EndlessWorldState {
   seed: number;
   loadedChunks: string[];
@@ -19,6 +45,8 @@ export interface EndlessWorldState {
     maxDurability?: number;
     cooldownUntil?: number;
   }>;
+  /** 无尽海域航海记录：只持久化稀疏地点 ID；activeLocations 只覆盖当前活动区。 */
+  exploration: EndlessExplorationState;
 }
 
 export const ENDLESS_WORLD_CONFIG = {
@@ -30,6 +58,11 @@ export const ENDLESS_WORLD_CONFIG = {
   BIOME_REGION_SIZE: 5400,
   REBASE_CHUNKS: 32,
   VERSION: 1,
+  EXPLORATION_VERSION: 1,
+  LOCATION_REGION_CHUNKS: 3,
+  LOCATION_REGION_CHANCE: 0.78,
+  LOCATION_DISCOVERY_RANGE: 1050,
+  LOCATION_HINT_RANGE: 2500,
 } as const;
 
 const hash32 = (value: string): number => {
@@ -167,4 +200,16 @@ export const createEndlessWorldState = (seed: number): EndlessWorldState => ({
   centerChunkY: '0',
   generatedChunkCount: 0,
   objectDeltas: {},
+  exploration: {
+    discoveredIds: [],
+    completedIds: [],
+    targetId: null,
+    activeLocations: [],
+    phase: 'IDLE',
+    timer: 0,
+    duration: 0,
+    startHitCounter: 0,
+    interactHeld: false,
+    lastResult: null,
+  },
 });

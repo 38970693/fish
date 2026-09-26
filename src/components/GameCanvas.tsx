@@ -1333,6 +1333,7 @@ const BUILDING_GLYPHS: Record<string, string> = {
   WISHING_WELL: '愿',
   PEARL_FARM: '珠',
   SHIPWRECK: '船',
+  WARM_SHELTER: '暖',
 };
 
 /** 建筑绘制 —— 之前同样只生成不绘制 */

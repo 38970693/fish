@@ -6,6 +6,7 @@ import {
   endlessChunkKey,
   getEndlessBiome,
   parseEndlessChunkKey,
+  type EndlessExplorationLocation,
 } from '../data/endlessWorld';
 import { BiomeType } from '../data/biomes';
 import type { Building, FrameContext, GameState, Obstacle } from '../types';
@@ -23,6 +24,114 @@ export interface EndlessChunkContent {
   buildings: Building[];
   currents: WaterCurrentZone[];
 }
+
+const floorDivBigInt = (value: bigint, divisor: bigint): bigint => {
+  let quotient = value / divisor;
+  if (value % divisor < 0n) quotient -= 1n;
+  return quotient;
+};
+
+/**
+ * EXP-01：远洋地点按“全局区域”生成，不依赖活动 chunk 的加载顺序。
+ * 随机子流独立于 obstacles/buildings/currents，后续调整它们不会移动旧地点。
+ */
+export const generateEndlessExplorationLocation = (
+  seed: number,
+  regionX: bigint,
+  regionY: bigint,
+  originChunkX: number | bigint | string = 0,
+  originChunkY: number | bigint | string = 0,
+): EndlessExplorationLocation | null => {
+  const regionChunks = BigInt(ENDLESS_WORLD_CONFIG.LOCATION_REGION_CHUNKS);
+  const rng = createEndlessRandom(
+    seed,
+    regionX,
+    regionY,
+    `exploration-v${ENDLESS_WORLD_CONFIG.EXPLORATION_VERSION}`,
+  );
+  if (rng() >= ENDLESS_WORLD_CONFIG.LOCATION_REGION_CHANCE) return null;
+
+  const kind = rng() < 0.5 ? 'SHIPWRECK' : 'WARM_SHELTER';
+  const radius = kind === 'SHIPWRECK' ? BUILDING_DATA.SHIPWRECK.radius : BUILDING_DATA.WARM_SHELTER.radius;
+  const size = ENDLESS_WORLD_CONFIG.CHUNK_SIZE;
+  const originX = typeof originChunkX === 'bigint' ? originChunkX : BigInt(originChunkX);
+  const originY = typeof originChunkY === 'bigint' ? originChunkY : BigInt(originChunkY);
+  const baseChunkX = regionX * regionChunks;
+  const baseChunkY = regionY * regionChunks;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const chunkX = baseChunkX + BigInt(Math.floor(rng() * Number(regionChunks)));
+    const chunkY = baseChunkY + BigInt(Math.floor(rng() * Number(regionChunks)));
+    const offsetX = 260 + Math.floor(rng() * (size - 520));
+    const offsetY = 260 + Math.floor(rng() * (size - 520));
+
+    // 只读取该 chunk 的稳定静态内容做避让；探索地点本身不进入这个随机子流。
+    const staticContent = generateEndlessChunkContent(seed, chunkX, chunkY, chunkX, chunkY);
+    const clearOfObstacles = staticContent.obstacles.every(
+      obstacle => Math.hypot(obstacle.x - offsetX, obstacle.y - offsetY) > obstacle.radius + radius + 120,
+    );
+    const clearOfBuildings = staticContent.buildings.every(
+      building => Math.hypot(building.x - offsetX, building.y - offsetY) > building.radius + radius + 180,
+    );
+    if (!clearOfObstacles || !clearOfBuildings) continue;
+
+    return {
+      id: `endless:${chunkX},${chunkY}:location:v${ENDLESS_WORLD_CONFIG.EXPLORATION_VERSION}:${regionX},${regionY}:${kind.toLowerCase()}`,
+      kind,
+      x: Number(chunkX - originX) * size + offsetX,
+      y: Number(chunkY - originY) * size + offsetY,
+      radius,
+      discoveryRadius: ENDLESS_WORLD_CONFIG.LOCATION_DISCOVERY_RANGE,
+      regionX: regionX.toString(),
+      regionY: regionY.toString(),
+    };
+  }
+  return null;
+};
+
+const rebuildActiveExplorationLocations = (
+  state: GameState,
+  desiredKeys: string[],
+): void => {
+  const endless = state.endlessWorld!;
+  const regionChunks = BigInt(ENDLESS_WORLD_CONFIG.LOCATION_REGION_CHUNKS);
+  const regions = new Set<string>();
+  for (const key of desiredKeys) {
+    const { x, y } = parseEndlessChunkKey(key);
+    regions.add(`${floorDivBigInt(x, regionChunks)},${floorDivBigInt(y, regionChunks)}`);
+  }
+  const desired = new Set(desiredKeys);
+  const active: EndlessExplorationLocation[] = [];
+  for (const regionKey of regions) {
+    const { x: regionX, y: regionY } = parseEndlessChunkKey(regionKey);
+    const location = generateEndlessExplorationLocation(
+      endless.seed,
+      regionX,
+      regionY,
+      endless.originChunkX,
+      endless.originChunkY,
+    );
+    if (!location) continue;
+    const globalChunkX = BigInt(endless.originChunkX) + BigInt(endlessChunkCoord(location.x));
+    const globalChunkY = BigInt(endless.originChunkY) + BigInt(endlessChunkCoord(location.y));
+    if (!desired.has(endlessChunkKey(globalChunkX, globalChunkY))) continue;
+    active.push(location);
+  }
+  endless.exploration.activeLocations = active;
+
+  // 地点用现有 Building 渲染通道表现，但每帧从活动地点重建，不缓存走过的区域。
+  state.buildings = state.buildings.filter(building => !building.id.includes(':location:v'));
+  for (const location of active) {
+    state.buildings.push({
+      id: location.id,
+      x: location.x,
+      y: location.y,
+      type: location.kind === 'SHIPWRECK' ? BuildingType.SHIPWRECK : BuildingType.WARM_SHELTER,
+      radius: location.radius,
+      cooldown: 0,
+    });
+  }
+};
 
 export const generateEndlessChunkContent = (
   seed: number,
@@ -264,6 +373,8 @@ export const endlessWorldSystem = (state: GameState, _ctx: FrameContext): void =
     endless.centerChunkX = chunkX.toString();
     endless.centerChunkY = chunkY.toString();
   }
+
+  rebuildActiveExplorationLocations(state, desiredKeys);
 
   // 长距离游动不能让离屏生态无限占着 MAX_ENTITIES / 道具预算。
   if (state.time % 60 === 0) pruneFarDynamicContent(state);

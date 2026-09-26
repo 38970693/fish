@@ -192,6 +192,27 @@ const FeedingEventAlert: React.FC<{ gameState: GameState }> = ({ gameState }) =>
 };
 
 const ExplorationAlert: React.FC<{ gameState: GameState }> = ({ gameState }) => {
+  const endless = gameState.worldMode === 'ENDLESS' ? gameState.endlessWorld?.exploration : undefined;
+  if (endless && (endless.phase === 'SEARCHING' || endless.phase === 'RESTING')) {
+    const progress = Math.max(0, Math.min(1, 1 - endless.timer / Math.max(1, endless.duration)));
+    const resting = endless.phase === 'RESTING';
+    return (
+      <div className="absolute top-28 left-1/2 -translate-x-1/2 z-40 min-w-80">
+        <div className={`bg-slate-950/90 px-5 py-3 rounded-2xl border-2 shadow-xl backdrop-blur-sm ${resting ? 'border-orange-400' : 'border-amber-400'}`}>
+          <div className="flex items-center justify-between text-sm font-black">
+            <span className={resting ? 'text-orange-300' : 'text-amber-300'}>{resting ? '正在暖流庇护所休整' : '正在搜索远洋沉船'}</span>
+            <span className="text-white">{Math.ceil(endless.timer / 60)}s</span>
+          </div>
+          <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div className={`h-full transition-all ${resting ? 'bg-gradient-to-r from-orange-600 to-amber-300' : 'bg-gradient-to-r from-amber-600 to-yellow-300'}`} style={{ width: `${progress * 100}%` }} />
+          </div>
+          <div className="mt-1 text-center text-[11px] text-slate-300">
+            {resting ? '留在暖流范围内即可完成恢复' : '留在沉船附近；受击或危险逼近会中断'}
+          </div>
+        </div>
+      </div>
+    );
+  }
   const event = gameState.exploration;
   if (!event || event.phase !== 'SEARCHING') return null;
   const progress = Math.max(0, Math.min(1, 1 - event.timer / event.duration));
@@ -620,6 +641,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
   const [showAchievements, setShowAchievements] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const unlockedCount = getUnlockedCount();
+  const endlessRecord = gameState.endlessWorld?.exploration;
+  const endlessTarget = endlessRecord?.activeLocations.find(location => location.id === endlessRecord.targetId) ?? null;
+  const endlessTargetDistance = endlessTarget
+    ? Math.round(Math.hypot(endlessTarget.x - player.x, endlessTarget.y - player.y))
+    : null;
+  const endlessHint = endlessRecord?.activeLocations
+    .filter(location => !endlessRecord.discoveredIds.includes(location.id) && !endlessRecord.completedIds.includes(location.id))
+    .map(location => ({ location, distance: Math.hypot(location.x - player.x, location.y - player.y) }))
+    .filter(item => item.distance <= 2500)
+    .sort((a, b) => a.distance - b.distance)[0] ?? null;
 
   if (status === GameStatus.MENU) {
     const startOptions = [
@@ -767,12 +798,27 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     </span>
                     <span className="text-[11px] text-slate-400">得分 ×{getPond(gameState.pondId).scoreMult}</span>
                     {gameState.worldMode === 'ENDLESS' && gameState.endlessWorld && (
-                      <span
-                        className="text-[10px] font-mono text-fuchsia-200/80"
-                        title="worldSeed 可重放同一无限海域；坐标为浮动原点换算后的全局位置"
-                      >
-                        seed {gameState.endlessWorld.seed} · X {formatEndlessGlobalCoordinate(player.x, gameState.endlessWorld.originChunkX)} · Y {formatEndlessGlobalCoordinate(player.y, gameState.endlessWorld.originChunkY)}
-                      </span>
+                      <>
+                        <span
+                          className="text-[10px] font-mono text-fuchsia-200/80"
+                          title="worldSeed 可重放同一无限海域；坐标为浮动原点换算后的全局位置"
+                        >
+                          seed {gameState.endlessWorld.seed} · X {formatEndlessGlobalCoordinate(player.x, gameState.endlessWorld.originChunkX)} · Y {formatEndlessGlobalCoordinate(player.y, gameState.endlessWorld.originChunkY)}
+                        </span>
+                        {endlessTarget && endlessTargetDistance !== null ? (
+                          <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-300/40">
+                            <MapPin size={11} className="inline mr-1" />
+                            航海目标：{endlessTarget.kind === 'SHIPWRECK' ? '沉船残骸' : '暖流庇护所'} · {endlessTargetDistance}m
+                          </span>
+                        ) : endlessHint ? (
+                          <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-200 border border-yellow-300/30">
+                            <Target size={11} className="inline mr-1" />
+                            雷达捕捉到远洋线索 · 跟随边缘箭头
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">继续远航，雷达会在附近出现线索</span>
+                        )}
+                      </>
                     )}
                     {gameState.pondLayout && (
                       <span className="text-[10px] font-mono text-cyan-200/80" title="可用 pondSeed 参数重放当前空间布局">

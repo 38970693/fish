@@ -62,9 +62,12 @@ const finishSearch = (
 };
 
 export const isExplorationMajorPhase = (state: GameState): boolean =>
-  state.exploration?.phase === 'SEARCHING';
+  state.exploration?.phase === 'SEARCHING'
+  || state.endlessWorld?.exploration.phase === 'SEARCHING'
+  || state.endlessWorld?.exploration.phase === 'RESTING';
 
 export const explorationEventSystem = (state: GameState, ctx: FrameContext): void => {
+  if (state.worldMode === 'ENDLESS') return;
   const event = state.exploration;
   if (!event) return;
   const risingInteract = ctx.input.interact && !event.interactHeld;

@@ -79,7 +79,7 @@ export interface PixiWorldMetrics extends RenderMetrics {
 
 const BUILDING_GLYPHS: Record<string, string> = {
   HOSPITAL: '医', ARMORY: '军', SHRINE: '庙', SHOP: '商',
-  WISHING_WELL: '愿', PEARL_FARM: '珠', SHIPWRECK: '船',
+  WISHING_WELL: '愿', PEARL_FARM: '珠', SHIPWRECK: '船', WARM_SHELTER: '暖',
 };
 const WORLD_LABEL_CAPACITY = 128;
 

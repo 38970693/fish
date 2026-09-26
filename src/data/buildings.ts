@@ -20,6 +20,8 @@ export const BUILDING_DATA = {
   WISHING_WELL: { name: '许愿池', color: '#f59e0b', radius: 130, cooldown: 1200 },
   PEARL_FARM: { name: '珍珠养殖场', color: '#cbd5e1', radius: 140, cooldown: 900 },
   SHIPWRECK: { name: '沉船残骸', color: '#92400e', radius: 170, cooldown: 1500 },
+  /** 仅由 ENDLESS 探索地点生成，不加入有限鱼塘 BUILDING_SPAWN_RULES。 */
+  WARM_SHELTER: { name: '暖流庇护所', color: '#fb923c', radius: 145, cooldown: 0 },
 } as const;
 
 export type BuildingType = keyof typeof BUILDING_DATA;

@@ -188,6 +188,7 @@ export const BUILDING_CONFIGS = {
   WISHING_WELL: { radius: 130, cooldown: 1200, color: '#f59e0b', name: '许愿池' },
   PEARL_FARM: { radius: 140, cooldown: 900, color: '#cbd5e1', name: '珍珠养殖场' },
   SHIPWRECK: { radius: 170, cooldown: 1500, color: '#92400e', name: '沉船残骸' },
+  WARM_SHELTER: { radius: 145, cooldown: 0, color: '#fb923c', name: '暖流庇护所' },
 };
 
 /**

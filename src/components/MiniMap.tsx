@@ -49,7 +49,8 @@ const BUILDING_LABELS: Record<string, string> = {
   SHOP: '商店',
   WISHING_WELL: '许愿池',
   PEARL_FARM: '珍珠场',
-  SHIPWRECK: '沉船'
+  SHIPWRECK: '沉船',
+  WARM_SHELTER: '暖流庇护所',
 };
 
 const BUILDING_COLORS: Record<string, string> = {
@@ -58,7 +59,8 @@ const BUILDING_COLORS: Record<string, string> = {
   SHOP: BUILDING_CONFIGS.SHOP.color,
   WISHING_WELL: BUILDING_CONFIGS.WISHING_WELL.color,
   PEARL_FARM: BUILDING_CONFIGS.PEARL_FARM.color,
-  SHIPWRECK: BUILDING_CONFIGS.SHIPWRECK.color
+  SHIPWRECK: BUILDING_CONFIGS.SHIPWRECK.color,
+  WARM_SHELTER: BUILDING_CONFIGS.WARM_SHELTER?.color ?? '#fb923c',
 };
 
 // MiniMap component
@@ -263,9 +265,46 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
       }
       for (const building of buildings) {
         if (Math.hypot(building.x - player.x, building.y - player.y) > range) continue;
+        if (building.id.includes(':location:v')) continue;
         const p = toMap(building.x, building.y);
         ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
         ctx.fillStyle = BUILDING_COLORS[building.type] ?? '#06b6d4'; ctx.fill();
+      }
+      const exploration = gameState.endlessWorld?.exploration;
+      if (exploration) {
+        const discovered = new Set(exploration.discoveredIds);
+        const completed = new Set(exploration.completedIds);
+        for (const location of exploration.activeLocations) {
+          const distance = Math.hypot(location.x - player.x, location.y - player.y);
+          if (distance > ENDLESS_WORLD_CONFIG.LOCATION_HINT_RANGE) continue;
+          const p = toMap(location.x, location.y);
+          if (!discovered.has(location.id)) {
+            const dx = p.x - center;
+            const dy = p.y - center;
+            const len = Math.max(1, Math.hypot(dx, dy));
+            const edge = MINIMAP_SIZE / 2 - MINIMAP_PADDING - 7;
+            const hx = center + dx / len * edge;
+            const hy = center + dy / len * edge;
+            ctx.save();
+            ctx.translate(hx, hy);
+            ctx.rotate(Math.atan2(dy, dx));
+            ctx.beginPath();
+            ctx.moveTo(5, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4); ctx.closePath();
+            ctx.fillStyle = 'rgba(250,204,21,0.75)';
+            ctx.fill();
+            ctx.restore();
+            continue;
+          }
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, exploration.targetId === location.id ? 6 : 5, 0, Math.PI * 2);
+          ctx.fillStyle = completed.has(location.id)
+            ? '#64748b'
+            : (location.kind === 'SHIPWRECK' ? '#f59e0b' : '#fb923c');
+          ctx.fill();
+          ctx.strokeStyle = exploration.targetId === location.id ? '#ffffff' : 'rgba(255,255,255,0.55)';
+          ctx.lineWidth = exploration.targetId === location.id ? 2 : 1;
+          ctx.stroke();
+        }
       }
       for (const treasure of treasures) {
         if (Math.hypot(treasure.x - player.x, treasure.y - player.y) > range) continue;
