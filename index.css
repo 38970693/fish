@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* 全局基础样式：从 index.html 的内联 <style> 抽出，绕开 vite html-inline-proxy 的构建问题 */
 body {
   margin: 0;

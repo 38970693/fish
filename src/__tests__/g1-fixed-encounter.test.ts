@@ -271,7 +271,8 @@ const medianNearestEnemyDist = (state: GameState, enemyIds: string[]): number =>
 const runEncounter = (cfg: EncounterConfig, seed = 20260920): EncounterResult =>
   withSeededRandom(seed, () => {
     resetModuleState();
-    const state = createInitialState({ skipWorldGen: true });
+    // Hold ambient quest rewards out of this laboratory's controlled combat comparisons.
+    const state = createInitialState({ skipWorldGen: true, enableQuests: false });
     state.status = GameStatus.PLAYING;
 
     const p = state.player;

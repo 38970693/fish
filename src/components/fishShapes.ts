@@ -1,3 +1,5 @@
+import { drawCartoonGloss } from '../rendering/cartoonStyle';
+import { cuteOval, cuteRoundRect } from '../rendering/cuteCosmeticShapes';
 /**
  * ★ 生物形状模板库 —— 让水母像水母、蟹像蟹 ★
  *
@@ -132,17 +134,8 @@ const crescentTail = (ctx: Ctx, r: number, spread = 0.5, len = 0.55) => {
 };
 
 /** 俯视背鳍：沿身体中轴形成双侧等宽的脊线。 */
-const dorsalRidge = (ctx: Ctx, r: number, x: number, length = 0.62, width = 0.08) => {
-  ctx.beginPath();
-  ctx.moveTo(x - r * length * 0.55, 0);
-  ctx.quadraticCurveTo(x, -r * width, x + r * length * 0.45, 0);
-  ctx.quadraticCurveTo(x, r * width, x - r * length * 0.55, 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
-};
+const dorsalRidge = (ctx: Ctx, r: number, x: number, length = 0.62, width = 0.08) =>
+  drawCartoonGloss(ctx, r, x, length, width);
 
 /* ════════════════════════ ② 背景附属 ════════════════════════ */
 
@@ -799,56 +792,65 @@ export const drawSurfaceMouth = (ctx: Ctx, mType: MouthType, radius: number, mou
   const mx = r * 0.55;
   const my = r * 0.14;
   ctx.save();
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.lineWidth = Math.max(1.2, r * 0.06);
+  ctx.strokeStyle = '#655064';
+  ctx.fillStyle = '#655064';
+  ctx.lineWidth = Math.max(0.9, r * 0.038);
   ctx.lineCap = 'round';
 
   switch (mType) {
     case 'CIRCLE': {
-      ctx.beginPath();
-      ctx.arc(mx, my, r * (0.06 + mouthOpen * 0.12), 0, Math.PI * 2);
-      ctx.fill();
+      const size = r * (0.063 + mouthOpen * 0.045);
+      cuteOval(ctx, mx, my, size * 0.82, size, '#655064');
+      cuteOval(ctx, mx + size * 0.32, my, size * 0.32, size * 0.62, '#f7afc1');
       break;
     }
     case 'SQUARE': {
-      const s = r * (0.06 + mouthOpen * 0.14);
-      ctx.fillRect(mx - s, my - s * 0.6, s * 2, s * 1.2);
+      const s = r * (0.065 + mouthOpen * 0.045);
+      cuteRoundRect(ctx, mx - s * 0.55, my - s, s * 1.1, s * 2, s * 0.4); ctx.fill();
+      cuteOval(ctx, mx + s * 0.2, my, s * 0.2, s * 0.65, '#f7afc1');
       break;
     }
     case 'FLAT': {
       ctx.beginPath();
-      ctx.moveTo(mx - r * 0.11, my);
-      ctx.lineTo(mx + r * 0.11, my);
+      ctx.moveTo(mx, my - r * 0.075);
+      ctx.quadraticCurveTo(mx + r * 0.02, my, mx, my + r * 0.075);
       ctx.stroke();
       break;
     }
     case 'BEAK': {
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.moveTo(mx - r * 0.1, my - r * 0.08);
-      ctx.lineTo(mx + r * 0.22, my);
-      ctx.lineTo(mx - r * 0.1, my + r * 0.1);
-      ctx.closePath();
-      ctx.fill();
+      cuteOval(ctx, mx, my, r * 0.095, r * 0.075, '#ffc58c');
+      ctx.beginPath(); ctx.moveTo(mx - r * 0.015, my - r * 0.06);
+      ctx.quadraticCurveTo(mx + r * 0.035, my, mx - r * 0.015, my + r * 0.06); ctx.stroke();
+      cuteOval(ctx, mx - r * 0.035, my - r * 0.025, r * 0.02, r * 0.015, '#fff0d3');
       break;
     }
     case 'CURVE': {
       ctx.beginPath();
-      ctx.moveTo(mx - r * 0.12, my - r * 0.04);
-      ctx.quadraticCurveTo(mx + r * 0.02, my + r * 0.12, mx + r * 0.16, my - r * 0.02);
+      ctx.moveTo(mx - r * 0.015, my - r * 0.11);
+      ctx.quadraticCurveTo(mx + r * 0.08, my - r * 0.065, mx + r * 0.015, my);
+      ctx.quadraticCurveTo(mx + r * 0.08, my + r * 0.065, mx - r * 0.015, my + r * 0.11);
       ctx.stroke();
       break;
     }
     case 'TRIANGLE':
     default: {
-      const g = r * (0.05 + mouthOpen * 0.18);
+      // A small smiling bean mouth replaces the pointed bite wedge.
+      const g = r * (0.075 + mouthOpen * 0.065);
       ctx.beginPath();
-      ctx.moveTo(mx - g, my - g);
-      ctx.lineTo(mx + g * 0.9, my);
-      ctx.lineTo(mx - g, my + g);
+      ctx.moveTo(mx - g * 0.35, my - g);
+      ctx.quadraticCurveTo(mx + g * 1.15, my - g, mx + g * 1.15, my);
+      ctx.quadraticCurveTo(mx + g * 1.15, my + g, mx - g * 0.35, my + g);
+      ctx.quadraticCurveTo(mx + g * 0.08, my, mx - g * 0.35, my - g);
       ctx.closePath();
       ctx.fill();
+      ctx.fillStyle = '#f3a0ad';
+      ctx.beginPath(); ctx.ellipse(mx + g * 0.7, my, g * 0.32, g * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(mx - g * 0.35, my - g * 1.4);
+      ctx.quadraticCurveTo(mx + g * 0.08, my - g * 1.3, mx - g * 0.35, my - g * 0.7);
+      ctx.moveTo(mx - g * 0.35, my + g * 1.4);
+      ctx.quadraticCurveTo(mx + g * 0.08, my + g * 1.3, mx - g * 0.35, my + g * 0.7);
+      ctx.stroke();
       break;
     }
   }

@@ -14,7 +14,7 @@
  */
 
 import { CreatureType } from '../data/creatures';
-import { AMBUSH_CONFIG, COMBAT_CONFIG, PHRASES, REVERSAL_PHRASE } from '../data/world';
+import { AMBUSH_CONFIG, COMBAT_CONFIG, PHRASES, REVERSAL_PHRASE, PLAYER_GROWTH_CONFIG } from '../data/world';
 import { scoreGain } from '../data/ponds';
 import { GameStatus } from '../types';
 import type { Entity, GameState, FrameContext, PlayerState, Particle } from '../types';
@@ -24,6 +24,9 @@ import { recruitToSquad } from './squad';
 import { recordRun } from './leaderboard';
 import { isConcealed, CONCEAL_BITE_PROB_MULT } from './concealment';
 import { canHarm, isPlayerFaction } from './factions';
+import { awardPlayerGrowth } from './playerGrowth';
+import { hasObstacleOcclusion } from '../core/obstacleGeometry';
+import { awardArenaKill } from './arenaRewards';
 
 export const createParticle = (x: number, y: number, color: string): Particle => ({
   id: uuid(),
@@ -88,6 +91,9 @@ const say = (e: Entity, text: string, timer: number, color: string): void => {
  *   环境伤害（陨石 / 沼泽腐蚀）不传来源，也就不会抢走别人的归属。
  */
 export const dealDamage = (target: Entity, amount: number, source?: Entity): number => {
+  const arenaDamage = !!(target.arenaStats || source?.arenaStats);
+  if (arenaDamage && target.health <= 0) return 0;
+  const previousHealth = target.health;
   // 无敌帧：新手保护 / 闪避等技能
   if (target.invulnerableTimer && target.invulnerableTimer > 0) return 0;
   // 无敌模式（G 键，调试用）：玩家挂着 isGodMode 标记，任何伤害直接拦下
@@ -102,6 +108,9 @@ export const dealDamage = (target: Entity, amount: number, source?: Entity): num
   }
 
   target.health -= damage;
+  if (source?.arenaStats && target.arenaStats && source !== target) {
+    source.arenaStats.damage += Math.max(0, Math.min(damage, target.health + damage));
+  }
   target.hitReactionTimer = 8;
   // 记归属时用对象同一性判自伤（不能用 id 比：单测把 Math.random 钉成常数时
   // `uuid()` 会给所有实体生成同一个 id，见 factions.ts 的注释）
@@ -109,7 +118,7 @@ export const dealDamage = (target: Entity, amount: number, source?: Entity): num
     target.lastHitById = source.id;
     target.hostileHitCounter = (target.hostileHitCounter ?? 0) + 1;
   }
-  return damage;
+  return arenaDamage ? Math.max(0, Math.min(damage, previousHealth)) : damage;
 };
 
 /**
@@ -138,22 +147,25 @@ const settleDevour = (
   const attackerIsPlayer = killer.id === 'player';
   const gain = victim.config.weightValue;
 
+  if (state.arena) {
+    awardArenaKill(state, ctx, victim, killer);
+    ctx.events.emit('eat', { attacker: killer, victim, isBackAttack, x: victim.x, y: victim.y });
+    for (let i = 0; i < 6; i++) state.particles.push(createCookieParticle(victim.x, victim.y));
+    return;
+  }
+
   // 吞下去的那条鱼回血（大鱼吃小鱼的即时反馈，与阵营无关）
   killer.health = Math.min(killer.maxHealth, killer.health + gain * 2);
 
   if (isPlayerFaction(killer)) {
     const p = state.player;
-    p.weight += gain;
-    p.evolutionPoints += gain;
+    const growth = Math.min(gain, Math.max(1, p.config.tier) * PLAYER_GROWTH_CONFIG.MAX_KILL_WEIGHT_PER_TIER);
+    const leveledUp = awardPlayerGrowth(state, ctx, growth);
     p.eatenHistory[victim.type] = (p.eatenHistory[victim.type] || 0) + 1;
     if (!attackerIsPlayer) p.health = Math.min(p.maxHealth, p.health + gain * 2);
 
-    const newLevel = Math.floor(p.weight / 10) + 1;
-    if (newLevel > p.level) {
-      p.level = newLevel;
-      p.radius += 2;
-      say(p, `升级至 Lv.${newLevel}!`, 60, '#fcd34d');
-      ctx.events.emit('levelup', { entity: p, level: newLevel });
+    if (leveledUp) {
+      say(p, `升级至 Lv.${p.level}!`, 60, '#fcd34d');
     } else {
       say(p, pick(PHRASES.EAT) ?? '捕获!', 45, '#bef264');
     }
@@ -208,10 +220,10 @@ export const resolveDeath = (
   victim.deathSettled = true;
   victim.health = 0;
 
-  state.labels.push({
+  if (!state.arena || victim.arenaStats) state.labels.push({
     x: victim.x,
     y: victim.y - 50,
-    text: pick(PHRASES.EAT) ?? '捕获!',
+    text: state.arena ? `淘汰 · ${state.arena.contestants.find(c => c.body === victim)?.name ?? victim.config.name}` : pick(PHRASES.EAT) ?? '捕获!',
     color: '#ef4444',
     timer: 60,
   });
@@ -277,6 +289,7 @@ const tickCounterOne = (state: GameState, ctx: FrameContext, e: Entity): void =>
     if (other === e || other.health <= 0) return;
     if (dist(e, other) > range) return;
     if (!canHarm(e, other)) return;
+    if (hasObstacleOcclusion(e, other, state.obstacles)) return;
     const dmg = dealDamage(other, e.config.damage * COMBAT_CONFIG.COUNTER_DAMAGE_MULT, e);
     ctx.events.emit('hurt', { target: other, amount: dmg, source: e });
   };
@@ -308,6 +321,8 @@ export const processCollision = (
   ctx: FrameContext
 ): void => {
   if (attacker.health <= 0 || victim.health <= 0) return;
+  // Arena neutrals are food, not attackers: zero-damage bites must not trigger fear or counters.
+  if (state.arena && !attacker.arenaStats) return;
 
   // 吉祥物无敌且不参与战斗
   const mascot = CREATURES_MASCOT;
@@ -316,7 +331,7 @@ export const processCollision = (
   // 自己人不打自己人（统一阵营入口：combat / ai / skills 三处共用 `canHarm`）
   if (!canHarm(attacker, victim)) return;
   // 同类不互吃
-  if (attacker.type === victim.type) return;
+  if (attacker.type === victim.type && !(state.arena && (attacker.arenaStats || victim.arenaStats))) return;
   // 半虚保护：刚生成的鱼既不能吃也不能被吃
   if (isSemiGhost(attacker) || isSemiGhost(victim)) return;
 
@@ -330,6 +345,7 @@ export const processCollision = (
   if (attacker.biteCooldown && attacker.biteCooldown > 0) return;
 
   const distance = dist(attacker, victim);
+  if (hasObstacleOcclusion(attacker, victim, state.obstacles)) return;
 
   // 超过偷袭检测范围时，必须是实打实的贴身碰撞
   if (
@@ -435,7 +451,7 @@ export const processCollision = (
   }
   // 逆转判定：小鱼反杀大鱼（玩家专属高光时刻）
   if (
-    sizeRatio < AMBUSH_CONFIG.REVERSAL_SIZE_THRESHOLD &&
+    !state.arena && sizeRatio < AMBUSH_CONFIG.REVERSAL_SIZE_THRESHOLD &&
     attacker.id !== 'player' &&
     victim.id === 'player'
   ) {
@@ -477,7 +493,7 @@ export const processCollision = (
 };
 
 /**
- * P0-4 胜利条件：玩家阵营击杀深海霸主（虎鲸 / 美人鱼 / 深海巨怪）即通关。
+ * P0-4 胜利条件：玩家阵营击杀深海霸主即通关；玩家挂机时显示提示继续巡游。
  *
  * 判定改用**阵营**（G1 / FQ-03）：以前只认 `attacker.id === 'player'`，
  * 于是队友把 BOSS 磨到死也不算数 —— 和「收益记阵营」是同一个毛病的两面。
@@ -486,11 +502,17 @@ export const processCollision = (
  * 抽成函数是因为不止一个地方能杀死实体（撕咬 / 技能 / 中毒 / 环境），逻辑不能各写一份。
  */
 export const checkVictory = (state: GameState, attacker: Entity, victim: Entity): void => {
+  if (state.arena) return;
   if (!isPlayerFaction(attacker)) return;
   if (victim.config.behavior !== 'BOSS') return;
+  state.score += Math.floor(victim.config.weightValue);
+  if (state.autopilotEnabled) {
+    state.labels.push({ x: state.player.x, y: state.player.y - 70,
+      text: `击败${victim.config.name} · 继续巡游`, color: '#fbbf24', timer: 150 });
+    return;
+  }
   state.status = GameStatus.VICTORY;
   recordRun(state); // 通关也上本地排行榜
-  state.score += Math.floor(victim.config.weightValue);
 };
 
 const CREATURES_MASCOT = CreatureType.MASCOT;

@@ -4,6 +4,8 @@ import { WORLD_SIZE, MAP_SHAPE_CONFIG, BIOME_CONFIGS, TREASURE_CONFIG, BUILDING_
 import { getMapBoundaryRadius } from '../gameEngine';
 import { getPond } from '../data/ponds';
 import { ENDLESS_WORLD_CONFIG, formatEndlessGlobalCoordinate } from '../data/endlessWorld';
+import { reefPassagesFor } from '../systems/reefNavigation';
+import { REEF_MARGIN } from '../core/obstacleGeometry';
 
 interface MiniMapProps {
   gameState: GameState;
@@ -225,6 +227,17 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
     // Draw background
     ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
     ctx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+    const drawNearbyReefs = (toMap: (x: number, y: number) => { x: number; y: number }): void => {
+      for (const passage of reefPassagesFor(gameState)) {
+        if (Math.hypot(passage.center.x - player.x, passage.center.y - player.y) > 1000) continue;
+        const point = toMap(passage.center.x, passage.center.y);
+        ctx.save(); ctx.translate(point.x, point.y);
+        ctx.strokeStyle = passage.clearance >= player.radius + REEF_MARGIN ? '#bdebd9' : '#d7b4df';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-3, -3); ctx.lineTo(-3, 3); ctx.moveTo(3, -3); ctx.lineTo(3, 3); ctx.stroke();
+        ctx.restore();
+      }
+    };
 
     if (gameState.worldMode === 'ENDLESS') {
       const projection = createEndlessMiniMapProjection(player, isExpanded);
@@ -258,6 +271,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
         ctx.restore();
       }
 
+      drawNearbyReefs(toMap);
       for (const entity of visibleEntities) {
         const p = toMap(entity.x, entity.y);
         ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
@@ -409,6 +423,7 @@ const MiniMap: React.FC<MiniMapProps> = ({ gameState, onNavigate, isExpanded = f
       ctx.restore();
     });
 
+    drawNearbyReefs((x, y) => ({ x: x * scale + offset, y: y * scale + offset }));
     if (gameState.pondLayout) {
       const discovered = new Set(gameState.discoveredLandmarks ?? []);
       // 稀疏路线提示：只画布局给出的主路线，不揭示动态事件答案。

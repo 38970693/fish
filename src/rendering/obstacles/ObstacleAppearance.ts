@@ -59,19 +59,19 @@ export interface ObstacleAppearance {
 
 const PALETTES: Record<Obstacle['type'], readonly ObstaclePalette[]> = {
   ROCK: [
-    { base: '#64748b', dark: '#334155', light: '#94a3b8', accent: '#d6d3d1', ground: '#0f2741' },
-    { base: '#5f766d', dark: '#34483f', light: '#8da399', accent: '#a3c67c', ground: '#102c32' },
-    { base: '#5b5365', dark: '#302b3a', light: '#8b8197', accent: '#d97757', ground: '#171d35' },
+    { base: '#a7bdd3', dark: '#688ba7', light: '#e6f3fa', accent: '#ffcfdb', ground: '#d8e4d5' },
+    { base: '#a8cfc3', dark: '#6b9f97', light: '#e2f8df', accent: '#fff0b7', ground: '#dce8c6' },
+    { base: '#bcb2d7', dark: '#8b80ae', light: '#efdeff', accent: '#ffc4d5', ground: '#e6d5da' },
   ],
   CORAL: [
-    { base: '#fb7185', dark: '#9f1239', light: '#fecdd3', accent: '#fde68a', ground: '#5b2941' },
-    { base: '#c084fc', dark: '#7e22ce', light: '#e9d5ff', accent: '#67e8f9', ground: '#372250' },
-    { base: '#fb923c', dark: '#c2410c', light: '#fed7aa', accent: '#fef08a', ground: '#5a3528' },
+    { base: '#ffadbf', dark: '#c87b99', light: '#fff0ee', accent: '#ffe6a2', ground: '#efdbce' },
+    { base: '#c5b0ed', dark: '#9380bf', light: '#f4e9ff', accent: '#b7f0e4', ground: '#dcd8e4' },
+    { base: '#ffc391', dark: '#cb936f', light: '#fff3d4', accent: '#ffbccc', ground: '#eee0bc' },
   ],
   SEAWEED: [
-    { base: '#22c55e', dark: '#14532d', light: '#86efac', accent: '#bef264', ground: '#174a43' },
-    { base: '#14b8a6', dark: '#115e59', light: '#5eead4', accent: '#facc15', ground: '#123f46' },
-    { base: '#65a30d', dark: '#365314', light: '#bef264', accent: '#f0abfc', ground: '#314526' },
+    { base: '#8bd9b3', dark: '#529d88', light: '#d7f5c4', accent: '#ffcfdd', ground: '#d8e7bc' },
+    { base: '#82d5c7', dark: '#4c9fa3', light: '#c9f7eb', accent: '#fff0ad', ground: '#d3e5d0' },
+    { base: '#b7d98b', dark: '#7eab73', light: '#edf5bd', accent: '#edccf5', ground: '#e7e4c0' },
   ],
 };
 
@@ -181,7 +181,7 @@ export const resolveObstacleAppearance = (obstacle: Pick<Obstacle, 'id' | 'type'
   const variant = variantList[Math.floor(obstacleSample(key, 0) * variantList.length)]!;
   const paletteList = PALETTES[obstacle.type];
   const palette = paletteList[Math.floor(obstacleSample(key, 1) * paletteList.length)]!;
-  const rotation = (obstacleSample(key, 2) - 0.5) * (obstacle.type === 'SEAWEED' ? 0.18 : Math.PI * 0.55);
+  const rotation = (obstacleSample(key, 2) - 0.5) * (obstacle.type === 'SEAWEED' ? 0.14 : 0.3);
 
   let details: Pick<ObstacleAppearance, 'silhouette' | 'strokes' | 'spots' | 'branches' | 'blades'>;
   if (obstacle.type === 'ROCK') {

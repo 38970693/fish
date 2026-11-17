@@ -81,5 +81,54 @@ test.describe('ENDLESS 无限海域', () => {
       }
       expect(pageErrors).toEqual([]);
     });
+
+    test(`${renderer} 固定种子可从线索发现地点并完成一次远洋交互`, async ({ page }) => {
+      const pageErrors = await startEndless(page, renderer);
+      await expect.poll(async () => page.evaluate(() => {
+        const state = (window as any).__FISH_DEBUG__.state();
+        return state.endlessWorld.exploration.activeLocations.length;
+      })).toBeGreaterThan(0);
+
+      const location = await page.evaluate(() => {
+        const state = (window as any).__FISH_DEBUG__.state();
+        const target = state.endlessWorld.exploration.activeLocations[0];
+        state.player.x = target.x + target.discoveryRadius - 40;
+        state.player.y = target.y;
+        state.camera.x = state.player.x;
+        state.camera.y = state.player.y;
+        return { id: target.id, x: target.x, y: target.y, discoveryRadius: target.discoveryRadius };
+      });
+
+      await expect.poll(async () => page.evaluate((id) => {
+        const state = (window as any).__FISH_DEBUG__.state();
+        return state.endlessWorld.exploration.discoveredIds.includes(id);
+      }, location.id)).toBe(true);
+      await expect.poll(async () => page.evaluate((id) => {
+        const state = (window as any).__FISH_DEBUG__.state();
+        return state.endlessWorld.exploration.targetId === id;
+      }, location.id)).toBe(true);
+
+      await page.evaluate(({ x, y }) => {
+        const state = (window as any).__FISH_DEBUG__.state();
+        state.player.x = x;
+        state.player.y = y;
+        state.player.speed = 0;
+        state.player.vx = 0;
+        state.player.vy = 0;
+        state.entities.length = 0;
+        if (state.feedingEvent) state.feedingEvent.phase = 'WAITING';
+        state.camera.x = x;
+        state.camera.y = y;
+      }, location);
+      await page.keyboard.down('KeyE');
+      await page.waitForTimeout(150);
+      await page.keyboard.up('KeyE');
+
+      await expect.poll(async () => page.evaluate((id) => {
+        const state = (window as any).__FISH_DEBUG__.state();
+        return state.endlessWorld.exploration.completedIds.includes(id);
+      }, location.id), { timeout: 8_000 }).toBe(true);
+      expect(pageErrors).toEqual([]);
+    });
   }
 });

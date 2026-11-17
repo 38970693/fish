@@ -1,10 +1,11 @@
+import { drawTrail, getBodyTypeParams, drawTail, drawEyes, drawEyebrows, drawAccessory, drawPattern, drawScaleEffect, drawTeeth } from "../rendering/cosmetics";
 
 import React, { useRef, useEffect } from 'react';
 // Added GameStatus to imports to fix line 134 reference error
 import { GameState, GameStatus, Entity, Particle, CreatureType, PlayerState, PowerUp, Hazard, Building, BuildingType, Portal, Cosmetics, BodyType, TailType, TrailType, EyeType, EyebrowType, AccessoryType, PatternType, ScaleType } from '../types';
 import { WORLD_SIZE, GAME_MECHANICS, BOOST_CONFIG, BIOME_CONFIGS, BUILDING_CONFIGS, MAP_SHAPE_CONFIG, PORTAL_CONFIG, TREASURE_CONFIG, FEEDING_EVENT_CONFIG, AMBUSH_CONFIG, COMBAT_CONFIG, getPond, getMood } from '../constants';
 import { getMapBoundaryRadius } from '../gameEngine';
-import { getPondScenery } from '../data/pondScenery';
+import { getOceanScenery } from '../data/pondScenery';
 import { defineShapePath, drawShapeBack, drawShapeFront, drawSurfaceMouth } from './fishShapes';
 import type { CreatureShapeId } from '../data/creatureShapes';
 import { CanvasGameRenderer } from '../rendering/canvas/CanvasGameRenderer';
@@ -14,7 +15,12 @@ import { getCachedPatternMarks, resolveMorphologyForRender, resolveMorphologyMot
 import { drawMorphologyFrontParts, drawMorphologyPatterns, drawMorphologyRearParts, traceMorphologyBody } from '../rendering/canvas/MorphologyCanvasRenderer';
 import { drawCachedMorphologyBodyDetails } from '../rendering/canvas/MorphologyDetailCache';
 import { drawObstacleCanvas } from '../rendering/canvas/ObstacleCanvasRenderer';
+import { drawCutePondScenery } from '../rendering/obstacles/cuteOceanDecor';
 import { OBSTACLE_ECOLOGY } from '../data/obstacleEcology';
+import { drawBoostTrailCanvas, isBoostTrail } from '../rendering/boostTrail';
+import { drawCuteFace } from '../rendering/cuteFishFace';
+import { fishEyeOpenness } from '../rendering/fishBlink';
+import { cartoonPalette } from '../rendering/cartoonStyle';
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -48,81 +54,12 @@ export const drawCookie = (ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.restore();
 };
 
-/**
- * 尾迹特效：装扮选了尾迹的鱼，身后拖出对应的粒子痕迹。
- * 无状态实现 —— 不存轨迹缓冲，直接按时间在鱼后方摆出 4 个渐隐的点，
- * 视觉上等价于拖尾，但零内存、零清理逻辑。
- * 画在鱼身下层（调用点在 defineBodyPath 之前）。
- */
-const drawTrail = (ctx: CanvasRenderingContext2D, trailType: TrailType | undefined, radius: number, visualTime: number, animOffset: number) => {
-    if (!trailType || trailType === 'NONE') return;
-    const segments = 4;
-    for (let i = 0; i < segments; i += 1) {
-        const t = i / segments;
-        const dist = radius * (1.15 + t * 2.6);
-        const sway = Math.sin(visualTime * 0.08 + animOffset + i * 1.3) * radius * 0.25;
-        const size = Math.max(1.5, radius * (0.5 - t * 0.28));
-
-        ctx.save();
-        ctx.globalAlpha = 0.55 * (1 - t);
-        ctx.translate(-dist, sway);
-
-        switch (trailType) {
-            case 'BUBBLES': // 半透明气泡
-                ctx.strokeStyle = '#bae6fd';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.stroke();
-                break;
-            case 'RAINBOW': // 彩虹：色相随时间流动
-                ctx.fillStyle = `hsl(${(visualTime * 2 + i * 40) % 360}, 85%, 62%)`;
-                ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.fill();
-                break;
-            case 'FIRE': // 火焰：橙红渐层椭圆
-                ctx.fillStyle = i < 2 ? '#fb923c' : '#ef4444';
-                ctx.beginPath(); ctx.ellipse(0, 0, size * 1.2, size * 0.7, 0, 0, Math.PI * 2); ctx.fill();
-                break;
-            case 'GLITTER': // 闪粉：旋转的金白小方块
-                ctx.rotate(visualTime * 0.1 + i);
-                ctx.fillStyle = i % 2 === 0 ? '#fde68a' : '#ffffff';
-                ctx.fillRect(-size / 2, -size / 2, size, size);
-                break;
-            case 'HEARTS': { // 爱心：两圆一角
-                ctx.fillStyle = '#f472b6';
-                const s = size * 0.9;
-                ctx.beginPath();
-                ctx.arc(-s * 0.35, -s * 0.2, s * 0.38, 0, Math.PI * 2);
-                ctx.arc(s * 0.35, -s * 0.2, s * 0.38, 0, Math.PI * 2);
-                ctx.moveTo(-s * 0.72, -s * 0.05);
-                ctx.lineTo(0, s * 0.75);
-                ctx.lineTo(s * 0.72, -s * 0.05);
-                ctx.closePath();
-                ctx.fill();
-                break;
-            }
-            case 'ELECTRIC': // 电弧：锯齿线
-                ctx.strokeStyle = '#67e8f9';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(size, 0);
-                ctx.lineTo(size * 0.3, -size * 0.8);
-                ctx.lineTo(-size * 0.3, size * 0.5);
-                ctx.lineTo(-size, -size * 0.3);
-                ctx.stroke();
-                break;
-            case 'SLIME': // 黏液：绿色椭圆滴
-                ctx.fillStyle = '#a3e635';
-                ctx.beginPath(); ctx.ellipse(0, 0, size * 0.7, size * 0.45, 0.3, 0, Math.PI * 2); ctx.fill();
-                break;
-        }
-        ctx.restore();
-    }
-};
-
 export interface FishRenderOptions {
     showPattern?: boolean;
     volumeOnly?: boolean;
     lod?: 0 | 1 | 2;
     visibleSurfaceLayers?: readonly import('../morphology').SurfaceLayerKind[];
+    eyeTimeMs?: number;
 }
 
 
@@ -241,8 +178,9 @@ export const drawCuteFish = (
     const volumeOnly = renderOptions.volumeOnly === true;
     const showPattern = renderOptions.showPattern !== false && !volumeOnly;
     const morphologyLod = renderOptions.lod ?? 0;
-    const bodyFill = morphology?.material.primaryColor
-      ?? (cosmetics?.skinColor === 'DEFAULT' ? entity.config.color : cosmetics?.skinColor || entity.config.color);
+    const palette = cartoonPalette(morphology?.material.primaryColor
+      ?? (cosmetics?.skinColor === 'DEFAULT' ? entity.config.color : cosmetics?.skinColor || entity.config.color));
+    const bodyFill = type === CreatureType.PLANKTON ? entity.config.color : palette.body;
 
     const defineBodyPath = () => {
         ctx.beginPath();
@@ -282,12 +220,16 @@ export const drawCuteFish = (
     if (!isFish && type !== CreatureType.PLANKTON) {
         drawShapeBack(ctx, shape, radius, visualTime, animOffset, bodyFill);
     } else if (morphology) {
-        drawMorphologyRearParts(ctx, morphology, radius, visualTime, bodyFill, morphologyMotion);
+        if (!volumeOnly && cosmetics?.tailType && cosmetics.tailType !== 'DEFAULT') {
+            drawTail(ctx, cosmetics.tailType, radius, visualTime, morphology.geometry.anchors.tailRoot.x, bodyFill);
+        } else {
+            drawMorphologyRearParts(ctx, morphology, radius, visualTime, bodyFill, morphologyMotion);
+        }
     }
 
 
     // 绘制口腔内壁（只有轮廓缺口嘴的鱼形才有「口腔」）
-    if (isFish && type !== CreatureType.PLANKTON) {
+    if (isFish && !morphology && type !== CreatureType.PLANKTON) {
         ctx.save(); ctx.fillStyle = '#400505'; ctx.beginPath();
         if (mType === 'CIRCLE') ctx.arc(radius * 0.8, 0, radius * 0.28 * mouthGap, 0, Math.PI * 2);
         else if (mType !== 'FLAT') { ctx.moveTo(0, 0); ctx.arc(0, 0, radius * 0.95, -mouthOpen, mouthOpen); }
@@ -307,7 +249,7 @@ export const drawCuteFish = (
     }
 
     // 绘制身体
-    ctx.save(); defineBodyPath(); ctx.fillStyle = bodyFill; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke();
+    ctx.save(); defineBodyPath(); ctx.fillStyle = bodyFill; ctx.strokeStyle = palette.outline; ctx.lineWidth = Math.max(0.8, radius * 0.028); ctx.lineJoin = 'round'; ctx.fill(); ctx.stroke();
     if (type === CreatureType.PLANKTON) {
         ctx.fillStyle = '#b45309'; // Chocolate chips
         ctx.beginPath(); ctx.arc(-radius*0.3, -radius*0.2, radius*0.15, 0, Math.PI*2); ctx.fill();
@@ -332,27 +274,9 @@ export const drawCuteFish = (
         if (!volumeOnly) {
             const mouth = morphology.geometry.anchors.mouth;
             ctx.save();
-            ctx.strokeStyle = 'rgba(15,23,42,0.72)';
-            ctx.lineWidth = Math.max(1.5, radius * 0.065);
-            ctx.beginPath();
-            if (mType === 'CIRCLE') {
-                ctx.arc((mouth.x - 0.08) * radius, 0, radius * (0.06 + mouthOpen * 0.08), 0, Math.PI * 2);
-            } else if (mType === 'SQUARE') {
-                const size = radius * (0.1 + mouthOpen * 0.12);
-                ctx.rect((mouth.x - 0.2) * radius, -size, size * 1.25, size * 2);
-            } else if (mType === 'FLAT') {
-                ctx.moveTo((mouth.x - 0.28) * radius, 0); ctx.lineTo(mouth.x * radius, 0);
-            } else if (mType === 'CURVE') {
-                ctx.moveTo((mouth.x - 0.3) * radius, -radius * 0.03);
-                ctx.quadraticCurveTo((mouth.x - 0.06) * radius, radius * 0.24, (mouth.x - 0.34) * radius, radius * 0.3);
-            } else if (mType === 'BEAK') {
-                ctx.moveTo((mouth.x - 0.25) * radius, -radius * 0.13);
-                ctx.lineTo((mouth.x + 0.18) * radius, 0); ctx.lineTo((mouth.x - 0.25) * radius, radius * 0.13);
-            } else {
-                ctx.moveTo((mouth.x - 0.24) * radius, -radius * mouthOpen * 0.28);
-                ctx.quadraticCurveTo(mouth.x * radius, 0, (mouth.x - 0.24) * radius, radius * mouthOpen * 0.28);
-            }
-            ctx.stroke(); ctx.restore();
+            ctx.translate((mouth.x - 0.71) * radius, -radius * 0.14);
+            drawSurfaceMouth(ctx, mType, radius, mouthOpen);
+            ctx.restore();
         }
     }
 
@@ -388,60 +312,8 @@ export const drawCuteFish = (
 
     // 绘制牙齿（轮廓缺口嘴是鱼形专属；非鱼形的表面嘴塞不下牙）
     if (!volumeOnly && isFish && type !== CreatureType.PLANKTON && cosmetics?.teeth && cosmetics.teeth !== 'NORMAL') {
-        const tType = cosmetics.teeth;
-        ctx.save();
-        // 颜色基色。RAINBOW 不在这里定，它逐颗按色相算
-        const toothColor = tType === 'GOLD' ? '#fbbf24' : (tType === 'DIAMOND' ? '#e0f2fe' : 'white');
-        const toothSize = radius * 0.15;
-
-        const drawOneTooth = (x: number, color: string) => {
-            ctx.fillStyle = color;
-            if (tType === 'SHARP') {
-                ctx.beginPath(); ctx.moveTo(x, -toothSize/2); ctx.lineTo(x + toothSize, 0); ctx.lineTo(x, toothSize/2); ctx.fill();
-            } else if (tType === 'VAMPIRE') {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + toothSize * 1.5, -toothSize/2); ctx.lineTo(x + toothSize, 0); ctx.lineTo(x + toothSize * 1.5, toothSize/2); ctx.fill();
-            } else if (tType === 'SABER') {
-                ctx.beginPath(); ctx.moveTo(x, -toothSize/3); ctx.lineTo(x + toothSize * 1.2, 0); ctx.lineTo(x, toothSize/3); ctx.fill();
-            } else if (tType === 'DOUBLE_ROW') {
-                // 尖锥：比方块更像牙，双排才看得出层次
-                ctx.beginPath();
-                ctx.moveTo(x, -toothSize/2); ctx.lineTo(x + toothSize * 0.9, 0); ctx.lineTo(x, toothSize/2);
-                ctx.closePath(); ctx.fill();
-            } else {
-                ctx.fillRect(x, -toothSize/2, toothSize, toothSize);
-            }
-        };
-
-        const drawTooth = (ang: number, isUpper: boolean, index: number) => {
-            ctx.save();
-            ctx.rotate(ang);
-            const tx = radius * 0.88;
-            const color = tType === 'RAINBOW'
-                ? `hsl(${(visualTime * 3 + index * 46 + (isUpper ? 0 : 20)) % 360}, 92%, 64%)`
-                : toothColor;
-            drawOneTooth(tx, color);
-            if (tType === 'DOUBLE_ROW') {
-                // 第二排：往嘴里面缩一排，错开半格 —— 「双排」得真的看得到两排
-                drawOneTooth(tx - toothSize * 1.15, isUpper ? '#fef9c3' : '#fde68a');
-            }
-            ctx.restore();
-        };
-
-        if (mType === 'CIRCLE') {
-            for(let i=0; i<8; i++) {
-                ctx.save(); ctx.translate(radius*0.8, 0); ctx.rotate((i/8)*Math.PI*2);
-                ctx.fillStyle = tType === 'RAINBOW' ? `hsl(${(visualTime * 3 + i * 45) % 360}, 92%, 64%)` : toothColor;
-                ctx.fillRect(radius*0.22*mouthGap, -2, 6, 4); ctx.restore();
-            }
-        } else if (mType === 'TRIANGLE' || mType === 'SQUARE') {
-            // 只有三角/方嘴露牙：平嘴是闭着的细缝、微笑嘴和鸟喙里塞牙既穿帮又看不清
-            const count = 4; const step = 0.15;
-            for(let i=0; i<count; i++) {
-                drawTooth(-mouthOpen + step * i + 0.05, true, i);
-                drawTooth(mouthOpen - step * i - 0.05, false, i);
-            }
-        }
-        ctx.restore();
+        drawTeeth(ctx, cosmetics.teeth, mType, radius, visualTime, mouthGap, mouthOpen,
+            morphology ? (morphology.geometry.anchors.mouth.x - 0.16) * radius : undefined);
     }
 
     // 表面嘴（非鱼形）：小图形贴在头部前缘，响应嘴型装扮与呼吸张合
@@ -450,7 +322,7 @@ export const drawCuteFish = (
     }
 
     // 鸟喙（BEAK）：两片橙色喙盖在嘴缺口上，张合度跟着 mouthOpen，盖在身体之后才不会被鱼身盖掉
-    if (!volumeOnly && mType === 'BEAK' && type !== CreatureType.PLANKTON) {
+    if (!volumeOnly && !morphology && isFish && mType === 'BEAK' && type !== CreatureType.PLANKTON) {
         const open = radius * (0.08 + mouthOpen * 0.35);
         ctx.save();
         ctx.fillStyle = '#f59e0b';
@@ -472,7 +344,7 @@ export const drawCuteFish = (
     }
 
     // 微笑唇线（CURVE）：细口之上另画一条向前凸的弯弧 —— 一条「笑得眯起来」的嘴
-    if (!volumeOnly && mType === 'CURVE' && type !== CreatureType.PLANKTON) {
+    if (!volumeOnly && !morphology && isFish && mType === 'CURVE' && type !== CreatureType.PLANKTON) {
         ctx.save();
         ctx.strokeStyle = 'rgba(0,0,0,0.55)';
         ctx.lineWidth = Math.max(1.5, radius * 0.08);
@@ -484,8 +356,8 @@ export const drawCuteFish = (
     }
 
     // 绘制尾巴（装扮尾巴是鱼形专属；水母/章鱼等的尾/触须由形状模板自带）
-    if (!volumeOnly && isFish && cosmetics?.tailType && cosmetics.tailType !== 'DEFAULT') {
-        drawTail(ctx, cosmetics.tailType, radius, visualTime);
+    if (!volumeOnly && !morphology && isFish && cosmetics?.tailType && cosmetics.tailType !== 'DEFAULT') {
+        drawTail(ctx, cosmetics.tailType, radius, visualTime, -0.9, bodyFill);
     }
 
     // 绘制眼睛
@@ -495,28 +367,14 @@ export const drawCuteFish = (
     if (volumeOnly) {
         // 实验室体积视图只保留身体、尾部和共享明暗层。
     } else if (cosmetics?.eyeType && cosmetics.eyeType !== 'NORMAL') {
-        drawEyes(ctx, cosmetics.eyeType, eyeX, eyeY, eyeRadius / 0.2, visualTime);
+        drawEyes(ctx, cosmetics.eyeType, eyeX, eyeY, eyeRadius / 0.2, visualTime, fishEyeOpenness(entity, renderOptions.eyeTimeMs ?? visualTime * (1000 / 60)));
     } else {
-        const size = eyeRadius * 1.12;
-        if (radius >= 12) {
-            ctx.fillStyle = 'rgba(251,113,133,0.55)';
-            ctx.beginPath();
-            for (const side of [-1, 1]) {
-                ctx.ellipse(eyeX + radius * 0.24, side * Math.max(eyeY * 0.45, eyeY - size * 0.72), radius * 0.105, radius * 0.069, 0, 0, Math.PI * 2);
-            }
-            ctx.fill();
-        }
-        for (const side of [-1, 1]) {
-            const y = side * eyeY;
-            ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(eyeX, y, size, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(eyeX + size * 0.23, y, size * 0.54, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.arc(eyeX + size * 0.41, side * (eyeY + size * 0.18), size * 0.17, 0, Math.PI * 2); ctx.fill();
-        }
+        drawCuteFace(ctx, radius, eyeX, eyeY, eyeRadius / radius, fishEyeOpenness(entity, renderOptions.eyeTimeMs ?? visualTime * (1000 / 60)));
     }
 
     // 绘制眉毛
     if (!volumeOnly && cosmetics?.eyebrowType && cosmetics.eyebrowType !== 'NONE') {
-        drawEyebrows(ctx, cosmetics.eyebrowType, eyeX, eyeY, radius);
+        drawEyebrows(ctx, cosmetics.eyebrowType, eyeX, eyeY, radius, eyeRadius * 1.32);
     }
 
     // 形状前景附属（灯笼/独角/长剑/钳/壳纹…）：盖在身体上，仍位于配饰之下
@@ -526,7 +384,7 @@ export const drawCuteFish = (
 
     // 绘制配饰
     if (!volumeOnly && cosmetics?.accessory && cosmetics.accessory !== 'NONE') {
-        drawAccessory(ctx, cosmetics.accessory, radius, visualTime);
+        drawAccessory(ctx, cosmetics.accessory, radius, visualTime, eyeX, eyeY, eyeRadius * 1.32);
     }
 
     ctx.restore();
@@ -604,661 +462,6 @@ const drawMorphologyMarks = (
     ctx.arc(mark.x * radius, mark.y * radius, mark.radius * radius * sizeScale, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.restore();
-};
-
-// ============== Cosmetic 渲染辅助函数 ==============
-
-/** 获取体型参数（scaleX/scaleY 直接乘在鱼身的局部变换上：>1 变胖、<1 变瘦） */
-const getBodyTypeParams = (bodyType: BodyType): { scaleX: number; scaleY: number } => {
-  const params: Record<BodyType, { scaleX: number; scaleY: number }> = {
-    DEFAULT: { scaleX: 1, scaleY: 1 },
-    ROUND: { scaleX: 1.15, scaleY: 1.15 },
-    SLENDER: { scaleX: 0.85, scaleY: 1.2 },
-    CHUNKY: { scaleX: 1.25, scaleY: 0.88 },
-    BOX: { scaleX: 1.05, scaleY: 0.95 },
-    STAR: { scaleX: 1.15, scaleY: 1.15 },
-    MERMAID: { scaleX: 0.9, scaleY: 1.12 },
-    RAY: { scaleX: 1.35, scaleY: 0.7 },
-    EEL: { scaleX: 0.68, scaleY: 1.45 },
-  };
-  return params[bodyType] || params.DEFAULT;
-};
-
-/** 绘制尾巴 */
-const drawTail = (ctx: CanvasRenderingContext2D, tailType: TailType, radius: number, visualTime: number) => {
-  const tailOffset = -radius * 0.9;
-  const tailWag = Math.sin(visualTime * 0.15) * 0.1;
-
-  ctx.save();
-  ctx.translate(tailOffset, 0);
-  ctx.rotate(tailWag);
-
-  ctx.fillStyle = ctx.fillStyle || '#888';
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-  ctx.lineWidth = 1;
-
-  switch (tailType) {
-    case 'CRESCENT':
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.5, -Math.PI * 0.6, Math.PI * 0.6);
-      ctx.lineTo(0, 0);
-      ctx.fill();
-      break;
-    case 'FORKED':
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-radius * 0.4, -radius * 0.3);
-      ctx.lineTo(-radius * 0.5, 0);
-      ctx.lineTo(-radius * 0.4, radius * 0.3);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    case 'FAN':
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.arc(0, 0, radius * 0.4, -Math.PI * 0.7, Math.PI * 0.7);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    case 'TRIDENT':
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-radius * 0.6, -radius * 0.25);
-      ctx.lineTo(-radius * 0.4, 0);
-      ctx.lineTo(-radius * 0.6, radius * 0.25);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    case 'RIBBON':
-      for (let i = -1; i <= 1; i++) {
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        const wave = Math.sin(visualTime * 0.2 + i) * radius * 0.15;
-        ctx.quadraticCurveTo(-radius * 0.3, wave, -radius * 0.5, i * radius * 0.15);
-        ctx.lineWidth = 3;
-        ctx.stroke();
-      }
-      break;
-    case 'LOBSTER': { // 龙虾尾：分节 + 尾扇
-      ctx.fillStyle = '#f97316';
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.ellipse(-radius * (0.3 + i * 0.22), 0, radius * 0.16, radius * (0.34 - i * 0.06), 0, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
-      }
-      ctx.beginPath();
-      ctx.moveTo(-radius * 0.95, 0);
-      ctx.lineTo(-radius * 1.35, -radius * 0.3);
-      ctx.lineTo(-radius * 1.2, 0);
-      ctx.lineTo(-radius * 1.35, radius * 0.3);
-      ctx.closePath();
-      ctx.fill(); ctx.stroke();
-      break;
-    }
-    case 'MECHANICAL': { // 机械尾：金属板 + 喷口尾焰
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-radius * 0.55, -radius * 0.32);
-      ctx.lineTo(-radius * 0.38, 0);
-      ctx.lineTo(-radius * 0.55, radius * 0.32);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(-radius * 0.66, -radius * 0.1, radius * 0.14, radius * 0.2);
-      ctx.fillStyle = 'rgba(34,211,238,0.7)';
-      const flame = radius * (0.28 + Math.abs(Math.sin(visualTime * 0.25)) * 0.36);
-      ctx.beginPath();
-      ctx.moveTo(-radius * 0.66, -radius * 0.08);
-      ctx.lineTo(-radius * 0.66 - flame, 0);
-      ctx.lineTo(-radius * 0.66, radius * 0.08);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    }
-    case 'GHOST': { // 幽灵尾：三团半透明飘絮
-      ctx.globalAlpha = 0.45;
-      ctx.fillStyle = '#c7d2fe';
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.ellipse(
-          -radius * (0.25 + i * 0.28),
-          Math.sin(visualTime * 0.12 + i) * radius * 0.14,
-          radius * 0.28, radius * 0.34, 0, 0, Math.PI * 2
-        );
-        ctx.fill();
-      }
-      break;
-    }
-    default:
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-radius * 0.4, -radius * 0.2);
-      ctx.lineTo(-radius * 0.5, 0);
-      ctx.lineTo(-radius * 0.4, radius * 0.2);
-      ctx.closePath();
-      ctx.fill();
-  }
-  ctx.restore();
-};
-
-/** 绘制眼睛（根据眼睛类型） */
-const drawEyes = (ctx: CanvasRenderingContext2D, eyeType: EyeType, eyeX: number, eyeY: number, radius: number, visualTime: number) => {
-  ctx.fillStyle = 'white';
-
-  switch (eyeType) {
-    case 'ANIME':
-      ctx.beginPath(); ctx.ellipse(eyeX, -eyeY, radius * 0.25, radius * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(eyeX, eyeY, radius * 0.25, radius * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#0066cc';
-      ctx.beginPath(); ctx.arc(eyeX + radius * 0.02, -eyeY, radius * 0.12, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(eyeX + radius * 0.02, eyeY, radius * 0.12, 0, Math.PI * 2); ctx.fill();
-      break;
-    case 'MAD':
-      ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(eyeX, eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#cc0000';
-      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, -eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
-      break;
-    case 'DERP':
-      for (const side of [-1, 1]) {
-        ctx.fillStyle = 'white';
-        ctx.beginPath(); ctx.arc(eyeX + radius * 0.08, side * (eyeY + radius * 0.05), radius * 0.18, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'black';
-        ctx.beginPath(); ctx.arc(eyeX + radius * 0.1, side * (eyeY + radius * 0.03), radius * 0.08, 0, Math.PI * 2); ctx.fill();
-      }
-      break;
-    case 'DEAD':
-      ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(eyeX, eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.15, -eyeY - radius * 0.1); ctx.lineTo(eyeX + radius * 0.15, -eyeY + radius * 0.1); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.15, eyeY - radius * 0.1); ctx.lineTo(eyeX + radius * 0.15, eyeY + radius * 0.1); ctx.stroke();
-      break;
-    case 'CAT': { // 猫眼：竖瞳
-      ctx.fillStyle = '#fde68a';
-      ctx.beginPath(); ctx.ellipse(eyeX, -eyeY, radius * 0.22, radius * 0.26, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(eyeX, eyeY, radius * 0.22, radius * 0.26, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#111827';
-      ctx.beginPath(); ctx.ellipse(eyeX, -eyeY, radius * 0.05, radius * 0.2, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(eyeX, eyeY, radius * 0.05, radius * 0.2, 0, 0, Math.PI * 2); ctx.fill();
-      break;
-    }
-    case 'FIRE': { // 火焰眼：外橙内黄 + 跳动火苗
-      const flicker = 1 + Math.sin(visualTime * 0.35) * 0.12;
-      for (const ey of [-eyeY, eyeY]) {
-        ctx.fillStyle = '#f97316';
-        ctx.beginPath(); ctx.ellipse(eyeX, ey, radius * 0.24 * flicker, radius * 0.28, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fde047';
-        ctx.beginPath(); ctx.ellipse(eyeX, ey - radius * 0.03, radius * 0.14, radius * 0.17, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff7ed';
-        ctx.beginPath(); ctx.ellipse(eyeX, ey - radius * 0.05, radius * 0.06, radius * 0.08, 0, 0, Math.PI * 2); ctx.fill();
-      }
-      break;
-    }
-    case 'CYBORG': { // 机械眼：红色镜头 + 扫描线
-      ctx.shadowColor = '#ef4444';
-      ctx.shadowBlur = 6;
-      for (const ey of [-eyeY, eyeY]) {
-        ctx.fillStyle = '#111827';
-        ctx.beginPath(); ctx.arc(eyeX, ey, radius * 0.22, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ef4444';
-        ctx.beginPath(); ctx.arc(eyeX, ey, radius * 0.13, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(239,68,68,0.85)';
-      ctx.lineWidth = 2;
-      const scanOffset = Math.sin(visualTime * 0.12) * radius * 0.2;
-      for (const side of [-1, 1]) {
-        const scan = side * (eyeY + scanOffset);
-        ctx.beginPath(); ctx.moveTo(eyeX - radius * 0.26, scan); ctx.lineTo(eyeX + radius * 0.26, scan); ctx.stroke();
-      }
-      break;
-    }
-    case 'LOVE': { // 爱心眼
-      ctx.fillStyle = '#f472b6';
-      for (const ey of [-eyeY, eyeY]) {
-        const s = radius * 0.26;
-        ctx.beginPath();
-        ctx.arc(eyeX - s * 0.35, ey - s * 0.2, s * 0.4, 0, Math.PI * 2);
-        ctx.arc(eyeX + s * 0.35, ey - s * 0.2, s * 0.4, 0, Math.PI * 2);
-        ctx.moveTo(eyeX - s * 0.75, ey - s * 0.02);
-        ctx.lineTo(eyeX, ey + s * 0.8);
-        ctx.lineTo(eyeX + s * 0.75, ey - s * 0.02);
-        ctx.closePath();
-        ctx.fill();
-      }
-      break;
-    }
-    default:
-      ctx.beginPath(); ctx.arc(eyeX, -eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(eyeX, eyeY, radius * 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'black';
-      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, -eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(eyeX + radius * 0.05, eyeY, radius * 0.1, 0, Math.PI * 2); ctx.fill();
-  }
-};
-
-/** 绘制眉毛 */
-const drawEyebrows = (ctx: CanvasRenderingContext2D, eyebrowType: EyebrowType, eyeX: number, eyeY: number, radius: number) => {
-  for (const side of [1, -1]) {
-    ctx.save();
-    ctx.scale(1, side);
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.lineWidth = 2;
-    const yOff = -eyeY - radius * 0.35;
-    switch (eyebrowType) {
-    case 'ANGRY':
-      ctx.beginPath();
-      ctx.moveTo(eyeX - radius * 0.2, yOff - radius * 0.1);
-      ctx.lineTo(eyeX + radius * 0.2, yOff + radius * 0.1);
-      ctx.stroke();
-      break;
-    case 'SAD': // 八字愁眉：和 ANGRY 镜像 + 中段下坠，一副委屈样
-      ctx.beginPath();
-      ctx.moveTo(eyeX - radius * 0.22, yOff + radius * 0.12);
-      ctx.quadraticCurveTo(eyeX, yOff + radius * 0.02, eyeX + radius * 0.22, yOff - radius * 0.1);
-      ctx.stroke();
-      break;
-    case 'CONFUSED': // 困惑挑眉：单边高高挑起的拱线
-      ctx.beginPath();
-      ctx.moveTo(eyeX - radius * 0.22, yOff + radius * 0.08);
-      ctx.quadraticCurveTo(eyeX - radius * 0.02, yOff - radius * 0.28, eyeX + radius * 0.16, yOff - radius * 0.02);
-      ctx.stroke();
-      break;
-    case 'TIERED': // 层层眉：三条渐细的平行横线堆出层次
-      for (let i = 0; i < 3; i++) {
-        ctx.lineWidth = 3 - i * 0.8;
-        ctx.beginPath();
-        ctx.moveTo(eyeX - radius * 0.24, yOff - radius * 0.08 + i * radius * 0.12);
-        ctx.lineTo(eyeX + radius * 0.22, yOff - radius * 0.1 + i * radius * 0.12);
-        ctx.stroke();
-      }
-      break;
-    case 'THICK':
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(eyeX - radius * 0.25, yOff);
-      ctx.lineTo(eyeX + radius * 0.25, yOff);
-      ctx.stroke();
-      break;
-    case 'UNI':
-      ctx.beginPath();
-      ctx.arc(eyeX + radius * 0.1, yOff, radius * 0.25, 0, Math.PI * 2);
-      ctx.stroke();
-      break;
-      default:
-        ctx.beginPath();
-        ctx.moveTo(eyeX - radius * 0.2, yOff);
-        ctx.lineTo(eyeX + radius * 0.15, yOff - radius * 0.05);
-        ctx.stroke();
-    }
-    ctx.restore();
-  }
-};
-
-/** 绘制配饰 */
-const drawAccessory = (ctx: CanvasRenderingContext2D, accessory: AccessoryType, radius: number, visualTime: number) => {
-  ctx.save();
-
-  switch (accessory) {
-    case 'CROWN':
-      ctx.fillStyle = '#ffd700';
-      ctx.strokeStyle = '#b8860b';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(-radius * 0.3, -radius * 0.6);
-      ctx.lineTo(-radius * 0.2, -radius * 0.9);
-      ctx.lineTo(0, -radius * 0.7);
-      ctx.lineTo(radius * 0.2, -radius * 0.9);
-      ctx.lineTo(radius * 0.3, -radius * 0.6);
-      ctx.closePath();
-      ctx.fill(); ctx.stroke();
-      break;
-    case 'BOW_TIE':
-      ctx.fillStyle = '#ff4444';
-      ctx.beginPath();
-      ctx.moveTo(0, radius * 0.1);
-      ctx.lineTo(-radius * 0.3, radius * 0.2);
-      ctx.lineTo(-radius * 0.15, radius * 0.1);
-      ctx.lineTo(0, radius * 0.05);
-      ctx.lineTo(radius * 0.15, radius * 0.1);
-      ctx.lineTo(radius * 0.3, radius * 0.2);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    case 'FLOWER':
-      const petalCount = 5;
-      for (let i = 0; i < petalCount; i++) {
-        ctx.save();
-        ctx.rotate((i / petalCount) * Math.PI * 2 + visualTime * 0.05);
-        ctx.fillStyle = ['#ff69b4', '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff'][i % 5];
-        ctx.beginPath();
-        ctx.ellipse(radius * 0.5, 0, radius * 0.15, radius * 0.25, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-      break;
-    case 'SUNGLASSES':
-      ctx.fillStyle = '#111';
-      const sx = radius * 0.35;
-      const sy = radius * 0.45;
-      ctx.beginPath();
-      ctx.ellipse(sx, -sy, radius * 0.2, radius * 0.15, 0, 0, Math.PI * 2);
-      ctx.ellipse(sx, sy, radius * 0.2, radius * 0.15, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#111';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(sx + radius * 0.2, -sy);
-      ctx.lineTo(sx + radius * 0.2, sy);
-      ctx.stroke();
-      break;
-    case 'HALO':
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.ellipse(0, -radius * 0.9, radius * 0.4, radius * 0.1, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      break;
-    case 'EYEPATCH': { // 眼罩：盖住上面那只眼 + 斜绑带
-      const ex = radius * 0.35;
-      const ey = -radius * 0.45;
-      ctx.strokeStyle = '#111827';
-      ctx.lineWidth = Math.max(2, radius * 0.09);
-      ctx.beginPath();
-      ctx.moveTo(-radius * 0.2, -radius * 0.98);
-      ctx.lineTo(radius * 0.85, -radius * 0.05);
-      ctx.stroke();
-      ctx.fillStyle = '#111827';
-      ctx.beginPath();
-      ctx.ellipse(ex, ey, radius * 0.29, radius * 0.24, -0.2, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    }
-    case 'GOLD_CHAIN': { // 金链：绕身子一圈，在嘴的位置留个缺口，两端有卡扣
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = Math.max(2, radius * 0.09);
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.74, 0.7, Math.PI * 2 - 0.7);
-      ctx.stroke();
-      ctx.strokeStyle = '#fef3c7'; // 链节高光
-      ctx.lineWidth = Math.max(1, radius * 0.03);
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.74, 0.7, Math.PI * 2 - 0.7);
-      ctx.stroke();
-      ctx.fillStyle = '#f59e0b';
-      for (const a of [0.7, -0.7]) {
-        ctx.beginPath();
-        ctx.arc(Math.cos(a) * radius * 0.74, Math.sin(a) * radius * 0.74, radius * 0.09, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      break;
-    }
-    default:
-      break;
-  }
-
-  ctx.restore();
-};
-
-/** 绘制花纹图案 */
-const drawPattern = (ctx: CanvasRenderingContext2D, pattern: PatternType, radius: number, visualTime: number) => {
-  ctx.save();
-  ctx.globalAlpha = 0.4;
-
-  switch (pattern) {
-    case 'STRIPES':
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 3;
-      for (let i = -3; i <= 3; i++) {
-        ctx.beginPath();
-        ctx.moveTo(i * radius * 0.3, -radius);
-        ctx.lineTo(i * radius * 0.3, radius);
-        ctx.stroke();
-      }
-      break;
-    case 'SPOTS':
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      for (let i = 0; i < 5; i++) {
-        const angle = (i / 5) * Math.PI * 2 + visualTime * 0.02;
-        const x = Math.cos(angle) * radius * 0.4;
-        const y = Math.sin(angle) * radius * 0.3;
-        ctx.beginPath();
-        ctx.arc(x, y, radius * 0.1, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      break;
-    case 'HEART':
-      ctx.fillStyle = 'rgba(255,100,100,0.5)';
-      ctx.beginPath();
-      const hx = Math.sin(visualTime * 0.1) * radius * 0.1;
-      ctx.moveTo(hx, radius * 0.2);
-      ctx.bezierCurveTo(hx - radius * 0.2, -radius * 0.1, hx - radius * 0.3, -radius * 0.3, hx, -radius * 0.15);
-      ctx.bezierCurveTo(hx + radius * 0.3, -radius * 0.3, hx + radius * 0.2, -radius * 0.1, hx, radius * 0.2);
-      ctx.fill();
-      break;
-    case 'TIGER': { // 虎纹：粗细不一的黑横纹，压着底色走
-      ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = 'rgba(20,12,0,0.85)';
-      const tigerRows = [-0.62, -0.3, 0.02, 0.34, 0.66];
-      tigerRows.forEach((ty, i) => {
-        ctx.lineWidth = radius * (i % 2 === 0 ? 0.13 : 0.08);
-        ctx.beginPath();
-        ctx.moveTo(-radius * 0.75, ty * radius);
-        ctx.quadraticCurveTo(0, ty * radius + radius * 0.1 * (i % 2 === 0 ? 1 : -1), radius * 0.75, ty * radius);
-        ctx.stroke();
-      });
-      break;
-    }
-    case 'ZEBRA': { // 斑马纹：密而粗的竖纹（比 STRIPES 更抢眼）
-      ctx.globalAlpha = 0.7;
-      ctx.lineWidth = radius * 0.16;
-      for (let i = -2; i <= 2; i++) {
-        ctx.strokeStyle = i % 2 === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(15,15,15,0.85)';
-        ctx.beginPath();
-        ctx.moveTo(i * radius * 0.32, -radius);
-        ctx.quadraticCurveTo(i * radius * 0.32 + radius * 0.12, 0, i * radius * 0.32, radius);
-        ctx.stroke();
-      }
-      break;
-    }
-    case 'STAR': { // 星星：散布的小五角星，随时间缓慢自转
-      ctx.fillStyle = 'rgba(255,248,200,0.95)';
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2 + visualTime * 0.01;
-        const cx = Math.cos(a) * radius * 0.42;
-        const cy = Math.sin(a) * radius * 0.32;
-        const rr = radius * (0.14 + (i % 2) * 0.05);
-        ctx.beginPath();
-        for (let k = 0; k < 10; k++) {
-          const ang = (k / 10) * Math.PI * 2 - Math.PI / 2 + visualTime * 0.02;
-          const rad = k % 2 === 0 ? rr : rr * 0.45;
-          const px = cx + Math.cos(ang) * rad;
-          const py = cy + Math.sin(ang) * rad;
-          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-      }
-      break;
-    }
-    case 'GALAXY': { // 星系：深色底 + 星云 + 星点
-      const nebula = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-      nebula.addColorStop(0, 'rgba(139,92,246,0.75)');
-      nebula.addColorStop(0.55, 'rgba(30,58,138,0.6)');
-      nebula.addColorStop(1, 'rgba(2,6,23,0.85)');
-      ctx.globalAlpha = 0.8;
-      ctx.fillStyle = nebula;
-      ctx.beginPath();
-      ctx.arc(0, 0, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#ffffff';
-      for (let i = 0; i < 14; i++) {
-        // 用固定公式散点，避免每帧抖动；半径用 i 的倍数错开
-        const a = i * 2.399;
-        const rr = radius * (0.2 + ((i * 37) % 100) / 140);
-        const twinkle = 0.55 + Math.sin(visualTime * 0.12 + i) * 0.45;
-        ctx.globalAlpha = twinkle;
-        ctx.beginPath();
-        ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr * 0.75, radius * (0.03 + (i % 3) * 0.012), 0, Math.PI * 2);
-        ctx.fill();
-      }
-      break;
-    }
-    case 'LAVA': { // 熔岩：橙红裂纹 + 发光
-      ctx.globalAlpha = 0.85;
-      ctx.shadowColor = '#f97316';
-      ctx.shadowBlur = 8;
-      ctx.lineWidth = radius * 0.1;
-      for (let i = 0; i < 3; i++) {
-        const y = (i - 1) * radius * 0.45;
-        ctx.strokeStyle = i === 1 ? 'rgba(254,215,170,0.95)' : 'rgba(249,115,22,0.9)';
-        ctx.beginPath();
-        ctx.moveTo(-radius * 0.9, y);
-        ctx.lineTo(-radius * 0.3, y - radius * 0.14);
-        ctx.lineTo(radius * 0.2, y + radius * 0.16);
-        ctx.lineTo(radius * 0.9, y - radius * 0.05);
-        ctx.stroke();
-      }
-      break;
-    }
-    case 'CLOUD': { // 云朵：几团白色椭圆叠着飘
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      const puffs: Array<[number, number, number]> = [
-        [-0.42, -0.18, 0.3], [0.02, -0.34, 0.24], [0.4, -0.05, 0.28], [-0.1, 0.34, 0.22],
-      ];
-      puffs.forEach(([px, py, pr], i) => {
-        ctx.beginPath();
-        ctx.ellipse(
-          px * radius + Math.sin(visualTime * 0.03 + i) * radius * 0.06,
-          py * radius,
-          pr * radius,
-          pr * radius * 0.62,
-          0, 0, Math.PI * 2
-        );
-        ctx.fill();
-      });
-      break;
-    }
-    default:
-      break;
-  }
-
-  ctx.restore();
-};
-
-/** 绘制鳞片效果 */
-const drawScaleEffect = (ctx: CanvasRenderingContext2D, scaleType: ScaleType, radius: number, visualTime: number, baseColor: string) => {
-  ctx.save();
-
-  switch (scaleType) {
-    case 'SHINY':
-      const gradient = ctx.createLinearGradient(-radius, 0, radius, 0);
-      gradient.addColorStop(0, 'rgba(255,255,255,0)');
-      gradient.addColorStop(0.5, 'rgba(255,255,255,0.3)');
-      gradient.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, radius * 0.8, radius * 0.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    case 'GLOW':
-      ctx.shadowColor = '#00ffff';
-      ctx.shadowBlur = 10 + Math.sin(visualTime * 0.1) * 5;
-      ctx.strokeStyle = 'rgba(0,255,255,0.5)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2);
-      ctx.stroke();
-      break;
-    case 'CRYSTAL':
-      ctx.strokeStyle = 'rgba(200,200,255,0.6)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(Math.cos(angle) * radius * 0.7, Math.sin(angle) * radius * 0.7);
-        ctx.stroke();
-      }
-      break;
-    case 'DRAGON': { // 龙鳞：六边形鳞片网格
-      ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = baseColor === 'DEFAULT' ? 'rgba(255,215,120,0.9)' : 'rgba(255,225,150,0.9)';
-      ctx.lineWidth = 1.4;
-      const step = radius * 0.3;
-      for (let row = -2; row <= 2; row++) {
-        for (let col = -2; col <= 2; col++) {
-          const cx = col * step + (row % 2 === 0 ? 0 : step / 2);
-          const cy = row * step * 0.85;
-          ctx.beginPath();
-          for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * Math.PI * 2 - Math.PI / 2;
-            const px = cx + Math.cos(a) * step * 0.42;
-            const py = cy + Math.sin(a) * step * 0.42;
-            if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-          }
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
-      break;
-    }
-    case 'ARMOR': { // 盔甲：横向板甲 + 铆钉
-      ctx.globalAlpha = 0.6;
-      ctx.strokeStyle = 'rgba(226,232,240,0.85)';
-      ctx.lineWidth = 2;
-      for (let i = -1; i <= 1; i++) {
-        const y = i * radius * 0.4;
-        ctx.beginPath();
-        ctx.moveTo(-radius * 0.85, y);
-        ctx.quadraticCurveTo(0, y + radius * 0.12, radius * 0.85, y);
-        ctx.stroke();
-        // 铆钉
-        ctx.fillStyle = 'rgba(203,213,225,0.95)';
-        for (const rx of [-0.5, 0, 0.5]) {
-          ctx.beginPath();
-          ctx.arc(rx * radius, y + radius * 0.02, radius * 0.045, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      break;
-    }
-    case 'MECHANICAL': { // 机械：面板网格 + 螺栓 + 走动的指示灯
-      ctx.globalAlpha = 0.65;
-      ctx.strokeStyle = 'rgba(148,163,184,0.9)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(-radius * 0.5, -radius); ctx.lineTo(-radius * 0.5, radius);
-      ctx.moveTo(radius * 0.2, -radius); ctx.lineTo(radius * 0.2, radius);
-      ctx.moveTo(-radius, -radius * 0.25); ctx.lineTo(radius, -radius * 0.25);
-      ctx.moveTo(-radius, radius * 0.35); ctx.lineTo(radius, radius * 0.35);
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(100,116,139,0.95)';
-      for (const [bx, by] of [[-0.7, -0.6], [-0.7, 0.62], [0.62, -0.6], [0.62, 0.62]] as Array<[number, number]>) {
-        ctx.beginPath();
-        ctx.arc(bx * radius, by * radius, radius * 0.06, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // 呼吸灯
-      ctx.globalAlpha = 0.5 + Math.sin(visualTime * 0.2) * 0.45;
-      ctx.fillStyle = '#22d3ee';
-      ctx.beginPath();
-      ctx.arc(radius * 0.55, radius * 0.05, radius * 0.07, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    }
-    default:
-      break;
-  }
-
   ctx.restore();
 };
 
@@ -1885,32 +1088,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
 
         // 静态生态装饰只绘制视野内的点；不参与碰撞与拾取。
         let visibleScenery = 0;
-        for (const mark of gameState.worldMode === 'ENDLESS' ? [] : getPondScenery(gameState.pondId, gameState.pondLayout)) {
+        for (const mark of getOceanScenery(gameState)) {
             if (!isOnScreen(mark, camera, canvas.width, canvas.height)) continue;
-            if (gameState.pondLayout && visibleScenery >= 40) break;
+            if (visibleScenery >= 64) break;
             visibleScenery += 1;
-            ctx.save();
-            ctx.translate(mark.x, mark.y);
-            if (mark.kind === 'LILY') {
-                ctx.fillStyle = 'rgba(112, 214, 160, 0.18)';
-                ctx.strokeStyle = 'rgba(183, 247, 199, 0.28)';
-                ctx.beginPath(); ctx.ellipse(0, 0, mark.radius, mark.radius * 0.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = 'rgba(248, 210, 229, 0.5)';
-                ctx.beginPath(); ctx.arc(mark.radius * 0.16, -mark.radius * 0.1, mark.radius * 0.12, 0, Math.PI * 2); ctx.fill();
-            } else if (mark.kind === 'CORAL') {
-                ctx.strokeStyle = 'rgba(255, 182, 152, 0.38)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-                for (const offset of [-0.55, 0, 0.55]) {
-                    ctx.beginPath(); ctx.moveTo(0, mark.radius * 0.45);
-                    ctx.lineTo(offset * mark.radius, -mark.radius * (0.45 + Math.abs(offset) * 0.2)); ctx.stroke();
-                }
-            } else {
-                ctx.fillStyle = 'rgba(165, 140, 255, 0.12)';
-                ctx.strokeStyle = 'rgba(185, 164, 255, 0.34)'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.arc(0, 0, mark.radius * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = 'rgba(215, 200, 255, 0.56)';
-                ctx.beginPath(); ctx.arc(0, 0, mark.radius * 0.15, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.restore();
+            drawCutePondScenery(ctx, mark, visualTime);
         }
 
         if (gameState.pondLayout) {
@@ -1953,7 +1135,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         gameState.obstacles.forEach(o => {
             const visualRadius = o.feature === 'VENT' && o.featureState !== 'IDLE'
                 ? o.radius + OBSTACLE_ECOLOGY.VENT_RANGE
-                : o.radius;
+                : o.reef?.anchor ? o.reef.halfLength + 220 : o.radius;
             if (!isOnScreen({ ...o, radius: visualRadius }, camera, canvas.width, canvas.height)) return;
             drawObstacleCanvas(ctx, o, visualTime);
         });
@@ -2227,9 +1409,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         });
 
         particles.forEach(p => {
-            if (!isOnScreen({ x: p.x, y: p.y, radius: p.size }, camera, canvas.width, canvas.height)) return;
+            if (!isOnScreen({ x: p.x, y: p.y, radius: Math.max(p.size, p.length ?? 0) }, camera, canvas.width, canvas.height)) return;
             ctx.globalAlpha = p.life;
-            if (p.shape === 'COOKIE') {
+            if (isBoostTrail(p)) {
+                drawBoostTrailCanvas(ctx, p);
+            } else if (p.shape === 'COOKIE') {
                 drawCookie(ctx, p.x, p.y, p.size, p.spin ?? 0);
             } else {
                 ctx.fillStyle = p.color;
@@ -2296,7 +1480,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         // 诱饵开着的鱼（灯笼鱼埋伏）画成「大肉块」—— 伪装的意义就是让小鱼认不出来
         visibleEntities.forEach(e => {
             if (e.lureActive) drawMeatBlock(ctx, e);
-            else drawCuteFish(ctx, e, visualTime, false);
+            else drawCuteFish(ctx, e, visualTime, false, { eyeTimeMs: now });
         });
 
         // 稀有变体只在近距离显示名称，避免全图标签噪声。
@@ -2375,7 +1559,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onMouseMove, onMouse
         if (player.lureActive) {
             drawMeatBlock(ctx, player);
         } else {
-            drawCuteFish(ctx, player, visualTime, true);
+            drawCuteFish(ctx, player, visualTime, true, { eyeTimeMs: now });
         }
 
         // 对话气泡：combat/ai/world/squad/skills… 十来个系统都在写 speechBubble，

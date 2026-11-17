@@ -23,7 +23,7 @@ export const MAX_POWERUPS = 40;
  */
 export const RIVALS_SPAWN_CONFIG = {
   /** 玩家周边至少维持多少条非队友生物，达到后恢复全图背景生成 */
-  NEARBY_TARGET: 60,
+  NEARBY_TARGET: 24,
   /** 普通生物的生成环带，避免贴脸又保证短时间内可抵达 */
   NEAR_MIN_DISTANCE: 520,
   NEAR_MAX_DISTANCE: 1050,
@@ -41,6 +41,9 @@ export const RIVALS_SPAWN_CONFIG = {
   /** 主要事件前 15 秒开始释放远处、未交战的背景实体 */
   RESERVE_LEAD_FRAMES: 15 * 60,
 } as const;
+
+/** Natural wildlife is spread out at spawn; scripted encounters retain their own placement. */
+export const WILDLIFE_SPACING = { gap: 50, localRadius: 240, localLimit: 7, population: 120 } as const;
 
 /** 花瓣形地图：基础半径 + 沿角度的花瓣外扩量 */
 export const MAP_SHAPE_CONFIG = {
@@ -159,7 +162,8 @@ export const TREASURE_CONFIG = {
   MASS_REWARD: 500,
   BUFF_DURATION: 1200,
 
-  FEAST_REWARD: 800,
+  /** 一份大餐提供早期成长奖励，不能一次跨过全部进化门槛（30/100/300）。 */
+  FEAST_REWARD: 20,
   CHEST_GOLD: 100,
   FOOD_HEAL: 50,
 
@@ -287,6 +291,15 @@ export const COMBAT_CONFIG = {
   VULNERABLE_DAMAGE_MULT: 2.0,
   /** 护盾吸收伤害的比例（剩下的照常扣血） */
   SHIELD_ABSORB_RATIO: 0.7,
+};
+
+/** 玩家成长的奖励与体型上限。 */
+export const PLAYER_GROWTH_CONFIG = {
+  RADIUS_PER_LEVEL: 2,
+  /** 等级成长最多把本鱼种放大到基础体型的 1.6 倍。 */
+  MAX_RADIUS_MULT: 1.6,
+  /** 首领的高权重不应一次兑换几十级；上限随玩家当前阶级提高。 */
+  MAX_KILL_WEIGHT_PER_TIER: 30,
 };
 
 /** 进化所需累计体重 */

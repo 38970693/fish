@@ -163,6 +163,12 @@ export const endlessExplorationSystem = (state: GameState, ctx: FrameContext): v
   }
 
   if (record.phase === 'SEARCHING' || record.phase === 'RESTING') {
+    if (state.player.health <= 0) {
+      return cancelInteraction(state, target.kind === 'SHIPWRECK' ? '搜索因死亡中断' : '休整因死亡中断');
+    }
+    if (isFeedingEventMajorPhase(state)) {
+      return cancelInteraction(state, '主要事件开始，探索中断');
+    }
     const progress = 1 - record.timer / Math.max(1, record.duration);
     building.activity = { progress: Math.max(0, Math.min(1, progress)), color: target.kind === 'SHIPWRECK' ? '#fbbf24' : '#fb923c' };
     building.prompt = {

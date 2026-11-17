@@ -10,6 +10,7 @@ import { recordRun } from './leaderboard';
 import { GameStatus } from '../types';
 import type { GameState, FrameContext } from '../types';
 import { tryPossessOnDeath } from './squad';
+import { getPlayerGrowthRadius, getPlayerRadiusCapacity } from './playerGrowth';
 
 /**
  * 应用一次进化选择（G1 放行条件 · 3 分钟切片台架共用）。
@@ -24,10 +25,20 @@ export const applyEvolutionChoice = (state: GameState, type: string): void => {
   const player = state.player;
   const newConfig = CREATURES[type as keyof typeof CREATURES];
   if (!newConfig) return;
+  const nextRadius = getPlayerGrowthRadius(newConfig.baseRadius, player.level);
+  if (nextRadius > getPlayerRadiusCapacity(state)) {
+    player.pendingEvolutionType = type;
+    state.status = GameStatus.PLAYING;
+    state.evolveOptions = [];
+    player.speechBubble = { text: '进化准备好啦，先游到宽处！', timer: 180, color: '#bef264' };
+    return;
+  }
 
   player.type = type as typeof player.type;
   player.config = newConfig;
-  player.radius = newConfig.baseRadius + (player.level - 1) * 2;
+  player.radius = nextRadius;
+  player.pendingRadiusGrowth = 0;
+  player.pendingEvolutionType = undefined;
   player.maxHealth = newConfig.health;
   player.health = newConfig.health;
   player.speed = newConfig.speed * 1.2;
@@ -56,6 +67,14 @@ export const progressionSystem = (state: GameState, ctx: FrameContext): void => 
   }
   if (state.labels.some((l) => (l.timer ?? 0) <= 0)) {
     state.labels = state.labels.filter((l) => (l.timer ?? 0) > 0);
+  }
+
+  // Arena owns elimination and match-end decisions; body selection is enabled in a later slice.
+  if (state.arena) {
+    if (state.particles.length > 240) state.particles = state.particles.slice(-240);
+    state.camera.x += (player.x - state.camera.x) * 0.1;
+    state.camera.y += (player.y - state.camera.y) * 0.1;
+    return;
   }
 
   /* ── 3. 死亡判定 ── */
@@ -99,13 +118,19 @@ export const progressionSystem = (state: GameState, ctx: FrameContext): void => 
   }
 
   /* ── 4. 进化检查 ── */
+  if (player.pendingEvolutionType && state.status === GameStatus.PLAYING) {
+    const next = CREATURES[player.pendingEvolutionType as keyof typeof CREATURES];
+    if (next && getPlayerGrowthRadius(next.baseRadius, player.level) <= getPlayerRadiusCapacity(state)) {
+      applyEvolutionChoice(state, player.pendingEvolutionType);
+    }
+  }
   const nextThreshold = EVOLUTION_THRESHOLDS.find((t) => t.tier === player.config.tier + 1);
-  // `status !== EVOLVING` 是幂等门闸：已经在进化界面里就别再抽一次 —— 否则系统被重复调用时
-  // 候选会被重新洗牌、'evolve' 事件也会重复发（成就重复计数）。有它，本次抽取才是「一局一次」。
+  // 只在正常游玩时发起进化，已抽取的候选和胜负结算状态不能被下一轮检查覆盖。
   if (
     nextThreshold &&
+    !player.pendingEvolutionType &&
     player.evolutionPoints >= nextThreshold.weight &&
-    state.status !== GameStatus.EVOLVING
+    state.status === GameStatus.PLAYING
   ) {
     // ⚠️ 进化候选**只在这里抽一次**，存成快照给 UI 渲染。
     //    候选要洗牌、还依赖当时的吃鱼历史，如果放 UI 渲染期现算，100ms 一次的状态同步

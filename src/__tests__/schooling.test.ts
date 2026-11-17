@@ -16,6 +16,16 @@ const makeCtx = (): FrameContext => ({
 });
 
 describe('鱼群效应', () => {
+  it('自然鱼群更早拉开间距，脚本鱼群保持原有聚合规则', () => {
+    const fish = createEntity(CreatureType.CLOWN_FISH, 0, 0, { moodId: 'CALM' });
+    const neighbor = createEntity(CreatureType.CLOWN_FISH, 0, 70, { moodId: 'CALM' });
+    fish.angle = neighbor.angle = 0;
+    const scripted = calculateSchoolHeading(fish, [neighbor])!;
+    fish.naturalSpawn = true;
+    const loose = calculateSchoolHeading(fish, [neighbor])!;
+    expect(scripted).toBeGreaterThan(0.2);
+    expect(loose).toBeLessThan(0.15);
+  });
   it('对齐和聚合会把掉队鱼引回群体航向', () => {
     const fish = createEntity(CreatureType.CLOWN_FISH, 0, 0, { moodId: 'CALM' });
     fish.angle = Math.PI;

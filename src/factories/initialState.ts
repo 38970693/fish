@@ -9,6 +9,7 @@ import { CREATURES, CreatureType } from '../data/creatures';
 import { WORLD_SIZE, BOOST_CONFIG, MAP_SHAPE_CONFIG } from '../data/world';
 import { DEFAULT_SQUAD_COMMAND } from '../data/squadRoles';
 import { BiomeType } from '../data/biomes';
+import { createQuestRun } from '../data/quests';
 import { DEFAULT_POND, type PondId } from '../data/ponds';
 import {
   RIVALS_RULES,
@@ -23,6 +24,7 @@ import { createRivalSquads } from '../data/rivalSquads';
 import { createCurrentZones } from '../data/habitats';
 import { createExplorationEventState } from '../data/explorationEvents';
 import { createPondOpportunityState } from '../data/pondOpportunities';
+import { initializeArena } from './arena';
 import {
   generatePondLayout,
   getSafePondLayout,
@@ -39,6 +41,8 @@ import {
 } from '../data/endlessWorld';
 
 export interface CreateInitialStateOptions {
+  /** Isolated combat laboratories can omit quest rewards; normal games enable them. */
+  enableQuests?: boolean;
   startType?: string;
   cosmetics?: Cosmetics;
   /** 选塘（「多鱼塘」阶段 1）：决定开局生态区、刷怪与计分。缺省 = 清水塘 */
@@ -67,12 +71,13 @@ const loadSkillLevel = (): number => {
 };
 
 export const createInitialState = (options: CreateInitialStateOptions = {}): GameState => {
-  const startType = options.startType ?? CreatureType.CLOWN_FISH;
-  const pondId = options.pondId ?? DEFAULT_POND;
-  // 「鱼群争霸」规则入口：LEGACY 时 createRunState 返回 undefined，state.run 保持缺省
   const mode = options.mode ?? resolveRunMode();
+  const isArena = mode === 'ARENA';
+  const startType = isArena ? CreatureType.CLOWN_FISH : options.startType ?? CreatureType.CLOWN_FISH;
+  const pondId = isArena ? DEFAULT_POND : options.pondId ?? DEFAULT_POND;
+  // 「鱼群争霸」规则入口：LEGACY 时 createRunState 返回 undefined，state.run 保持缺省
   const run = createRunState(mode);
-  const worldMode = resolveWorldMode(options.worldMode);
+  const worldMode = isArena ? 'FINITE' : resolveWorldMode(options.worldMode);
   const endlessSeed = worldMode === 'ENDLESS' ? resolveWorldSeed(options.worldSeed ?? options.pondSeed) : undefined;
   const pondLayoutMode = worldMode === 'ENDLESS' ? 'CLASSIC' : resolvePondLayoutMode(mode, options.pondLayout);
   const layoutSeed = pondLayoutMode === 'PROCEDURAL' ? resolvePondSeed(options.pondSeed) : undefined;
@@ -119,7 +124,7 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     biomeDebuffTimer: 0,
     skillCooldown: 0,
     skillMaxCooldown: 180,
-    skillLevel: loadSkillLevel(),
+    skillLevel: isArena ? 1 : loadSkillLevel(),
     // P1-3 流派技能：由 systems/skills.ts 每帧按等级写回 schoolSkillId
     schoolSkillId: undefined,
     schoolSkillCooldown: 0,
@@ -130,12 +135,16 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     angerTimer: 0,
   };
 
-  let obstacles = options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createObstacles(pondId, pondLayout);
+  let buildings = isArena || options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createBuildings(pondId, pondLayout);
+  let portals = options.skipWorldGen || !allowPondTravel || worldMode === 'ENDLESS' ? [] : createPortals(pondId, pondLayout);
+  let obstacles = isArena || options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createObstacles(pondId, pondLayout, [...buildings, ...portals]);
   if (pondLayout && !options.skipWorldGen) {
     const validation = validatePondLayoutReachability(pondLayout, obstacles, pondId);
     if (!validation.ok && !pondLayout.fallbackReason) {
       pondLayout = getSafePondLayout(layoutSeed!, pondId, validation.reason);
-      obstacles = createObstacles(pondId, pondLayout);
+      buildings = createBuildings(pondId, pondLayout);
+      portals = allowPondTravel ? createPortals(pondId, pondLayout) : [];
+      obstacles = createObstacles(pondId, pondLayout, [...buildings, ...portals]);
       startX = pondLayout.spawn.x;
       startY = pondLayout.spawn.y;
       player.x = startX;
@@ -143,8 +152,9 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     }
   }
 
-  return {
+  const state: GameState = {
     status: GameStatus.MENU,
+    quests: isArena || options.enableQuests === false ? undefined : createQuestRun(player.level),
     player,
     entities: [],
     squad: {
@@ -163,14 +173,14 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     obstacles,
     powerUps: [],
     hazards: [],
-    portals: options.skipWorldGen || !allowPondTravel || worldMode === 'ENDLESS' ? [] : createPortals(pondId, pondLayout),
-    buildings: options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createBuildings(pondId, pondLayout),
+    portals,
+    buildings,
     currents: options.skipWorldGen || worldMode === 'ENDLESS' ? [] : createCurrentZones(pondId, pondLayout),
     treasures: [],
-    feedingEvent: run ? createFeedingEventState() : undefined,
+    feedingEvent: mode === 'RIVALS' ? createFeedingEventState() : undefined,
     exploration: createExplorationEventState(),
     pondOpportunity: pondLayoutMode === 'PROCEDURAL' && run ? createPondOpportunityState() : undefined,
-    rivalSquads: run ? createRivalSquads() : undefined,
+    rivalSquads: mode === 'RIVALS' ? createRivalSquads() : undefined,
     fountains: [],
     labels: [],
     pondId,
@@ -190,4 +200,6 @@ export const createInitialState = (options: CreateInitialStateOptions = {}): Gam
     score: 0,
     time: 0,
   };
+  if (isArena) initializeArena(state, options.pondSeed, options.skipWorldGen);
+  return state;
 };

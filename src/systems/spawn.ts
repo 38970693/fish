@@ -10,11 +10,13 @@ import { randomizeCosmetics } from '../data/cosmetics';
 import { randomizeMood, randomMoodTimer } from '../data/moods';
 import { rareVariantRollFromId, rollRareVariant } from '../data/rareVariants';
 import type { MoodId } from '../data/moods';
-import { MAX_ENTITIES, RIVALS_SPAWN_CONFIG, TREASURE_CONFIG, WORLD_SIZE } from '../data/world';
+import { MAX_ENTITIES, RIVALS_SPAWN_CONFIG, TREASURE_CONFIG, WORLD_SIZE, WILDLIFE_SPACING } from '../data/world';
 import { getPond } from '../data/ponds';
 import { type Entity, type GameState, type FrameContext } from '../types';
 import { uuid } from '../core/math';
 import { isPositionValid } from './terrain';
+import { canTraverseSegment, REEF_MARGIN } from '../core/obstacleGeometry';
+import { getReefPassages } from '../data/reefClusters';
 
 /** 可选覆盖项 —— 测试要钉住随机性时用（比钉 `Math.random` 干净得多） */
 export interface CreateEntityOptions {
@@ -90,13 +92,30 @@ export const applyWildRareVariant = (entity: Entity, roll?: number): Entity => {
 };
 
 /** 在地图内随机位置生成一条鱼（位置不合法则放弃，返回 null） */
+export const isWildlifeSpawnSpaced = (state: GameState, x: number, y: number, radius: number): boolean => {
+  let nearby = 0;
+  for (const body of [state.player, ...state.entities]) {
+    if (body.health <= 0) continue;
+    const distance = Math.hypot(body.x - x, body.y - y);
+    if (distance < radius + body.radius + WILDLIFE_SPACING.gap) return false;
+    if (distance < WILDLIFE_SPACING.localRadius && ++nearby >= WILDLIFE_SPACING.localLimit) return false;
+  }
+  return true;
+};
+
 export const spawnCreature = (state: GameState, type: string): Entity | null => {
   if (state.worldMode === 'ENDLESS') return spawnCreatureNearPlayer(state, type);
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const x = Math.random() * WORLD_SIZE;
     const y = Math.random() * WORLD_SIZE;
     if (!isPositionValid(x, y, 50, state.pondId, state.worldMode)) continue;
+    const radius = (CREATURES[type as CreatureType] ?? CREATURES.CLOWN_FISH).baseRadius;
+    if (!isWildlifeSpawnSpaced(state, x, y, radius)) continue;
     const entity = applyWildRareVariant(createEntity(type, x, y));
+    entity.naturalSpawn = true;
+    if (!canTraverseSegment(entity, entity, entity.radius, state.obstacles)) continue;
+    if (getReefPassages(state.obstacles).some(p => Math.hypot(x - p.center.x, y - p.center.y) < 175
+      && p.clearance < entity.radius + REEF_MARGIN)) continue;
     state.entities.push(entity);
     return entity;
   }
@@ -129,7 +148,9 @@ export const spawnCreatureNearPlayer = (state: GameState, type: string): Entity 
     const x = state.player.x + Math.cos(angle) * distance;
     const y = state.player.y + Math.sin(angle) * distance;
     if (!isNearbySpawnClear(state, x, y)) continue;
+    if (!isWildlifeSpawnSpaced(state, x, y, spec.baseRadius)) continue;
     const entity = applyWildRareVariant(createEntity(type, x, y));
+    entity.naturalSpawn = true;
     state.entities.push(entity);
     return entity;
   }
@@ -173,6 +194,7 @@ const pickRegularType = (state: GameState): CreatureType => {
  * （安全塘喂饱你，危险塘更早出大鱼、且有本塘特产）。
  */
 export const spawnSystem = (state: GameState, _ctx: FrameContext): void => {
+  if (state.entities.filter(e => e.health > 0 && !e.ownerId).length >= WILDLIFE_SPACING.population) return;
   const feeding = state.feedingEvent;
   const reserveForEvent = !!state.run && !!feeding && (
     ['WARNING', 'DROPPING', 'LINGERING'].includes(feeding.phase)

@@ -4,6 +4,7 @@ import type { Entity, FeedingDrop, FeedingEventState, FrameContext, GameState, P
 import { dist2, uuid } from '../core/math';
 import { factionOf, FACTION } from './factions';
 import { isPositionValid } from './terrain';
+import { awardPlayerGrowth } from './playerGrowth';
 
 const isPointClear = (state: GameState, x: number, y: number, clearance: number): boolean => {
   if (!isPositionValid(x, y, clearance, state.pondId, state.worldMode)) return false;
@@ -131,8 +132,7 @@ const awardDrop = (state: GameState, ctx: FrameContext, collector: Entity | Play
   event.claims[faction] = (event.claims[faction] ?? 0) + drop.value;
   collector.health = Math.min(collector.maxHealth, collector.health + drop.value * FEEDING_EVENT_CONFIG.PICKUP_HEAL_MULTIPLIER);
   if (faction !== FACTION.PLAYER) return;
-  state.player.weight += drop.value;
-  state.player.evolutionPoints += drop.value;
+  awardPlayerGrowth(state, ctx, drop.value);
   state.player.speechBubble = { text: `抢到投食 +${drop.value}`, timer: 45, color: '#fb923c' };
   ctx.events.emit('pickup', { x: drop.x, y: drop.y, label: `投食 +${drop.value}`, color: '#fb923c' });
 };

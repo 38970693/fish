@@ -1,5 +1,6 @@
 import { buildRadialSpines, localLightDirection, type ResolvedMorphology, type ResolvedMotionState, type SurfaceLayerKind } from '../../morphology';
 import { getMorphologyPart } from '../../morphology/registry';
+import { cartoonPalette, traceCartoonTail } from '../cartoonStyle';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -91,22 +92,18 @@ export const drawMorphologyRearParts = (
   const length = tailPart.length;
   const fork = tailPart.spread * (0.62 + morphology.genes.tailFork * 0.38);
   ctx.save();
-  ctx.fillStyle = color;
-  ctx.strokeStyle = 'rgba(15,23,42,0.35)';
-  ctx.lineWidth = Math.max(1, radius * 0.045);
-  ctx.beginPath();
-  ctx.moveTo(tailRoot.x * radius, -tailRoot.scale * radius * 0.45);
-  const tipX = (tailRoot.x - length) * radius;
-  ctx.quadraticCurveTo((tailRoot.x - length * (0.38 + tailPart.softness * 0.12)) * radius, -fork * radius * spread, tipX, -fork * 1.08 * radius * spread);
-  ctx.quadraticCurveTo((tailRoot.x - length * 0.68) * radius, -fork * tailPart.fork * 0.38 * radius * spread, (tailRoot.x - length * (0.72 - tailPart.fork * 0.08)) * radius, 0);
-  ctx.quadraticCurveTo((tailRoot.x - length * 0.68) * radius, fork * tailPart.fork * 0.38 * radius * spread, tipX, fork * 1.08 * radius * spread);
-  ctx.quadraticCurveTo((tailRoot.x - length * (0.38 + tailPart.softness * 0.12)) * radius, fork * radius * spread, tailRoot.x * radius, tailRoot.scale * radius * 0.45);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.save();
-  ctx.globalAlpha = 0.24;
-  ctx.strokeStyle = morphology.material.secondaryColor;
+  const palette = cartoonPalette(morphology.material.primaryColor);
+  ctx.fillStyle = palette.fin;
+  ctx.strokeStyle = palette.outline;
   ctx.lineWidth = Math.max(0.8, radius * 0.025);
-  for (const ray of [-0.72, -0.36, 0, 0.36, 0.72]) {
+  const tipX = (tailRoot.x - length) * radius;
+  traceCartoonTail(ctx, radius, tailRoot.x, tailRoot.scale * 0.45, length, fork * spread, tailPart.fork, tailPart.softness);
+  ctx.fill(); ctx.stroke();
+  ctx.save();
+  ctx.globalAlpha = 0.1;
+  ctx.strokeStyle = morphology.material.secondaryColor;
+  ctx.lineWidth = Math.max(0.6, radius * 0.016);
+  for (const ray of [-0.55, 0, 0.55]) {
     ctx.beginPath();
     ctx.moveTo(tailRoot.x * radius, ray * tailRoot.scale * radius * 0.42);
     ctx.quadraticCurveTo((tailRoot.x - length * 0.48) * radius, ray * fork * radius * spread, tipX, ray * fork * radius * spread);
@@ -124,10 +121,8 @@ export const drawMorphologyBodyDetails = (
   entityAngle = 0,
   lod: 0 | 1 | 2 = 0
 ): void => {
-  const { minX, maxX, maxY } = morphology.geometry.bounds;
+  const { minX, maxY } = morphology.geometry.bounds;
   const headX = morphology.geometry.anchors.eyeLeft.x;
-  const dorsal = morphology.geometry.anchors.dorsal;
-  const dorsalPart = getMorphologyPart(morphology.parts.dorsal, 'dorsal.classic').geometry;
   const { dorsalRidge, flankShade, headDome, tailPeduncle, worldLight } = morphology.volume;
   const light = localLightDirection(worldLight, entityAngle);
   const flankLayer = surfaceLayer(morphology, 'FLANK_SHADE');
@@ -201,7 +196,7 @@ export const drawMorphologyBodyDetails = (
 
   // V3-02：鳃盖、侧线和鼻孔全部按中轴成对生成。
   for (const side of [-1, 1] as const) {
-    if (gillLayer) {
+    if (gillLayer && gillLayer.alpha > 0) {
       ctx.beginPath();
       for (let index = 0; index < (gillLayer.count ?? 1); index += 1) {
         const offset = index * 0.115;
@@ -212,7 +207,7 @@ export const drawMorphologyBodyDetails = (
       ctx.lineWidth = Math.max(1, radius * (gillLayer.width ?? 0.035));
       ctx.stroke();
     }
-    if (lateralLayer) {
+    if (lateralLayer && lateralLayer.alpha > 0) {
       ctx.beginPath();
       ctx.moveTo((headX - 0.38) * radius, side * maxY * radius * 0.2);
       ctx.quadraticCurveTo(-radius * 0.18, side * maxY * radius * 0.27, minX * radius * 0.7, side * maxY * radius * 0.14);
@@ -220,7 +215,7 @@ export const drawMorphologyBodyDetails = (
       ctx.lineWidth = Math.max(0.8, radius * (lateralLayer.width ?? 0.025));
       ctx.stroke();
     }
-    if (nostrilLayer) {
+    if (nostrilLayer && nostrilLayer.alpha > 0) {
       const mouth = morphology.geometry.anchors.mouth;
       ctx.beginPath();
       ctx.arc((mouth.x - 0.2) * radius, side * maxY * radius * 0.13, Math.max(0.8, radius * (nostrilLayer.width ?? 0.024)), 0, Math.PI * 2);
@@ -228,21 +223,6 @@ export const drawMorphologyBodyDetails = (
       ctx.fill();
     }
   }
-  // 俯视时背鳍投影落在中轴上，画成双侧等宽的半透明脊线。
-  const ridgeLength = radius * (0.48 + dorsalPart.spread * 0.34);
-  const ridgeHalfWidth = radius * (0.025 + dorsal.scale * dorsalPart.length * 0.055);
-  const ridgeX = dorsal.x * radius;
-  ctx.beginPath();
-  ctx.moveTo(ridgeX - ridgeLength * 0.62, 0);
-  ctx.quadraticCurveTo(ridgeX, -ridgeHalfWidth, ridgeX + ridgeLength * 0.48, 0);
-  ctx.quadraticCurveTo(ridgeX, ridgeHalfWidth, ridgeX - ridgeLength * 0.62, 0);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.fill();
-  ctx.strokeStyle = morphology.material.secondaryColor;
-  ctx.globalAlpha = 0.32;
-  ctx.lineWidth = Math.max(0.8, radius * 0.024);
-  ctx.stroke();
   ctx.restore();
 };
 
@@ -250,10 +230,11 @@ export const drawMorphologyFrontParts = (
   ctx: Ctx, morphology: ResolvedMorphology, radius: number, color: string, motion?: ResolvedMotionState
 ): void => {
   ctx.save();
-  ctx.fillStyle = color;
-  ctx.globalAlpha = 0.78;
-  ctx.strokeStyle = 'rgba(15,23,42,0.3)';
-  ctx.lineWidth = Math.max(1, radius * 0.04);
+  const palette = cartoonPalette(morphology.material.primaryColor);
+  ctx.fillStyle = palette.fin;
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = palette.outline;
+  ctx.lineWidth = Math.max(0.7, radius * 0.022);
   for (const family of ['pectoral', 'pelvic'] as const) {
     for (const side of [-1, 1] as const) {
       const left = side < 0;
@@ -270,35 +251,13 @@ export const drawMorphologyFrontParts = (
       const finPose = left ? motion?.leftFin ?? 0 : motion?.rightFin ?? 0;
       const length = fin.scale * part.length * (1 + finPose * 0.34);
       ctx.beginPath();
-      ctx.moveTo(fin.x * radius, fin.y * radius);
-      ctx.quadraticCurveTo(
-        (fin.x - part.spread * (0.36 + part.softness * 0.18)) * radius,
-        (fin.y + side * length) * radius,
-        (fin.x + part.spread * (0.36 + part.fork * 0.28)) * radius,
-        (fin.y + side * 0.07) * radius
-      );
+      ctx.moveTo((fin.x + part.spread * 0.22) * radius, fin.y * radius);
+      ctx.quadraticCurveTo((fin.x + part.spread * 0.12) * radius, (fin.y + side * length * 1.15) * radius,
+        (fin.x - part.spread * 0.36) * radius, (fin.y + side * length * 0.85) * radius);
+      ctx.quadraticCurveTo((fin.x - part.spread * 0.58) * radius, (fin.y + side * length * 0.4) * radius,
+        (fin.x - part.spread * 0.12) * radius, fin.y * radius);
       ctx.closePath(); ctx.fill(); ctx.stroke();
-      const rootRadius = radius * fin.scale * part.rootWidth;
-      const rootGradient = ctx.createRadialGradient(fin.x * radius, fin.y * radius, 0, fin.x * radius, fin.y * radius, rootRadius);
-      rootGradient.addColorStop(0, rgba(morphology.material.secondaryColor, 0.28 + part.blendDepth * 0.3));
-      rootGradient.addColorStop(1, rgba(color, 0));
-      ctx.fillStyle = rootGradient;
-      ctx.beginPath();
-      ctx.ellipse(fin.x * radius, fin.y * radius, rootRadius, rootRadius * (0.42 + part.blendDepth), 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.38;
-      ctx.strokeStyle = morphology.material.secondaryColor;
-      ctx.lineWidth = Math.max(0.8, radius * 0.025);
-      for (const offset of [-0.14, 0.08]) {
-        ctx.beginPath();
-        ctx.moveTo(fin.x * radius, fin.y * radius);
-        ctx.quadraticCurveTo((fin.x - part.spread * (0.28 + offset)) * radius, (fin.y + side * length * (0.78 + offset * 0.2)) * radius, (fin.x + part.spread * 0.34) * radius, (fin.y + side * 0.06) * radius);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 0.78;
-      ctx.strokeStyle = 'rgba(15,23,42,0.3)';
-      ctx.lineWidth = Math.max(1, radius * 0.04);
+
     }
   }
   const spines = surfaceLayer(morphology, 'RADIAL_SPINES');

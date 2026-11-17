@@ -35,6 +35,10 @@ import { endlessWorldSystem } from './endlessWorld';
 import { endlessExplorationSystem } from './endlessExploration';
 import { progressionSystem } from './progression';
 import { achievementsSystem } from './achievements';
+import { boostTrailSystem } from './boostTrail';
+import { beginQuestFrame, endQuestFrame, questsSystem } from './quests';
+import { captureTerrainFrame } from './terrain';
+import { runArenaSystems } from './arena';
 
 export interface SystemEntry {
   name: string;
@@ -66,6 +70,7 @@ export const SYSTEMS: SystemEntry[] = [
   { name: 'runFlow', fn: safe('runFlow', runFlowSystem) },
   { name: 'endlessWorld', fn: safe('endlessWorld', endlessWorldSystem) },
   { name: 'spawn', fn: safe('spawn', spawnSystem) },
+  { name: 'terrainFrame', fn: safe('terrainFrame', captureTerrainFrame) },
   { name: 'playerControl', fn: safe('playerControl', playerControlSystem) },
   { name: 'skills', fn: safe('skills', skillsSystem) },
   { name: 'concealment', fn: safe('concealment', concealmentSystem) },
@@ -83,7 +88,9 @@ export const SYSTEMS: SystemEntry[] = [
   { name: 'feedingEvent', fn: safe('feedingEvent', feedingEventSystem) },
   { name: 'events', fn: safe('events', eventsSystem) },
   { name: 'pondEvent', fn: safe('pondEvent', pondEventSystem) },
+  { name: 'quests', fn: safe('quests', questsSystem) },
   { name: 'achievements', fn: safe('achievements', achievementsSystem) },
+  { name: 'boostTrail', fn: safe('boostTrail', boostTrailSystem) },
   { name: 'progression', fn: safe('progression', progressionSystem) },
 ];
 
@@ -120,18 +127,25 @@ export function setProfileSink(sink: ((name: string, ms: number) => void) | null
 
 /** 顺序执行所有系统 */
 export function runSystems(state: GameState, ctx: FrameContext): void {
-  const sink = profiler.sink;
-  if (!sink) {
-    for (const system of SYSTEMS) {
-      system.fn(state, ctx);
-    }
+  if (state.arena) {
+    runArenaSystems(state, ctx);
     return;
   }
-  for (const system of SYSTEMS) {
-    const t0 = performance.now();
-    system.fn(state, ctx);
-    sink(system.name, performance.now() - t0);
-  }
+  beginQuestFrame(state, ctx);
+  try {
+    const sink = profiler.sink;
+    if (!sink) {
+      for (const system of SYSTEMS) {
+        system.fn(state, ctx);
+      }
+      return;
+    }
+    for (const system of SYSTEMS) {
+      const t0 = performance.now();
+      system.fn(state, ctx);
+      sink(system.name, performance.now() - t0);
+    }
+  } finally { endQuestFrame(ctx); }
 }
 
 export { spawnSystem, runFlowSystem, endlessWorldSystem, endlessExplorationSystem, playerControlSystem, skillsSystem, concealmentSystem, aiSystem, squadSystem, rivalSquadsSystem, habitatsSystem, obstacleEcologySystem, worldSystem, pondOpportunitySystem, explorationEventSystem, itemsSystem, combatSystem, feedingEventSystem, eventsSystem, pondEventSystem, achievementsSystem, progressionSystem };

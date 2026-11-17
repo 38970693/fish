@@ -57,6 +57,9 @@ import { createEntity } from './spawn';
 import { canHarm } from './factions';
 import { canPerceive } from './concealment';
 import { getCreatureDisplayName } from '../data/rareVariants';
+import { reefNavigationPoint } from './reefNavigation';
+import { rememberTerrainPosition, forgetTerrainPosition } from './terrain';
+import { getPlayerRadiusCapacity } from './playerGrowth';
 
 /* ══════════════ 查询 ══════════════ */
 
@@ -85,6 +88,7 @@ export const getCoreMembers = (state: GameState): Entity[] =>
  * 避开「在碰撞遍历中间改 entities」的坑。
  */
 export const recruitToSquad = (state: GameState, victim: Entity): void => {
+  if (state.arena) return;
   if (state.squad.pending.length + getSquadMembers(state).length >= SQUAD_CONFIG.MAX_SIZE) return;
   // 饲料（浮游生物）不收编；吉祥物本来就不参战
   if (victim.config.tier < SQUAD_CONFIG.RECRUIT_MIN_TIER) return;
@@ -259,11 +263,20 @@ export const possessMember = (
 
   const member = state.entities[idx];
   const player = state.player;
+  forgetTerrainPosition(player);
+  forgetTerrainPosition(member);
+  player.pendingRadiusGrowth = 0;
+  player.pendingEvolutionType = undefined;
 
   if (options.revive) {
     /* 亡语：旧身体作废，灵魂进新身体，满血 + 保护帧 */
     state.entities.splice(idx, 1);
     moveBody(member, player);
+    // Keep the established revive placement unless the new body would be trapped in a narrow refuge.
+    if (player.radius > getPlayerRadiusCapacity(state)) {
+      player.x = member.x;
+      player.y = member.y;
+    }
     // 亡语：旧身体作废，灵魂连同**身体的核心身份**一起接管（新身体是河豚就当河豚）
     player.coreRole = member.coreRole;
     player.roleCooldown = member.roleCooldown ?? 0;
@@ -481,6 +494,7 @@ export const issueCommand = (
  * 队列满了直接丢弃新指令 —— 连点不该变成连击。
  */
 export const queueSquadAction = (state: GameState, action: SquadAction): void => {
+  if (state.arena) return;
   const queue = (state.squad.pendingActions ??= []);
   if (queue.length >= SQUAD_COMMAND_CONFIG.ACTION_QUEUE_MAX) return;
   queue.push(action);
@@ -859,6 +873,8 @@ const updateMovement = (state: GameState): void => {
 
   for (let i = 0; i < members.length; i += 1) {
     const m = members[i];
+    rememberTerrainPosition(m, state.time);
+    m.accelerationMult = 1;
     // 角色优先于指令队形（FQ-06）：河豚贴人、机动鱼撤退时绕到背敌侧
     const goal = pickRoleMoveTarget(state, m, command) ?? pickMoveTarget(state, m, i, command);
 
@@ -867,7 +883,8 @@ const updateMovement = (state: GameState): void => {
     const d = Math.hypot(dx, dy);
 
     if (d > goal.stopAt) {
-      const heading = Math.atan2(dy, dx);
+      const aim = state.obstacles.some(o => o.reef) ? reefNavigationPoint(m, goal, state) : goal;
+      const heading = Math.atan2(aim.y - m.y, aim.x - m.x);
       m.angle = turnToward(m.angle, heading, 0.15);
       // 比常规速度快一点，否则追不上开了加速的玩家
       const role = getSquadRoleConfig(m.coreRole);
@@ -877,6 +894,7 @@ const updateMovement = (state: GameState): void => {
           : 1;
       // 角色速度倍率每帧从配置读：河豚 0.85（不擅长追击）、机动鱼 1.1（快速接近）
       const sp = m.speed * 1.25 * (role?.speedMult ?? 1) * rush;
+      m.accelerationMult = 1.25 * rush;
       m.vx = Math.cos(m.angle) * sp;
       m.vy = Math.sin(m.angle) * sp;
       m.x += m.vx;

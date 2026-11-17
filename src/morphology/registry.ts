@@ -34,7 +34,7 @@ const standardRanges: MorphologyRecipe['ranges'] = {
 };
 
 const SHARK_SURFACE_LAYERS = STANDARD_VOLUME_LAYERS.map(layer =>
-  layer.kind === 'GILL' ? { ...layer, count: 3, alpha: 0.52 } : layer);
+  layer.kind === 'GILL' ? { ...layer, count: 2, alpha: 0.16 } : layer);
 
 const PUFFER_SURFACE_LAYERS = [
   ...STANDARD_VOLUME_LAYERS,

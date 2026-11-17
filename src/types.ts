@@ -119,6 +119,15 @@ export type EyebrowType = 'NONE' | 'ANGRY' | 'SAD' | 'CONFUSED' | 'THICK' | 'UNI
 
 export type TrailType = 'NONE' | 'BUBBLES' | 'RAINBOW' | 'FIRE' | 'GLITTER' | 'HEARTS' | 'ELECTRIC' | 'SLIME';
 
+export type BoostStyle = 'JET' | 'FLAME' | 'BUBBLES' | 'NONE';
+export interface BoostEffect {
+  style: BoostStyle;
+  color: string;
+  length: number;
+  width: number;
+  bubbles: boolean;
+}
+
 export interface Cosmetics {
   /** 稀有外观随身体保存，不改变战斗数值。 */
   rareVariant?: RareVariantId;
@@ -133,6 +142,8 @@ export interface Cosmetics {
   eyeType: EyeType;
   eyebrowType: EyebrowType;
   trailType: TrailType;
+  /** 独立于日常拖尾；旧装扮未设置时使用默认推进效果。 */
+  boostEffect?: BoostEffect;
 }
 
 export const DEFAULT_COSMETICS: Cosmetics = {
@@ -152,6 +163,10 @@ export const DEFAULT_COSMETICS: Cosmetics = {
 /* ══════════════ 实体 ══════════════ */
 
 export interface Entity {
+  /** Natural background wildlife uses a loose school; scripted formations retain their spacing. */
+  naturalSpawn?: boolean;
+  /** Present only on short-match contestants; neutral creatures have no arena identity. */
+  arenaStats?: import('./data/arena').ArenaStats;
   id: string;
   type: string;
   x: number;
@@ -189,6 +204,8 @@ export interface Entity {
   renderScale: number;
   isInvulnerable?: boolean;
   speedBoostTimer?: number;
+  /** 本帧实际推进的加速倍率，常速为 1；所有鱼共用尾迹状态。 */
+  accelerationMult?: number;
   /** 受击视觉反馈剩余帧；只影响渲染，不参与伤害或无敌判定。 */
   hitReactionTimer?: number;
 
@@ -276,6 +293,9 @@ export interface Entity {
 
 export interface PlayerState extends Entity {
   weight: number;
+  /** Growth earned in narrow terrain; applied gradually once the body and exit both fit. */
+  pendingRadiusGrowth?: number;
+  pendingEvolutionType?: string;
   evolutionPoints: number;
   stats: {
     speedMult: number;
@@ -390,10 +410,15 @@ export interface Particle {
   color: string;
   size: number;
   interactionType?: 'SHRINK';
-  /** 粒子形状：默认圆点，'COOKIE' 画成迷你金色小饼干 */
-  shape?: 'COOKIE';
+  /** 粒子形状：默认圆点，饼干或玩家加速喷流/气泡。 */
+  shape?: 'COOKIE' | 'BOOST_JET' | 'BOOST_BUBBLE';
   /** 饼干的旋转角（每颗朝向随机，更像撒出来的饼干渣） */
   spin?: number;
+  /** 加速喷流沿鱼朝向的长度。 */
+  length?: number;
+  /** 加速尾迹所属鱼，松开油门或鱼死亡时清理。 */
+  sourceId?: string;
+  boostStyle?: BoostStyle;
 }
 
 export interface Obstacle {
@@ -402,6 +427,17 @@ export interface Obstacle {
   y: number;
   radius: number;
   type: 'ROCK' | 'CORAL' | 'SEAWEED';
+  /** Stable reef group; center offsets survive floating-origin shifts with the obstacle. */
+  reef?: {
+    groupId: string;
+    kind: 'GATE' | 'REFUGE';
+    angle: number;
+    centerOffsetX: number;
+    centerOffsetY: number;
+    halfLength: number;
+    gap: number;
+    anchor: boolean;
+  };
   /** 可选生态特征；缺省时保持原有静态障碍行为。 */
   feature?: 'BRITTLE' | 'VENT';
   featureState?: 'IDLE' | 'WARNING' | 'ACTIVE' | 'BROKEN';
@@ -592,6 +628,8 @@ export interface GameEvents {
   particle: { x: number; y: number; color: string; count: number };
   /** 成就解锁（achievementsSystem 发出，UI 弹 toast） */
   achievement: { id: string; name: string; desc: string; icon: string };
+  /** A quest reward has already been granted; sound and HUD only announce it. */
+  questReward: { title: string; reward: string; chapterComplete: boolean };
   /** 金币拾取（items 的 COIN 发出，成就「守财奴」统计） */
   coin: { x: number; y: number; value: number };
   /**
@@ -626,6 +664,11 @@ export interface FrameContext {
 /* ══════════════ 游戏总状态 ══════════════ */
 
 export interface GameState {
+  arena?: import('./data/arena').ArenaState;
+  /** Per-run objectives and automatically granted rewards; retained when travelling/reviving. */
+  quests?: import('./data/quests').QuestRun;
+  /** 玩家挂机运行时击败霸主只提示，继续推进世界。 */
+  autopilotEnabled?: boolean;
   status: GameStatus;
   player: PlayerState;
   entities: Entity[];

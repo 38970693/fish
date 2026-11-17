@@ -15,6 +15,7 @@ import type { GameState, FrameContext, PowerUp } from '../types';
 import { dist, uuid } from '../core/math';
 import { isPositionValid } from './terrain';
 import { createCookieParticle } from './combat';
+import { awardPlayerGrowth, applyPlayerRadiusGrowth } from './playerGrowth';
 
 type PickupHandler = (state: GameState, ctx: FrameContext, item: PowerUp) => void;
 
@@ -34,9 +35,8 @@ const PICKUP_HANDLERS: Record<PowerUp['type'], PickupHandler> = {
   /** 贝壳：50% 等级+2 / 50% 护盾（原机甲变身分支已随武器系统移除） */
   SHELL: (state, ctx, item) => {
     if (Math.random() < 0.5) {
-      state.player.level += 2;
-      state.player.weight += 20;
-      state.player.radius += 5;
+      awardPlayerGrowth(state, ctx, 20, { evolutionPoints: 0, bonusLevels: 2 });
+      applyPlayerRadiusGrowth(state, 1);
       state.player.speechBubble = { text: '等级 +2！', timer: 90, color: '#10b981' };
       ctx.events.emit('pickup', { x: item.x, y: item.y, label: '等级 +2', color: '#10b981' });
     } else {

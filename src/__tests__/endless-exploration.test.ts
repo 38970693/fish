@@ -94,6 +94,27 @@ describe('无尽海域探索循环', () => {
     }
   });
 
+  it('EXP-01：批量种子下地点保持稀疏且生成率可控', () => {
+    let total = 0;
+    let generated = 0;
+    for (let seed = 1; seed <= 20; seed += 1) {
+      for (let y = -5n; y <= 5n; y += 1n) {
+        for (let x = -5n; x <= 5n; x += 1n) {
+          total += 1;
+          const location = generateEndlessExplorationLocation(seed, x, y, 0n, 0n);
+          if (!location) continue;
+          generated += 1;
+          expect(location.discoveryRadius).toBe(ENDLESS_WORLD_CONFIG.LOCATION_DISCOVERY_RANGE);
+          expect(Math.abs(location.x)).toBeLessThan(Number.MAX_SAFE_INTEGER);
+          expect(Math.abs(location.y)).toBeLessThan(Number.MAX_SAFE_INTEGER);
+        }
+      }
+    }
+    const ratio = generated / total;
+    expect(ratio).toBeGreaterThan(0.68);
+    expect(ratio).toBeLessThan(0.84);
+  });
+
   it('EXP-02：进入发现范围写入航海记录并自动选择目标', () => {
     const state = stateWithLocation('SHIPWRECK');
     const ctx = makeCtx();
@@ -137,6 +158,76 @@ describe('无尽海域探索循环', () => {
     const health = state.player.health;
     for (let i = 0; i < 180; i += 1) endlessExplorationSystem(state, ctx);
     expect(state.player.health).toBe(health);
+  });
+
+  it('EXP-03：离开地点会中断交互且不会结算', () => {
+    const state = stateWithLocation('SHIPWRECK');
+    const ctx = makeCtx();
+    const record = state.endlessWorld!.exploration;
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = true;
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = false;
+    state.player.x += BUILDING_DATA.SHIPWRECK.radius + 200;
+    endlessExplorationSystem(state, ctx);
+    expect(record.phase).toBe('IDLE');
+    expect(record.completedIds).toHaveLength(0);
+    expect(record.lastResult?.text).toContain('中断');
+  });
+
+  it('EXP-03：受击或附近危险会中断沉船搜索', () => {
+    const state = stateWithLocation('SHIPWRECK');
+    const ctx = makeCtx();
+    const record = state.endlessWorld!.exploration;
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = true;
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = false;
+    state.player.hostileHitCounter = (state.player.hostileHitCounter ?? 0) + 1;
+    endlessExplorationSystem(state, ctx);
+    expect(record.phase).toBe('IDLE');
+    expect(record.completedIds).toHaveLength(0);
+    expect(record.lastResult?.text).toContain('攻击');
+  });
+
+  it('EXP-03：死亡会中断探索且不发奖励', () => {
+    const state = stateWithLocation('WARM_SHELTER');
+    const ctx = makeCtx();
+    const record = state.endlessWorld!.exploration;
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = true;
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = false;
+    state.player.health = 0;
+    endlessExplorationSystem(state, ctx);
+    expect(record.phase).toBe('IDLE');
+    expect(record.completedIds).toHaveLength(0);
+    expect(record.lastResult?.text).toContain('死亡');
+  });
+
+  it('EXP-03：主要投食事件会阻止开始并中断进行中的探索', () => {
+    const state = stateWithLocation('SHIPWRECK');
+    const ctx = makeCtx();
+    const record = state.endlessWorld!.exploration;
+    state.feedingEvent!.phase = 'WARNING';
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = true;
+    endlessExplorationSystem(state, ctx);
+    expect(record.phase).toBe('IDLE');
+    expect(state.buildings[0].prompt?.text).toContain('主要事件');
+
+    state.feedingEvent!.phase = 'WAITING';
+    ctx.input.interact = false;
+    endlessExplorationSystem(state, ctx);
+    ctx.input.interact = true;
+    endlessExplorationSystem(state, ctx);
+    expect(record.phase).toBe('SEARCHING');
+    ctx.input.interact = false;
+    state.feedingEvent!.phase = 'WARNING';
+    endlessExplorationSystem(state, ctx);
+    expect(record.phase).toBe('IDLE');
+    expect(record.completedIds).toHaveLength(0);
+    expect(record.lastResult?.text).toContain('主要事件');
   });
 
   it('EXP-04：离开活动区再返回，已完成地点 ID 保留且重新生成同一地点', () => {

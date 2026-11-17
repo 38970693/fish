@@ -8,7 +8,8 @@
 import { MAP_SHAPE_CONFIG } from '../data/world';
 import { getPond } from '../data/ponds';
 import { BIOME_DATA, BiomeType } from '../data/biomes';
-import type { Obstacle } from '../types';
+import type { Entity, GameState, Obstacle } from '../types';
+import { GEOMETRY_EPSILON, REEF_MARGIN, isSolidObstacle, type Point } from '../core/obstacleGeometry';
 import { clamp, normalizeAngle } from '../core/math';
 import { QuadTree } from '../utils/SpatialHash';
 import { getEndlessBiome, type WorldMode } from '../data/endlessWorld';
@@ -195,6 +196,65 @@ export class ObstacleIndex {
   }
 }
 
+const movementOrigins = new WeakMap<object, Point & { frame: number }>();
+export const rememberTerrainPosition = (entity: Mover, frame: number): void => {
+  if (movementOrigins.get(entity)?.frame !== frame) movementOrigins.set(entity, { x: entity.x, y: entity.y, frame });
+};
+export const captureTerrainFrame = (state: GameState): void => {
+  rememberTerrainPosition(state.player, state.time);
+  for (const e of state.entities) rememberTerrainPosition(e, state.time);
+};
+export const forgetTerrainPosition = (entity: Mover): void => { movementOrigins.delete(entity); };
+export const takeTerrainPosition = (entity: Entity, frame: number): Point | undefined => {
+  const origin = movementOrigins.get(entity);
+  movementOrigins.delete(entity);
+  return origin?.frame === frame ? origin : undefined;
+};
+
+/** Swept circle, then a bounded sequence of rechecked sliding displacements. */
+export const sweepObstacleMovement = (entity: Mover, origin: Point, obstacles: readonly Obstacle[], index?: ObstacleIndex): void => {
+  let x = origin.x, y = origin.y;
+  let dx = entity.x - x, dy = entity.y - y;
+  let turnNormal: Point | undefined;
+  for (let pass = 0; pass < 5 && Math.hypot(dx, dy) > GEOMETRY_EPSILON; pass++) {
+    let first = 1, normal: Point | undefined;
+    const count = index ? index.collect(x + dx / 2, y + dy / 2, Math.hypot(dx, dy) / 2 + entity.radius + REEF_MARGIN) : obstacles.length;
+    for (let k = 0; k < count; k++) {
+      const o = index ? index.at(k) : obstacles[k];
+      if (!isSolidObstacle(o)) continue;
+      const radius = o.radius + entity.radius + (o.reef ? REEF_MARGIN : 0);
+      const ox = x - o.x, oy = y - o.y;
+      const c = ox * ox + oy * oy - radius * radius;
+      // Initial overlap (spawn/growth) is handled by depenetration below.
+      if (c < -0.01 && pass === 0) continue;
+      const a = dx * dx + dy * dy, b = ox * dx + oy * dy;
+      if (b >= 0) continue;
+      const discriminant = b * b - a * c;
+      if (discriminant < 0) continue;
+      const t = Math.max(0, (-b - Math.sqrt(discriminant)) / a);
+      if (t > first || t > 1) continue;
+      const nx = x + dx * t - o.x, ny = y + dy * t - o.y;
+      const length = Math.hypot(nx, ny);
+      if (length <= GEOMETRY_EPSILON) continue;
+      first = t; normal = { x: nx / length, y: ny / length };
+    }
+    // Stop just before contact. Pushing along one wall's normal can penetrate the opposite wall.
+    const safeFraction = normal ? Math.max(0, first - 0.0001 / Math.hypot(dx, dy)) : first;
+    x += dx * safeFraction; y += dy * safeFraction;
+    if (!normal) break;
+    turnNormal ??= normal;
+    dx *= 1 - first; dy *= 1 - first;
+    const inward = Math.min(0, dx * normal.x + dy * normal.y);
+    dx -= inward * normal.x; dy -= inward * normal.y;
+  }
+  entity.x = x; entity.y = y;
+  if (turnNormal && Math.hypot(entity.vx ?? 0, entity.vy ?? 0) >= 1e-4) {
+    const speed = Math.hypot(entity.vx ?? 0, entity.vy ?? 0);
+    alignToSurface(entity, turnNormal.x, turnNormal.y);
+    entity.vx = Math.cos(entity.angle) * speed; entity.vy = Math.sin(entity.angle) * speed;
+  }
+};
+
 /**
  * 障碍物推挤：把实体挤出障碍物范围，并让它**沿障碍物表面滑走**。
  *
@@ -225,22 +285,25 @@ export class ObstacleIndex {
 export const resolveObstacles = (
   entity: Mover,
   obstacles: readonly Obstacle[],
-  index?: ObstacleIndex
+  index?: ObstacleIndex,
+  origin?: Point,
 ): void => {
+  if (origin) sweepObstacleMovement(entity, origin, obstacles, index);
   for (let pass = 0; pass < 2; pass += 1) {
     // 第二遍要重新收集：第一遍把实体推走过，它身边的障碍物集合可能已经变了
-    const count = index ? index.collect(entity.x, entity.y, entity.radius) : obstacles.length;
+    const count = index ? index.collect(entity.x, entity.y, entity.radius + REEF_MARGIN) : obstacles.length;
     for (let k = 0; k < count; k += 1) {
       const o = index ? index.at(k) : obstacles[k];
+      if (!isSolidObstacle(o)) continue;
       const dx = entity.x - o.x;
       const dy = entity.y - o.y;
       const d = Math.hypot(dx, dy);
-      const minDist = o.radius + entity.radius;
-      if (d >= minDist || d === 0) continue;
+      const minDist = o.radius + entity.radius + (o.reef ? REEF_MARGIN : 0);
+      if (d >= minDist) continue;
 
       // ① 推到表面。法线 (nx, ny) 由障碍物圆心指向实体，也就是「外侧」
-      const nx = dx / d;
-      const ny = dy / d;
+      const nx = d > 0 ? dx / d : -Math.cos(entity.angle);
+      const ny = d > 0 ? dy / d : -Math.sin(entity.angle);
       entity.x = o.x + nx * minDist;
       entity.y = o.y + ny * minDist;
 
@@ -257,6 +320,19 @@ export const resolveObstacles = (
       entity.vx = Math.cos(entity.angle) * speed;
       entity.vy = Math.sin(entity.angle) * speed;
     }
+  }
+  // Projection between adjacent walls must never eject a valid mover through the wall.
+  if (origin) {
+    const fits = (p: Point) => {
+      const count = index ? index.collect(p.x, p.y, entity.radius + REEF_MARGIN) : obstacles.length;
+      for (let k = 0; k < count; k++) {
+        const o = index ? index.at(k) : obstacles[k];
+        if (isSolidObstacle(o) && Math.hypot(p.x - o.x, p.y - o.y) + GEOMETRY_EPSILON
+          < o.radius + entity.radius + (o.reef ? REEF_MARGIN : 0)) return false;
+      }
+      return true;
+    };
+    if (!fits(entity) && fits(origin)) { entity.x = origin.x; entity.y = origin.y; }
   }
 };
 

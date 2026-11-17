@@ -6,10 +6,10 @@ const anchor = (x: number, y: number, normalX: number, normalY: number, scale: n
 
 /** 生成朝 +x 的标准鱼归一化轮廓；坐标乘实体 radius 后即可渲染。 */
 export const buildStandardFishGeometry = (genes: MorphologyGenes): StandardFishGeometry => {
-  const halfLength = 0.72 + genes.bodyLength * 0.65;
-  const depth = 0.28 + genes.bodyDepth * 0.7;
-  const headBulge = 0.86 + genes.headRatio * 0.2;
-  const snout = 0.05 + genes.snoutLength * 0.14;
+  const halfLength = 0.7 + genes.bodyLength * 0.61;
+  const depth = 0.32 + genes.bodyDepth * 0.68;
+  const headBulge = 1.04 + genes.headRatio * 0.24;
+  const snout = 0.035 + genes.snoutLength * 0.1;
   const tailDepth = 0.12 + genes.tailPeduncle * 0.2;
   // 俯视鱼以身体中轴为镜像轴。背线/腹线基因共同决定横向宽度，避免
   // 配方在一侧堆出“侧视肚皮”，同时仍保留两个旧基因对体型的影响。
@@ -17,14 +17,15 @@ export const buildStandardFishGeometry = (genes: MorphologyGenes): StandardFishG
   const noseX = halfLength + snout;
   const sampleSide = (side: -1 | 1): MorphologyPoint[] => {
     const points: MorphologyPoint[] = [];
-    const samples = 13;
+    const samples = 19;
     for (let index = 0; index < samples; index += 1) {
       const t = index / (samples - 1);
       // 圆钝的头部快速展开，向尾柄逐渐收束。高密度采样同时服务 Canvas 与 Pixi mesh。
-      const bulb = Math.pow(Math.sin(Math.PI * t), 0.64);
+      const bulb = Math.pow(Math.sin(Math.PI * t), 0.54);
       const frontWeight = 1 + (headBulge - 1) * Math.pow(1 - t, 1.7);
       const curveBias = 0.91 + ((genes.backCurve + genes.bellyCurve) * 0.5) * 0.145 - t * 0.015;
-      const envelope = tailDepth * t + sideDepth * bulb * frontWeight * curveBias;
+      const envelope = tailDepth * t + sideDepth * bulb * frontWeight * curveBias
+        + sideDepth * 0.12 * Math.pow(1 - t, 7);
       points.push({
         x: noseX + (-halfLength - noseX) * t,
         y: side * envelope,
@@ -34,15 +35,15 @@ export const buildStandardFishGeometry = (genes: MorphologyGenes): StandardFishG
   };
   const upper = sampleSide(-1);
   const lower = sampleSide(1).reverse();
-  // 两侧各保留独立的尾柄点；鼻尖只保留一次，避免零长度边。
-  const points: MorphologyPoint[] = [...upper, ...lower.slice(0, -1)];
+  // 鼻端保留两个镜像点，闭合后形成圆钝的小脸，避免尖锐的三角鱼头。
+  const points: MorphologyPoint[] = [...upper, ...lower];
   const minX = Math.min(...points.map(point => point.x));
   const maxX = Math.max(...points.map(point => point.x));
   const minY = Math.min(...points.map(point => point.y));
   const maxY = Math.max(...points.map(point => point.y));
-  const eyeX = halfLength * (0.5 + genes.headRatio * 0.12);
-  const eyeY = depth * (0.27 + genes.eyeSpacing * 0.16);
-  const eyeSize = 0.105 + genes.eyeScale * 0.105;
+  const eyeX = halfLength * (0.42 + genes.headRatio * 0.1);
+  const eyeY = depth * (0.34 + genes.eyeSpacing * 0.18);
+  const eyeSize = Math.min(0.15 + genes.eyeScale * 0.12, eyeY * 0.7);
   return {
     outline: points,
     anchors: {

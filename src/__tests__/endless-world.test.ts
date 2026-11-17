@@ -171,7 +171,7 @@ describe('无限海域', () => {
       maxCurrents = Math.max(maxCurrents, state.currents?.length ?? 0);
       expect(state.endlessWorld?.loadedChunks).toHaveLength(25);
     }
-    expect(maxObstacles).toBeLessThanOrEqual(75);
+    expect(maxObstacles).toBeLessThanOrEqual(25 * ENDLESS_WORLD_CONFIG.MAX_OBSTACLES_PER_CHUNK);
     expect(maxBuildings).toBeLessThanOrEqual(25);
     expect(maxCurrents).toBeLessThanOrEqual(25);
     expect(BigInt(state.endlessWorld!.originChunkX)).not.toBe(0n);

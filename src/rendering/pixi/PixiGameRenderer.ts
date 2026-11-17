@@ -23,7 +23,10 @@ import {
 } from './CreatureLod';
 import { drawObstaclePixi } from './ObstaclePixiRenderer';
 import { OBSTACLE_ECOLOGY } from '../../data/obstacleEcology';
-import { getPondScenery } from '../../data/pondScenery';
+import { getOceanScenery } from '../../data/pondScenery';
+import { drawCutePondScenery } from '../obstacles/cuteOceanDecor';
+import { CosmeticGraphicsContext } from './CosmeticGraphicsContext';
+import { drawBoostTrailPixi, isBoostTrail } from '../boostTrail';
 
 export const PIXI_LAYER_NAMES = [
   'background', 'terrain', 'underEffects', 'creatures', 'worldItems', 'overEffects', 'worldLabels',
@@ -88,7 +91,7 @@ const obstacleIsAnimated = (obstacle: Obstacle): boolean => obstacle.featureStat
     || (obstacle.feature === 'VENT' && (obstacle.featureState === 'WARNING' || obstacle.featureState === 'ACTIVE')));
 
 const obstacleVisualKey = (obstacle: Obstacle): string =>
-  `${obstacle.id}|${obstacle.type}|${obstacle.x}|${obstacle.y}|${obstacle.radius}|${obstacle.feature ?? ''}|${obstacle.featureState ?? ''}`;
+  `${obstacle.id}|${obstacle.type}|${obstacle.x}|${obstacle.y}|${obstacle.radius}|${obstacle.feature ?? ''}|${obstacle.featureState ?? ''}|${obstacle.reef ? JSON.stringify(obstacle.reef) : ''}`;
 
 const portalColors = (portal: Portal): [string, string] => {
   if (portal.kind === 'POND') return [getPond(portal.targetPond).color, '#fcd34d'];
@@ -117,6 +120,8 @@ export class PixiGameRenderer implements GameRenderer {
     textureSpace: 'local',
   });
   private worldBackground = new Graphics();
+  private sceneryLayer = new Container();
+  private sceneryDisplays = new Map<string, { graphics: Graphics; visualKey: string }>();
   private backgroundPondId: string | null = null;
   private currentGraphics = new Graphics();
   private obstacleLayer = new Container();
@@ -185,7 +190,7 @@ export class PixiGameRenderer implements GameRenderer {
       this.layers.set(name, layer);
       this.worldRoot.addChild(layer);
     }
-    this.layers.get('background')?.addChild(this.worldBackground);
+    this.layers.get('background')?.addChild(this.worldBackground, this.sceneryLayer);
     this.layers.get('terrain')?.addChild(this.currentGraphics, this.obstacleLayer, this.terrainGraphics);
     this.layers.get('underEffects')?.addChild(this.underEffectsGraphics);
     this.layers.get('worldItems')?.addChild(this.worldItemsGraphics);
@@ -255,6 +260,7 @@ export class PixiGameRenderer implements GameRenderer {
     for (const entry of this.lodTextureCache.values()) entry.asset.texture.destroy(true);
     this.lodTextureCache.clear();
     this.labels.clear();
+    this.sceneryDisplays.clear();
     this.obstacleDisplays.clear();
     this.obstacleOrderKey = '';
     this.creatures.clear();
@@ -262,7 +268,7 @@ export class PixiGameRenderer implements GameRenderer {
     this.pendingCreatureDisposals.length = 0;
     this.appearanceCache.clear();
     this.layers.clear();
-    this.app?.destroy(true, { children: true, texture: true, textureSource: true, context: true });
+    this.app?.destroy({ removeView: true, releaseGlobalResources: false }, { children: true, texture: true, textureSource: true, context: true });
     this.app = null;
   }
 
@@ -313,25 +319,6 @@ export class PixiGameRenderer implements GameRenderer {
         g.poly(points).stroke({ color: routeColor, width: 9, alpha: 0.14 });
       }
     }
-    for (const mark of getPondScenery(pondId, layout)) {
-      const r = mark.radius;
-      if (mark.kind === 'LILY') {
-        g.ellipse(mark.x, mark.y, r, r * 0.6).fill({ color: '#70d6a0', alpha: 0.14 })
-          .stroke({ color: '#b7f7c7', width: 2, alpha: 0.24 });
-        g.circle(mark.x + r * 0.16, mark.y - r * 0.1, r * 0.12).fill({ color: '#f8d2e5', alpha: 0.45 });
-      } else if (mark.kind === 'CORAL') {
-        for (const offset of [-0.55, 0, 0.55]) {
-          g.moveTo(mark.x, mark.y + r * 0.45)
-            .lineTo(mark.x + offset * r, mark.y - r * (0.45 + Math.abs(offset) * 0.2))
-            .stroke({ color: '#ffb698', width: 4, alpha: 0.34, cap: 'round' });
-        }
-        g.circle(mark.x, mark.y + r * 0.4, r * 0.28).fill({ color: '#f8d4a4', alpha: 0.13 });
-      } else {
-        g.circle(mark.x, mark.y, r * 0.55).fill({ color: '#a58cff', alpha: 0.1 })
-          .stroke({ color: '#b9a4ff', width: 2, alpha: 0.3 });
-        g.circle(mark.x, mark.y, r * 0.15).fill({ color: '#d7c8ff', alpha: 0.55 });
-      }
-    }
     if (layout) {
       for (const landmark of layout.landmarks) {
         const color = landmark.kind === 'LILY' ? '#86efac'
@@ -342,10 +329,42 @@ export class PixiGameRenderer implements GameRenderer {
     }
   }
 
+  private drawScenery(state: Readonly<GameState>, now: number): number {
+    const marks = getOceanScenery(state);
+    const markId = (mark: typeof marks[number]) => mark.id ?? `${mark.kind}:${mark.x}:${mark.y}:${mark.angle}`;
+    const active = new Set(marks.map(markId));
+    for (const entry of this.sceneryDisplays.values()) entry.graphics.visible = false;
+    let visible = 0;
+    for (const mark of marks) {
+      if (!this.isVisible(mark.x, mark.y, mark.radius)) continue;
+      if (visible >= 64) break;
+      const id = markId(mark);
+      let entry = this.sceneryDisplays.get(id);
+      if (!entry) {
+        entry = { graphics: new Graphics(), visualKey: '' };
+        this.sceneryDisplays.set(id, entry); this.sceneryLayer.addChild(entry.graphics);
+      }
+      entry.graphics.visible = true;
+      entry.graphics.position.set(mark.x, mark.y);
+      const visualKey = `${mark.kind}:${mark.radius}:${mark.angle}`;
+      if (visualKey !== entry.visualKey || mark.kind === 'BUBBLES') {
+        drawCutePondScenery(new CosmeticGraphicsContext(entry.graphics.clear()).asCanvas(), { ...mark, x: 0, y: 0 }, now / 16);
+        entry.visualKey = visualKey;
+      }
+      visible++;
+    }
+    // Retain nearby static drawings while panning; old streamed chunks cannot accumulate GPU nodes.
+    for (const [id, entry] of this.sceneryDisplays) {
+      if (active.has(id) && (entry.graphics.visible || this.sceneryDisplays.size <= 96)) continue;
+      entry.graphics.destroy(); this.sceneryDisplays.delete(id);
+    }
+    return visible;
+  }
+
   private drawTerrain(state: Readonly<GameState>, now: number): number {
     const currents = this.currentGraphics.clear();
     const g = this.terrainGraphics.clear();
-    let visible = 0;
+    let visible = this.drawScenery(state, now);
     for (const zone of state.currents ?? []) {
       const radius = Math.hypot(zone.length, zone.width) / 2;
       if (!this.isVisible(zone.x, zone.y, radius)) continue;
@@ -364,7 +383,7 @@ export class PixiGameRenderer implements GameRenderer {
       orderedObstacleGraphics.push(entry.graphics);
       const visualRadius = obstacle.feature === 'VENT' && obstacle.featureState !== 'IDLE'
         ? obstacle.radius + OBSTACLE_ECOLOGY.VENT_RANGE
-        : obstacle.radius;
+        : obstacle.reef?.anchor ? obstacle.reef.halfLength + 220 : obstacle.radius;
       entry.graphics.visible = this.isVisible(obstacle.x, obstacle.y, visualRadius);
       if (!entry.graphics.visible) continue;
       const visualKey = obstacleVisualKey(obstacle);
@@ -387,7 +406,7 @@ export class PixiGameRenderer implements GameRenderer {
     const orderKey = state.obstacles.map(obstacle => obstacle.id).join('\0');
     if (orderKey !== this.obstacleOrderKey) {
       this.obstacleLayer.removeChildren();
-      this.obstacleLayer.addChild(...orderedObstacleGraphics);
+      if (orderedObstacleGraphics.length > 0) this.obstacleLayer.addChild(...orderedObstacleGraphics);
       this.obstacleOrderKey = orderKey;
     }
     for (const building of state.buildings) {
@@ -553,9 +572,10 @@ export class PixiGameRenderer implements GameRenderer {
     }
 
     for (const particle of state.particles) {
-      if (!this.isVisible(particle.x, particle.y, particle.size)) continue;
+      if (!this.isVisible(particle.x, particle.y, Math.max(particle.size, particle.length ?? 0))) continue;
       const alpha = Math.max(0, Math.min(1, particle.life / Math.max(0.001, particle.maxLife)));
-      if (particle.shape === 'COOKIE') this.drawCookie(under, particle.x, particle.y, particle.size, particle.spin ?? 0);
+      if (isBoostTrail(particle)) drawBoostTrailPixi(under, particle);
+      else if (particle.shape === 'COOKIE') this.drawCookie(under, particle.x, particle.y, particle.size, particle.spin ?? 0);
       else under.circle(particle.x, particle.y, particle.size).fill({ color: particle.color, alpha });
       underContent = true;
       visibleParticles += 1;

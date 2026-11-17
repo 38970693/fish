@@ -19,6 +19,7 @@ import { isPositionValid } from './terrain';
 import { createEntity } from './spawn';
 import { createParticle, dealDamage, createCookieParticle } from './combat';
 import { isFeedingEventMajorPhase } from './feedingEvents';
+import { awardPlayerGrowth } from './playerGrowth';
 
 const TREASURE_EFFECT_BY_TYPE: Record<Treasure['type'], Treasure['effect']> = {
   FEAST: 'EXP',
@@ -90,8 +91,7 @@ export const updateTreasures = (state: GameState, ctx: FrameContext): void => {
     const value = t.rewardValue ?? 0;
     switch (t.effect) {
       case 'EXP':
-        player.weight += value;
-        player.evolutionPoints += value;
+        awardPlayerGrowth(state, ctx, value);
         player.speechBubble = { text: `+${value} 经验！`, timer: 60, color: '#fcd34d' };
         break;
       case 'GOLD': {

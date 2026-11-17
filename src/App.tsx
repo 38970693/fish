@@ -5,16 +5,18 @@ import UIOverlay from './components/UIOverlay';
 import { GameState, GameStatus, CreatureType, DEFAULT_COSMETICS } from './types';
 import { CREATURES, CREATURE_DATA, MAP_SHAPE_CONFIG, PROTECTION_CONFIG, SQUAD_COMMAND_LIST } from './constants';
 import { applyEvolutionChoice } from './systems/progression';
+import { chooseAutopilotEvolution, chooseAutopilotInput, createAutopilotMemory } from './systems/playerAutopilot';
 import { updateGame, queueSquadAction, createEntity, getSquadMembers, peekNextSwitchTarget } from './gameEngine';
 import { screenToWorld } from './core/math';
 // 性能剖析挂钩：只有 DEV 下的 __FISH_DEBUG__.profile() 会用到（见文件末尾的调试钩子）
 import { setProfileSink } from './systems';
 import { createInitialState } from './factories/initialState';
 import { markRunPractice } from './systems/runFlow';
-import { subscribeAudio, initAudio, toggleMute, isMuted } from './audio';
+import { subscribeAudio, initAudio, toggleMute, isMuted, setAudioScene } from './audio';
 import { subscribeAchievements } from './systems/achievements';
 import { selectBrowserRenderer } from './rendering/rendererSelection';
 import { createRivalSquads } from './data/rivalSquads';
+import { loadPlayerCosmetics, savePlayerCosmetics } from './core/cosmeticsStorage';
 
 // 音效只订阅一次：逻辑层发事件，音频层负责发声，两边互不知情（P1-4）
 subscribeAudio();
@@ -23,9 +25,9 @@ subscribeAchievements();
 
 const App: React.FC = () => {
   // URL 优先、localStorage 次之；生产版在 Pixi 正式放行前会安全回退 Canvas。
-  const [rendererSelection] = useState(() => selectBrowserRenderer(true));
-  const gameStateRef = useRef<GameState>(createInitialState());
-  const [uiState, setUiState] = useState<GameState>(gameStateRef.current);
+  const [rendererSelection] = useState(() => selectBrowserRenderer(import.meta.env.DEV));
+  const [uiState, setUiState] = useState<GameState>(() => createInitialState({ cosmetics: loadPlayerCosmetics() }));
+  const gameStateRef = useRef<GameState>(uiState);
   const [muted, setMuted] = useState<boolean>(isMuted());
   // 鼠标初始值取屏幕中心：避免默认 (0,0) 让鱼一开局就自动朝左上角游，
   // 正好撞进出生点旁的深海商场，3 秒就弹出换装面板把世界暂停（"被隔离在外面"的元凶）
@@ -33,11 +35,27 @@ const App: React.FC = () => {
   const keysRef = useRef({ space: false, q: false, e: false });
   const isMouseDownRef = useRef(false);
   const isRightMouseDownRef = useRef(false);
+  const [autopilotEnabled, setAutopilotEnabled] = useState(false);
+  const autopilotEnabledRef = useRef(false);
+  const autopilotMemoryRef = useRef(createAutopilotMemory());
+
+  const setAutopilot = (enabled: boolean) => {
+    autopilotEnabledRef.current = enabled;
+    gameStateRef.current.autopilotEnabled = enabled;
+    autopilotMemoryRef.current = createAutopilotMemory();
+    setAutopilotEnabled(enabled);
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setUiState({ ...gameStateRef.current }), 100);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    setAudioScene(uiState.status);
+  }, [uiState.status]);
+
+  useEffect(() => () => setAudioScene(GameStatus.MENU), []);
 
   /**
    * 鼠标屏幕坐标 → 世界坐标（FQ-05 集火选靶用）。
@@ -56,6 +74,12 @@ const App: React.FC = () => {
     // Space = 加速，Q = 流派技能（P1-3），E = 交互确认（商场/沉船），G = 无敌模式（调试用）
     // 1/2/3 = 战队指令（集火 / 护卫 / 撤退），R = 附身下一条（FQ-05）
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyP' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey &&
+        (gameStateRef.current.status === GameStatus.PLAYING ||
+          gameStateRef.current.status === GameStatus.BATTLE_TEST ||
+          gameStateRef.current.status === GameStatus.EVOLVING)) {
+        setAutopilot(!autopilotEnabledRef.current);
+      }
       if (e.code === 'Space') keysRef.current.space = true;
       if (e.code === 'KeyQ') keysRef.current.q = true;
       if (e.code === 'KeyE') keysRef.current.e = true;
@@ -63,7 +87,7 @@ const App: React.FC = () => {
       // 指令与附身都是**离散输入**：这里只入队，由 squadSystem 帧内消费一次（AR-03）。
       // 只在正常游玩中受理 —— 进化 / 结算 / 商场这些遮罩态下世界暂停、队列没人消费，
       // 攒着会在恢复的瞬间一次性全炸出来。
-      if (gameStateRef.current.status === GameStatus.PLAYING) {
+      if (gameStateRef.current.status === GameStatus.PLAYING && !gameStateRef.current.arena) {
         const command = SQUAD_COMMAND_LIST.find((c) => c.keyCode === e.code);
         if (command) {
           queueSquadAction(gameStateRef.current, {
@@ -116,11 +140,28 @@ const App: React.FC = () => {
       acc += Math.min(now - last, 250);
       last = now;
       while (acc >= STEP_MS) {
+        const state = gameStateRef.current;
+        if (autopilotEnabledRef.current && state.status === GameStatus.EVOLVING) {
+          const choice = chooseAutopilotEvolution(state);
+          if (choice) applyEvolutionChoice(state, choice);
+          else setAutopilot(false);
+        }
+        if (autopilotEnabledRef.current && state.status === GameStatus.SHOP) {
+          state.status = GameStatus.PLAYING;
+        }
+        if (autopilotEnabledRef.current &&
+          (state.status === GameStatus.GAME_OVER || state.status === GameStatus.VICTORY || state.status === GameStatus.MENU)) {
+          setAutopilot(false);
+        }
+        const autoInput = autopilotEnabledRef.current &&
+          (state.status === GameStatus.PLAYING || state.status === GameStatus.BATTLE_TEST)
+          ? chooseAutopilotInput(state, autopilotMemoryRef.current, window.innerWidth, window.innerHeight)
+          : null;
         gameStateRef.current = updateGame(
-          gameStateRef.current, mouseRef.current, keysRef.current.space,
-          isMouseDownRef.current, isRightMouseDownRef.current,
-          window.innerWidth, window.innerHeight, keysRef.current.q,
-          keysRef.current.e
+          state, autoInput?.mouse ?? mouseRef.current, autoInput?.space ?? keysRef.current.space,
+          isMouseDownRef.current, isRightMouseDownRef.current || !!autoInput?.rightMouseDown,
+          window.innerWidth, window.innerHeight, keysRef.current.q || !!autoInput?.q,
+          autoInput ? false : keysRef.current.e
         );
         acc -= STEP_MS;
         steps += 1;
@@ -496,7 +537,9 @@ const App: React.FC = () => {
   };
 
   const startBattleTest = () => {
-      const state = createInitialState({ startType: CreatureType.GREAT_WHITE });
+      initAudio();
+      setAutopilot(false);
+      const state = createInitialState({ startType: CreatureType.GREAT_WHITE, enableQuests: false });
       state.status = GameStatus.BATTLE_TEST;
       state.camera.zoom = 0.6;
       
@@ -534,31 +577,40 @@ const App: React.FC = () => {
         }}
       />
       <UIOverlay 
+        renderer={rendererSelection.kind}
         gameState={uiState} 
-        onStart={(type, pondId, worldMode) => {
+        onStart={(type, pondId, worldMode, mode) => {
+            setAutopilot(false);
             // 浏览器要求音频上下文在用户手势里创建/恢复，开始按钮正是最合适的位置
             initAudio();
             const currentCos = gameStateRef.current.player.cosmetics;
-            gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos, pondId, worldMode });
+            gameStateRef.current = createInitialState({ startType: type, cosmetics: currentCos, pondId, worldMode, mode });
             gameStateRef.current.status = GameStatus.PLAYING;
             // P0-2 新手保护：开局 8 秒不会被吃（自己可以正常捕食）
             gameStateRef.current.player.invulnerableTimer = PROTECTION_CONFIG.NEWBIE_DURATION;
         }}
         onStartBattleTest={startBattleTest}
         onRestart={() => {
+            setAutopilot(false);
             // 重开保留当前塘：在哪翻的车，就在哪爬起来（「多鱼塘」阶段 1）
             const pondId = gameStateRef.current.pondId;
             const worldMode = gameStateRef.current.worldMode;
             const worldSeed = gameStateRef.current.endlessWorld?.seed;
-            gameStateRef.current = createInitialState({ pondId, worldMode, worldSeed });
+            const cosmetics = gameStateRef.current.player.cosmetics;
+            gameStateRef.current = createInitialState({ pondId, worldMode, worldSeed, cosmetics });
         }}
         onEvolve={(type: any) => {
             // 进化数值只有一份真值（systems/progression.ts）—— 无人值守的 3 分钟切片台架
             // 也走这里，改数值时两边不会各跑一套
             applyEvolutionChoice(gameStateRef.current, type);
         }}
-        onUpdateCosmetics={(cos) => { gameStateRef.current.player.cosmetics = cos; }}
+        onUpdateCosmetics={(cos) => {
+            gameStateRef.current.player.cosmetics = cos;
+            savePlayerCosmetics(cos);
+            setUiState({ ...gameStateRef.current });
+        }}
         onRevive={() => {
+            if (gameStateRef.current.arena) return;
             // P0-3 复活：满血、回出生点、带 5 秒保护，避免落地即被守尸
             const p = gameStateRef.current.player;
             p.health = p.maxHealth;
@@ -588,6 +640,8 @@ const App: React.FC = () => {
             queueSquadAction(gameStateRef.current, { kind: 'POSSESS', memberId });
         }}
         onToggleGodMode={toggleGodMode}
+        autopilotEnabled={autopilotEnabled}
+        onToggleAutopilot={() => setAutopilot(!autopilotEnabledRef.current)}
         muted={muted}
         onToggleMute={() => { initAudio(); setMuted(toggleMute()); }}
       />

@@ -1,19 +1,22 @@
 /**
  * 鱼外观预览画布 —— 装扮面板的「试衣镜」。
  *
- * 关键点：它**复用游戏里那个 `drawCuteFish`**，不另写一套简化画法。
- * 这是刻意为之 —— 预览一旦和游戏里长得不一样，玩家换完装回到水里就会发现被骗了，
- * 预览还不如没有。所以这里只负责「造一个假 entity + 摆好画布」，画法全部交给游戏本体。
+ * 与当前渔场使用相同的渲染引擎，并保留玩家的外观种子和 V2 数据。
  *
  * 用法：
  *   <FishPreview type={player.type} cosmetics={cos} animate />      大预览（动画）
  *   <FishPreview type={player.type} cosmetics={optCos} size={44} /> 选项缩略图（静态帧）
  */
 
-import React, { useEffect, useRef } from 'react';
-import { CREATURES } from '../data/creatures';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import type { Cosmetics, CreatureType, Entity } from '../types';
 import { drawCuteFish } from './GameCanvas';
+import { drawBoostTrailCanvas } from '../rendering/boostTrail';
+import { makePreviewEntity, previewBoostParticles } from '../rendering/fishPreviewEntity';
+import type { RendererKind } from '../rendering/types';
+import type { CreatureDisplay } from '../rendering/pixi/CreatureDisplay';
+
+export const FishPreviewContext = createContext<{ fish?: Entity; renderer: RendererKind }>({ renderer: 'canvas' });
 
 interface FishPreviewProps {
   /** 要预览的鱼种（玩家当前鱼种） */
@@ -26,6 +29,7 @@ interface FishPreviewProps {
   height?: number;
   /** 是否逐帧动画（大预览开、缩略图关 —— 几十个小画布同时跑 rAF 没必要） */
   animate?: boolean;
+  boosting?: boolean;
   className?: string;
   /** 无障碍标签 */
   title?: string;
@@ -37,33 +41,6 @@ interface FishPreviewProps {
  */
 const STATIC_VISUAL_TIME = 14;
 
-/** 造一个够 drawCuteFish 用的最小 entity（不进场、不参与任何系统） */
-const makePreviewEntity = (
-  type: CreatureType,
-  cosmetics: Cosmetics,
-  radius: number,
-  x: number,
-  y: number
-): Entity =>
-  ({
-    id: '__preview__',
-    type,
-    x,
-    y,
-    radius,
-    angle: 0,
-    vx: 0,
-    vy: 0,
-    health: 1,
-    maxHealth: 1,
-    level: 1,
-    animOffset: 0,
-    renderScale: 1,
-    cosmetics,
-    semiGhostTimer: 0,
-    config: CREATURES[type],
-  }) as unknown as Entity;
-
 const FishPreview: React.FC<FishPreviewProps> = ({
   type,
   cosmetics,
@@ -71,15 +48,18 @@ const FishPreview: React.FC<FishPreviewProps> = ({
   width,
   height,
   animate = false,
+  boosting = false,
   className,
   title,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { fish, renderer } = useContext(FishPreviewContext);
 
   const w = width ?? size ?? 48;
   const h = height ?? size ?? 48;
+  const cosmeticsSignature = JSON.stringify(cosmetics);
 
-  // 依赖里只放真正影响画面的东西；cosmetics 是每次改动新建的对象，身份变了才重画
+  // HUD 定时刷新会新建缩略图的装扮对象；只在内容变化时重建绘图节点。
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -94,40 +74,64 @@ const FishPreview: React.FC<FishPreviewProps> = ({
       canvas.height = h * dpr;
     }
 
-    const radius = Math.min(w, h) * 0.3;
-    const entity = makePreviewEntity(type, cosmetics, radius, w / 2, h / 2);
+    const entity = makePreviewEntity(type, cosmetics, w, h, boosting, fish);
+    let alive = true;
+    let raf = 0;
+    let display: CreatureDisplay | undefined;
+    let release: (() => void) | undefined;
+    delete canvas.dataset.renderer;
 
-    const paint = (visualTime: number) => {
+    const paintCanvas = (visualTime: number) => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
+      if (boosting) {
+        for (const p of previewBoostParticles(entity, visualTime)) drawBoostTrailCanvas(ctx, p);
+      }
       // isPlayer=false：预览不需要玩家那圈光环，它会盖住配饰、也让缩略图变得花
       drawCuteFish(ctx, entity, visualTime, false);
     };
 
-    if (!animate) {
-      paint(STATIC_VISUAL_TIME);
-      return;
-    }
-
-    // 用真实时钟推进 visualTime，和游戏里 dt 累积出来的观感一致
-    let raf = 0;
-    let alive = true;
-    const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    // 先同步画一帧再进循环：等第一个 rAF 才上色的话，
-    // 挂载瞬间画布是空的 —— 用户会看到一帧白板，探针也会采到全透明像素
-    paint(STATIC_VISUAL_TIME);
-    const loop = () => {
+    const startPainting = (paint: (visualTime: number) => void) => {
       if (!alive) return;
-      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      paint(STATIC_VISUAL_TIME + (now - start) / 16.67);
+      const start = performance.now();
+      const frame = (visualTime: number) => {
+        paint(visualTime);
+        canvas.dataset.renderer = renderer;
+        canvas.dataset.visualTime = String(visualTime);
+        canvas.dataset.boosting = String(boosting);
+      };
+      frame(STATIC_VISUAL_TIME);
+      if (!animate) return;
+      const loop = () => {
+        if (!alive) return;
+        frame(STATIC_VISUAL_TIME + (performance.now() - start) / (1000 / 60));
+        raf = requestAnimationFrame(loop);
+      };
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+
+    if (renderer === 'pixi') {
+      void import('../rendering/pixi/FishPreviewRenderer').then(async ({ acquireFishPreviewRenderer }) => {
+        if (!alive) return;
+        const lease = acquireFishPreviewRenderer();
+        release = lease.release;
+        const backend = await lease.ready;
+        if (!alive) return;
+        display = backend.createDisplay(entity.id);
+        startPainting(time => backend.paint(canvas, display!, entity, time, w, h, dpr, boosting));
+      }).catch(error => {
+        if (alive) console.error('Fish preview renderer failed', error);
+      });
+    } else {
+      startPainting(paintCanvas);
+    }
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
+      display?.destroy();
+      release?.();
     };
-  }, [type, cosmetics, w, h, animate]);
+  }, [type, cosmeticsSignature, w, h, animate, boosting, renderer, fish?.id, fish?.type, fish?.config, fish?.appearanceV2, fish?.animOffset]);
 
   return (
     <canvas

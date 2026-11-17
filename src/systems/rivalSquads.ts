@@ -95,11 +95,13 @@ const nearestDrop = (member: Entity, drops: FeedingDrop[]): FeedingDrop | null =
 };
 
 const moveToward = (member: Entity, x: number, y: number, stopAt: number, config: RivalSquadConfig): void => {
+  member.accelerationMult = 1;
   const dx = x - member.x;
   const dy = y - member.y;
   if (Math.hypot(dx, dy) <= stopAt) return;
   member.angle = turnToward(member.angle, Math.atan2(dy, dx), 0.22);
   const speed = member.speed * config.APPROACH_SPEED_MULT;
+  member.accelerationMult = config.APPROACH_SPEED_MULT;
   member.vx = Math.cos(member.angle) * speed;
   member.vy = Math.sin(member.angle) * speed;
   member.x += member.vx;

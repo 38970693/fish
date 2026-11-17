@@ -19,13 +19,16 @@ import { BUILDING_DATA, BUILDING_SPAWN_RULES, BuildingType } from '../data/build
 import { getPond, otherPonds, DEFAULT_POND, POND_DATA, scoreGain, type PondId } from '../data/ponds';
 import { DEFAULT_COSMETICS, GameStatus, type Building, type GameState, type FrameContext, type Obstacle, type Portal } from '../types';
 import { uuid, dist, pick } from '../core/math';
-import { getBiome, getRandomPosInBiome, isPositionValid, clampToMap, resolveObstacles, MAP_CENTER, ObstacleIndex } from './terrain';
+import { getBiome, getRandomPosInBiome, isPositionValid, clampToMap, resolveObstacles, MAP_CENTER, ObstacleIndex, takeTerrainPosition, forgetTerrainPosition } from './terrain';
 import { createParticle, dealDamage } from './combat';
 import { spawnSystem, createEntity } from './spawn';
 import { createCurrentZones } from '../data/habitats';
 import { configureObstacleEcology } from './obstacleEcology';
 import { getOceanRegion } from '../data/oceanRegions';
 import { createPondOpportunityState } from '../data/pondOpportunities';
+import { createReefCluster, REEF_GAPS } from '../data/reefClusters';
+import { applyPlayerRadiusGrowth } from './playerGrowth';
+import { updateReefFeedback } from './reefNavigation';
 import {
   createLayoutRandom,
   generatePondLayout,
@@ -122,12 +125,30 @@ const pushOutsideCurrent = (p: { x: number; y: number }, pondId?: string | null,
 
 /* ══════════════ 世界构建（初始化 / 跨塘重建时调用） ══════════════ */
 
-export const createObstacles = (pondId?: string | null, layout?: PondLayout): Obstacle[] => {
+export const createObstacles = (pondId?: string | null, layout?: PondLayout, landmarks: readonly { x: number; y: number; radius: number }[] = []): Obstacle[] => {
   // 珊瑚塘礁石密布、深渊塘空旷 —— 由塘的 obstacleScale 决定
   const target = Math.max(8, Math.round(MAX_OBSTACLES * getPond(pondId).obstacleScale));
   const obstacles: Obstacle[] = [];
   const pond = ((pondId && pondId in POND_DATA) ? pondId : DEFAULT_POND) as PondId;
   const random = layout ? createLayoutRandom(layout.seed, pond, 'obstacles', layout.version) : Math.random;
+  const reefRandom = layout ? createLayoutRandom(layout.seed, pond, 'reef-clusters-v1', layout.version) : Math.random;
+  const reefCenters: { x: number; y: number }[] = [];
+  const reefTarget = pond === 'CORAL' ? 9 : pond === 'ABYSS' ? 4 : 6;
+  for (let attempt = 0; attempt < 240 && reefCenters.length < reefTarget; attempt++) {
+    const center = { x: reefRandom() * WORLD_SIZE, y: reefRandom() * WORLD_SIZE };
+    if (!isPositionValid(center.x, center.y, 380, pondId)) continue;
+    if (dist(center, layout?.spawn ?? MAP_CENTER) < 740) continue;
+    if (dist(center, layout?.shop ?? SHOP_POSITION) < 310 + SHOP_INTERACT_RANGE + 160) continue;
+    if (intersectsCurrentKeepOut(center, 310, pondId, layout)) continue;
+    if (layout && (isNearLayoutRoute(layout, center, 510)
+      || layout.landmarks.some(l => dist(center, l) < 310 + l.radius + 180))) continue;
+    if (landmarks.some(l => dist(center, l) < 310 + l.radius + 160)) continue;
+    if (reefCenters.some(p => dist(center, p) < 760)) continue;
+    const n = reefCenters.length;
+    const id = layout ? `layout-reef-${pond}-${n}` : `reef-${uuid()}`;
+    obstacles.push(...createReefCluster(id, center, reefRandom() * Math.PI * 2, REEF_GAPS[n % 3], n % 3 === 1 ? 'GATE' : 'REFUGE'));
+    reefCenters.push(center);
+  }
   for (let i = 0; i < target * 1.5; i += 1) {
     const x = random() * WORLD_SIZE;
     const y = random() * WORLD_SIZE;
@@ -136,6 +157,11 @@ export const createObstacles = (pondId?: string | null, layout?: PondLayout): Ob
     if (!isPositionValid(x, y, radius + 80, pondId)) continue;
     // 洋流必须是一条真正可用的路线；随机巨石/珊瑚不能横在水道中间。
     if (intersectsCurrentKeepOut({ x, y }, radius + 35, pondId, layout)) continue;
+    if (dist({ x, y }, layout?.spawn ?? MAP_CENTER) < radius + 420) continue;
+    if (dist({ x, y }, layout?.shop ?? SHOP_POSITION) < radius + SHOP_INTERACT_RANGE + 160) continue;
+    if (landmarks.some(l => dist({ x, y }, l) < radius + l.radius + 160)) continue;
+    // Keep the full corridor and both exterior exits free of unrelated giant boulders.
+    if (reefCenters.some(p => dist({ x, y }, p) < radius + 310)) continue;
     if (layout) {
       if (isNearLayoutRoute(layout, { x, y }, radius + 200)) continue;
       if (Math.hypot(x - layout.spawn.x, y - layout.spawn.y) < radius + 420) continue;
@@ -340,16 +366,24 @@ export const pondTravel = (state: GameState, targetPondId?: string | null, ctx?:
 
   let targetLayout: PondLayout | undefined;
   let targetObstacles: Obstacle[];
+  let targetBuildings: Building[];
+  let targetPortals: Portal[];
   if (state.pondLayoutMode === 'PROCEDURAL' && state.layoutSeed !== undefined) {
     targetLayout = generatePondLayout(state.layoutSeed, targetId);
-    targetObstacles = createObstacles(targetId, targetLayout);
+    targetBuildings = createBuildings(targetId, targetLayout);
+    targetPortals = createPortals(targetId, targetLayout);
+    targetObstacles = createObstacles(targetId, targetLayout, [...targetBuildings, ...targetPortals]);
     const validation = validatePondLayoutReachability(targetLayout, targetObstacles, targetId);
     if (!validation.ok && !targetLayout.fallbackReason) {
       targetLayout = getSafePondLayout(state.layoutSeed, targetId, validation.reason);
-      targetObstacles = createObstacles(targetId, targetLayout);
+      targetBuildings = createBuildings(targetId, targetLayout);
+      targetPortals = createPortals(targetId, targetLayout);
+      targetObstacles = createObstacles(targetId, targetLayout, [...targetBuildings, ...targetPortals]);
     }
   } else {
-    targetObstacles = createObstacles(targetId);
+    targetBuildings = createBuildings(targetId);
+    targetPortals = createPortals(targetId);
+    targetObstacles = createObstacles(targetId, undefined, [...targetBuildings, ...targetPortals]);
   }
 
   state.pondId = targetId;
@@ -357,9 +391,9 @@ export const pondTravel = (state: GameState, targetPondId?: string | null, ctx?:
   state.layoutVersion = targetLayout?.version;
   state.discoveredLandmarks = [];
   state.obstacles = targetObstacles;
-  state.portals = createPortals(targetId, targetLayout);
+  state.portals = targetPortals;
   // 建筑按塘重建：目标塘的特产建筑在这里落地（阶段 3a）
-  state.buildings = createBuildings(targetId, targetLayout);
+  state.buildings = targetBuildings;
   state.currents = createCurrentZones(targetId, targetLayout);
   if (targetLayout && state.run?.mode === 'RIVALS') {
     state.pondOpportunity ??= createPondOpportunityState();
@@ -391,6 +425,7 @@ export const pondTravel = (state: GameState, targetPondId?: string | null, ctx?:
 
   // 程序化布局落在该局出生点；Classic 沿用塘中心。
   player.x = targetLayout?.spawn.x ?? MAP_CENTER.x;
+  forgetTerrainPosition(player);
   player.y = targetLayout?.spawn.y ?? MAP_CENTER.y;
   player.vx = 0;
   player.vy = 0;
@@ -403,6 +438,7 @@ export const pondTravel = (state: GameState, targetPondId?: string | null, ctx?:
 
   // 战队成员围到玩家身边（下一帧由 squad 系统接管队形）
   squadMembers.forEach((m, i) => {
+    forgetTerrainPosition(m);
     const a = (Math.PI * 2 * i) / Math.max(1, squadMembers.length);
     m.x = player.x + Math.cos(a) * (m.radius + player.radius + 120);
     m.y = player.y + Math.sin(a) * (m.radius + player.radius + 120);
@@ -616,6 +652,7 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
         state.particles.push(createParticle(player.x, player.y, '#d8b4fe'));
       }
       player.x = target.x + Math.cos(Math.random() * Math.PI * 2) * (target.radius + player.radius + 20);
+      forgetTerrainPosition(player);
       player.y = target.y + Math.sin(Math.random() * Math.PI * 2) * (target.radius + player.radius + 20);
       player.speechBubble = { text: `${target.name ?? '传送门'}！`, timer: 60, color: '#d8b4fe' };
       teleportLockUntilFrame = state.time + 90;
@@ -640,15 +677,19 @@ export const worldSystem = (state: GameState, ctx: FrameContext): void => {
   // 每帧重建（几十微秒）换来「树永远和本帧一致」，行为与全量扫描完全一致（见 ObstacleIndex）。
   obstacleIndex.rebuild(solidObstacles);
 
-  if (solidObstacles.length) resolveObstacles(player, solidObstacles, obstacleIndex);
+  const playerOrigin = takeTerrainPosition(player, state.time);
+  if (solidObstacles.length) resolveObstacles(player, solidObstacles, obstacleIndex, playerOrigin);
   clampToMap(player, isBattleTest, state.pondId, state.worldMode);
+  if ((player.pendingRadiusGrowth ?? 0) > 0) applyPlayerRadiusGrowth(state);
 
   for (const e of state.entities) {
-    if (solidObstacles.length) resolveObstacles(e, solidObstacles, obstacleIndex);
+    const origin = takeTerrainPosition(e, state.time);
+    if (solidObstacles.length) resolveObstacles(e, solidObstacles, obstacleIndex, origin);
     clampToMap(e, isBattleTest, state.pondId, state.worldMode);
   }
 
   /* ── 5. E 键状态记录（供下一帧上升沿检测） ── */
+  updateReefFeedback(state);
   prevInteract = ctx.input.interact;
 };
 

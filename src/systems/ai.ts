@@ -16,7 +16,8 @@ import { dist2, turnToward, num } from '../core/math';
 // 四叉树宽相位索引：性能基线（scripts/probe-perf.mjs）量出 findNearest 每帧把
 // 全部候选扫一到两遍（还每条鱼分配一个 [player, ...entities] 数组），是逻辑层第三贵的一块
 import { QuadTree } from '../utils/SpatialHash';
-import { getBiome } from './terrain';
+import { getBiome, captureTerrainFrame } from './terrain';
+import { findRefugeWaypoint, reefNavigationPoint, reefChaseWaitPoint, isReefChaseSkipped } from './reefNavigation';
 import { castSkill } from './skills';
 import { dealDamage } from './combat';
 import { isConcealed, canPerceive } from './concealment';
@@ -180,6 +181,7 @@ const moveForward = (entity: Entity, state: GameState, speedMult = 1): void => {
   }
   // 减速 / 麻痹
   if (entity.speedBoostTimer && entity.speedBoostTimer < 0) speed *= 0.4;
+  entity.accelerationMult = speedMult * ((entity.speedBoostTimer ?? 0) < 0 ? 0.4 : 1);
 
   entity.vx = Math.cos(entity.angle) * speed;
   entity.vy = Math.sin(entity.angle) * speed;
@@ -229,7 +231,9 @@ export const calculateSchoolHeading = (entity: Entity, neighbors: readonly Entit
     alignX += (otherSpeed > 0.01 ? other.vx / otherSpeed : Math.cos(other.angle)) * kinship;
     alignY += (otherSpeed > 0.01 ? other.vy / otherSpeed : Math.sin(other.angle)) * kinship;
     centerX += other.x * kinship; centerY += other.y * kinship; centerWeight += kinship;
-    const spacing = Math.max(58, (entity.radius + other.radius) * 2.25);
+    const spacing = entity.naturalSpawn
+      ? Math.max(90, (entity.radius + other.radius) * 3)
+      : Math.max(58, (entity.radius + other.radius) * 2.25);
     if (distance < spacing) {
       const pressure = Math.pow((spacing - distance) / spacing, 1.35) * kinship;
       separateX -= dx / distance * pressure;
@@ -255,12 +259,14 @@ export const calculateSchoolHeading = (entity: Entity, neighbors: readonly Entit
 const schoolCruise = (entity: Entity, state: GameState, agility: number, speedMult: number): boolean => {
   if ((entity.config.shape ?? 'FISH') !== 'FISH' || entity.config.tier < 1 || entity.config.tier > 2) return false;
   schoolNeighborBuf.length = 0;
-  const found = candidateTree.queryCircle(entity.x, entity.y, SCHOOL_RADIUS, queryBuf);
-  for (let index = 0; index < found && schoolNeighborBuf.length < SCHOOL_MAX_NEIGHBORS; index += 1) {
+  const radius = entity.naturalSpawn ? 300 : SCHOOL_RADIUS;
+  const maxNeighbors = entity.naturalSpawn ? 6 : SCHOOL_MAX_NEIGHBORS;
+  const found = candidateTree.queryCircle(entity.x, entity.y, radius, queryBuf);
+  for (let index = 0; index < found && schoolNeighborBuf.length < maxNeighbors; index += 1) {
     const other = candidateTree.itemAt(queryBuf[index]);
     if (!canSchoolTogether(entity, other)) continue;
     const distanceSq = dist2(entity, other);
-    if (distanceSq >= SCHOOL_RADIUS * SCHOOL_RADIUS || !canPerceive(entity, other, distanceSq)) continue;
+    if (distanceSq >= radius * radius || !canPerceive(entity, other, distanceSq)) continue;
     schoolNeighborBuf.push(other);
   }
   const heading = calculateSchoolHeading(entity, schoolNeighborBuf);
@@ -311,7 +317,8 @@ const isChaseAngleUnstable = (entity: Entity, target: Entity): boolean => {
 const fleeFrom = (entity: Entity, threat: Entity, state: GameState, agility: number): void => {
   // 已经压在身上：方位角不可信，保持朝向直接冲出去，别原地打转
   if (!isOverlapping(entity, threat)) {
-    const away = Math.atan2(entity.y - threat.y, entity.x - threat.x);
+    const refuge = findRefugeWaypoint(entity, threat, state);
+    const away = refuge ? Math.atan2(refuge.y - entity.y, refuge.x - entity.x) : Math.atan2(entity.y - threat.y, entity.x - threat.x);
     entity.angle = turnToward(entity.angle, away, agility);
   }
   moveForward(entity, state, 1.1);
@@ -319,9 +326,18 @@ const fleeFrom = (entity: Entity, threat: Entity, state: GameState, agility: num
 };
 
 const chaseTo = (entity: Entity, prey: Entity, state: GameState, agility: number, mult = 1): void => {
+  const wait = reefChaseWaitPoint(entity, prey, state);
+  if (wait) {
+    const aim = reefNavigationPoint(entity, wait, state);
+    entity.angle = turnToward(entity.angle, Math.atan2(aim.y - entity.y, aim.x - entity.x), agility);
+    if (Math.hypot(wait.x - entity.x, wait.y - entity.y) < 30) { entity.vx = 0; entity.vy = 0; return; }
+    moveForward(entity, state, 0.6);
+    return;
+  }
   // 同上：贴到猎物身上时不再追方位角，直接冲过去
   if (!isChaseAngleUnstable(entity, prey)) {
-    const toward = Math.atan2(prey.y - entity.y, prey.x - entity.x);
+    const aim = state.obstacles.some(o => o.reef) ? reefNavigationPoint(entity, prey, state) : prey;
+    const toward = Math.atan2(aim.y - entity.y, aim.x - entity.x);
     entity.angle = turnToward(entity.angle, toward, agility);
   }
   moveForward(entity, state, mult);
@@ -374,7 +390,7 @@ const aggressiveBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity, state);
   const prey = findNearest(
     entity,
-    (other) => canHarm(entity, other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level && !isReefChaseSkipped(entity, other, state.time),
     senseRangeSq(entity, 900)
   );
   if (prey.entity) {
@@ -407,7 +423,7 @@ const ambushBehavior: AIHandler = (entity, state) => {
 
   const prey = findNearest(
     entity,
-    (other) => canHarm(entity, other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level && !isReefChaseSkipped(entity, other, state.time),
     senseRangeSq(entity, GAME_MECHANICS.AMBUSH_DISTANCE)
   );
 
@@ -437,7 +453,7 @@ const bossBehavior: AIHandler = (entity, state) => {
   const agility = getAgility(entity, state) * 0.7;
   const prey = findNearest(
     entity,
-    (other) => canHarm(entity, other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level && !isReefChaseSkipped(entity, other, state.time),
     senseRangeSq(entity, 1400)
   );
   if (prey.entity) {
@@ -558,7 +574,7 @@ const hungryMood: AIHandler = (entity, state) => {
   const agility = getAgility(entity, state);
   const prey = findNearest(
     entity,
-    (other) => canHarm(entity, other) && other.level < entity.level,
+    (other) => canHarm(entity, other) && other.level < entity.level && !isReefChaseSkipped(entity, other, state.time),
     senseRangeSq(entity, HUNT_RANGE)
   );
   if (prey.entity) {
@@ -743,6 +759,7 @@ const followEventRoute = (entity: Entity, state: GameState): boolean => {
 };
 
 export const aiSystem = (state: GameState, ctx: FrameContext): void => {
+  captureTerrainFrame(state);
   /* ── 本帧空间索引：只建一次，下面所有 findNearest 共享 ──
    * 顺序必须是 player 在前（旧版 [player, ...entities] 的原数组顺序），
    * 否则平局裁决会变。全程零分配：数组 / 树 / Map / 结果缓冲都是模块级复用。 */
@@ -776,6 +793,7 @@ export const aiSystem = (state: GameState, ctx: FrameContext): void => {
   ]);
 
   for (const entity of state.entities) {
+    entity.accelerationMult = 1;
     tickTimers(entity, resolveSource);
 
     // 有阵营归属的队员不是野怪：玩家队由 squad、敌队由 rivalSquads 独占移动。

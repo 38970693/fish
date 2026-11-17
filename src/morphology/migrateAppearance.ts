@@ -6,12 +6,12 @@ import type { FishAppearanceV2, MorphologyGenes, PartSlot } from './types';
 const legacyGenes = (cosmetics?: Cosmetics): Partial<MorphologyGenes> | undefined => {
   switch (cosmetics?.bodyType) {
     case 'ROUND': return { bodyLength: 0.36, bodyDepth: 0.72 };
-    case 'SLENDER': return { bodyLength: 0.72, bodyDepth: 0.34 };
-    case 'CHUNKY': return { bodyLength: 0.58, bodyDepth: 0.68 };
+    case 'SLENDER': return { bodyLength: 0.68, bodyDepth: 0.43 };
+    case 'CHUNKY': return { bodyLength: 0.44, bodyDepth: 0.8 };
     case 'BOX': return { bodyLength: 0.55, bodyDepth: 0.55, headRatio: 0.62 };
     case 'STAR': return { bodyLength: 0.46, bodyDepth: 0.88, headRatio: 0.38, backCurve: 0.78, bellyCurve: 0.78 };
     case 'MERMAID': return { bodyLength: 0.78, bodyDepth: 0.46, headRatio: 0.7, bellyCurve: 0.62 };
-    case 'EEL': return { bodyLength: 0.9, bodyDepth: 0.18 };
+    case 'EEL': return { bodyLength: 0.84, bodyDepth: 0.3 };
     case 'RAY': return { bodyLength: 0.45, bodyDepth: 0.82 };
     default: return undefined;
   }

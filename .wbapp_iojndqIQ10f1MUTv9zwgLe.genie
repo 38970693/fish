@@ -1,0 +1,5 @@
+appId: wbapp_iojndqIQ10f1MUTv9zwgLe
+name: 欢乐鱼塘
+localDir: E:\gitlab\fish\dist
+appType: web
+entryHtml: index.html

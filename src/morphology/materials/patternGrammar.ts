@@ -11,7 +11,7 @@ import type {
   StandardFishGeometry,
 } from '../types';
 
-export const MORPHOLOGY_PATTERN_REVISION = 'v3-pattern-2';
+export const MORPHOLOGY_PATTERN_REVISION = 'v3-pattern-cute-3';
 export const MAX_PATTERN_LAYERS = 3;
 export const MAX_PATTERN_PRIMITIVES = 48;
 
@@ -266,8 +266,16 @@ export const buildPatternLayers = (
     layers.push(makeBands(geometry, material.patternId === 'STARRY_CLOWN', material.secondaryColor));
   }
   if (material.patternId === 'STARRY_CLOWN') layers.push(makeStarrySpots(layerSeed('starry-spots'), geometry));
-  if (material.patternId === 'STRIPES') layers.push(makeBands(geometry, false, material.secondaryColor));
-  if (material.patternId === 'SPOTS' || material.patternId === 'RING_SPOTS') layers.push(makeRingSpots(layerSeed('ring-spots'), geometry, material.secondaryColor));
+  if (material.patternId === 'STRIPES') {
+    const bands = makeBands(geometry, false, '#fff2db');
+    layers.push({ ...bands, primitives: bands.primitives.map(p => ({ ...p, alpha: 0.65, outlineColor: undefined, outlineWidth: undefined })) });
+  }
+  if (material.patternId === 'SPOTS' || material.patternId === 'RING_SPOTS') {
+    const spots = makeRingSpots(layerSeed('ring-spots'), geometry, material.secondaryColor);
+    layers.push(material.patternId === 'SPOTS'
+      ? { ...spots, primitives: spots.primitives.map(p => ({ ...p, color: '#fff0d1', ringWidth: undefined })) }
+      : spots);
+  }
   if (material.patternId === 'DOTS' || material.patternId === 'LATERAL_DOTS') layers.push(makeLateralDots(geometry, material.secondaryColor));
   if (material.patternId === 'EDGE_TRIM') layers.push(makeEdgeTrim(geometry, material.secondaryColor));
   if (material.patternId === 'FLOW_SCALES') layers.push(makeFlowScales(geometry, material.secondaryColor));

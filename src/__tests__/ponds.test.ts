@@ -150,6 +150,8 @@ describe('鱼塘 · 刷怪偏置', () => {
     const abyss = makeState('ABYSS');   // maxTierBonus 2 → maxTier 3
     clear.player.level = 1;
     abyss.player.level = 1;
+    // This case tests the tier pool; keep its fixed center spawn away from the player's body.
+    clear.player.x = abyss.player.x = 2600;
 
     // 取数顺序：tier 0.9 → 食物判定 0.9（不吃）→ 池内取第 0 个 → 刷点 (0.5,0.5) 地图中心
     const seq = [0.9, 0.9, 0, 0.5, 0.5];

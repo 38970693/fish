@@ -87,6 +87,7 @@ const toEntry = (state: GameState): LeaderboardEntry => ({
  * @returns 本局名次（1 起），未进前 10 返回 0
  */
 export const recordRun = (state: GameState): number => {
+  if (state.arena) return 0; // Different scoring rules: arena results never mix into the adventure board.
   // 练习局（无敌模式 / 手动续命）不进正式榜：直接返回「未上榜」，
   // 连 currentRunState 都不动 —— 免得同一局先记为练习、后被 upsert 洗白。
   // （旧模式没有 run，此分支不生效，旧规则原样保留。）

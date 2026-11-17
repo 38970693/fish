@@ -52,6 +52,8 @@ export interface EndlessWorldState {
 export const ENDLESS_WORLD_CONFIG = {
   CHUNK_SIZE: 1800,
   ACTIVE_RADIUS: 2,
+  /** Three independent props plus one six-stone reef group per loaded chunk. */
+  MAX_OBSTACLES_PER_CHUNK: 9,
   ENTITY_KEEP_DISTANCE: 5200,
   ITEM_KEEP_DISTANCE: 6200,
   RADAR_RANGE: 3600,

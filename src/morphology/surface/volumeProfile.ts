@@ -1,16 +1,16 @@
 import type { MorphologyGenes, StandardFishGeometry, SurfaceLayer, VolumeProfile } from '../types';
 
 /** 修改表面层语义或缓存内容时递增，强制 Pixi/LOD 外观缓存失效。 */
-export const MORPHOLOGY_SURFACE_REVISION = 'v3-surface-3';
+export const MORPHOLOGY_SURFACE_REVISION = 'v3-cartoon-5';
 
 export const STANDARD_VOLUME_LAYERS: readonly SurfaceLayer[] = Object.freeze([
-  Object.freeze({ kind: 'FLANK_SHADE', color: '#07111f', alpha: 0.28, width: 0.72, symmetry: 'MIRROR' }),
-  Object.freeze({ kind: 'DORSAL_VOLUME', color: '#ffffff', alpha: 0.3, width: 0.18, symmetry: 'LIGHTING' }),
-  Object.freeze({ kind: 'HEAD_DOME', color: '#ffffff', alpha: 0.24, width: 0.56, symmetry: 'LIGHTING' }),
-  Object.freeze({ kind: 'TAIL_PEDUNCLE', color: '#07111f', alpha: 0.25, width: 0.44, symmetry: 'CENTER' }),
-  Object.freeze({ kind: 'GILL', color: '#0f172a', alpha: 0.3, width: 0.035, symmetry: 'MIRROR' }),
-  Object.freeze({ kind: 'LATERAL_LINE', color: '#ffffff', alpha: 0.14, width: 0.025, symmetry: 'MIRROR' }),
-  Object.freeze({ kind: 'NOSTRIL', color: '#0f172a', alpha: 0.36, width: 0.024, symmetry: 'MIRROR' }),
+  Object.freeze({ kind: 'FLANK_SHADE', color: '#504463', alpha: 0.12, width: 0.72, symmetry: 'MIRROR' }),
+  Object.freeze({ kind: 'DORSAL_VOLUME', color: '#fffaf3', alpha: 0.24, width: 0.18, symmetry: 'LIGHTING' }),
+  Object.freeze({ kind: 'HEAD_DOME', color: '#ffffff', alpha: 0.18, width: 0.56, symmetry: 'LIGHTING' }),
+  Object.freeze({ kind: 'TAIL_PEDUNCLE', color: '#504463', alpha: 0.08, width: 0.44, symmetry: 'CENTER' }),
+  Object.freeze({ kind: 'GILL', color: '#57506b', alpha: 0, width: 0.018, symmetry: 'MIRROR' }),
+  Object.freeze({ kind: 'LATERAL_LINE', color: '#ffffff', alpha: 0, width: 0.015, symmetry: 'MIRROR' }),
+  Object.freeze({ kind: 'NOSTRIL', color: '#57506b', alpha: 0, width: 0.016, symmetry: 'MIRROR' }),
 ]);
 
 const round = (value: number): number => Math.round(value * 10_000) / 10_000;
@@ -31,7 +31,7 @@ export const buildVolumeProfile = (
   const headX = geometry.anchors.eyeLeft.x;
   const tailX = geometry.anchors.tailRoot.x;
   const tailDepth = geometry.anchors.tailRoot.scale;
-  const ridgeWidth = bodyHalfDepth * (0.12 + genes.backCurve * 0.12);
+  const ridgeWidth = bodyHalfDepth * (0.44 + genes.backCurve * 0.16);
 
   return Object.freeze({
     dorsalRidge: region((minX + maxX) * 0.08, 0, bodyLength * 0.42, ridgeWidth),

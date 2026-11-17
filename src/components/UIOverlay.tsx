@@ -13,11 +13,15 @@ import { getContestIntel } from '../systems/contestIntel';
 import { getCreatureDisplayName } from '../data/rareVariants';
 import { Shield, Zap, Wind, Skull, Crown, Play, RefreshCw, AlertTriangle, ChevronRight, Bot, Target, Users, Shuffle, Fish, Utensils, MapPin, ShoppingBag, X, Check, Palette, Gem, Box, Sparkles, Frown, BookOpen, Clock, Gift, Star, Eye, Diamond, Sword, Heart, Volume2, VolumeX, Repeat, Trophy } from 'lucide-react';
 import MiniMap from './MiniMap';
+import QuestTracker from './QuestTracker';
 import CosmeticsPanel from './CosmeticsPanel';
+import type { RendererKind } from '../rendering/types';
 import { GlobalOceanMap } from './GlobalOceanMap';
 import { getOceanRegion } from '../data/oceanRegions';
 import type { WorldMode } from '../data/endlessWorld';
 import { formatEndlessGlobalCoordinate } from '../data/endlessWorld';
+import type { RunMode } from '../data/runRules';
+import { ArenaOverlay } from './ArenaOverlay';
 
 // 宝物倒计时组件
 interface TreasureCountdownProps {
@@ -302,13 +306,17 @@ const SchoolSkillBar: React.FC<{ player: PlayerState }> = ({ player }) => {
 
 interface UIOverlayProps {
   gameState: GameState;
-  onStart: (selectedType?: CreatureType, pondId?: PondId, worldMode?: WorldMode) => void;
+  renderer?: RendererKind;
+  onStart: (selectedType?: CreatureType, pondId?: PondId, worldMode?: WorldMode, mode?: RunMode) => void;
   onStartBattleTest?: () => void;
   onEvolve: (type: CreatureType) => void;
   onRestart: () => void;
   onRevive?: (useAd: boolean) => void;
   /** 无敌模式开关（G 键 / 调试用） */
   onToggleGodMode?: () => void;
+  /** 只接管玩家输入的挂机模式。 */
+  autopilotEnabled?: boolean;
+  onToggleAutopilot?: () => void;
   onUpdateCosmetics?: (cosmetics: Cosmetics) => void;
   setGameStatus?: (status: GameStatus) => void;
   /** 战队：主动切换成员（提示词 #234）。没成员时按钮置灰 */
@@ -365,6 +373,8 @@ const RulesPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         <div className="px-8 py-5 overflow-y-auto space-y-5">
           <Section icon={<Fish size={20} />} title="目标">
+            <p>跟随右侧的冒险任务，进食、探索、收编伙伴和使用技能。每个任务完成后自动奖励成长、积分或短时护盾，三个任务完成还有阶段礼包。</p>
+            <p>完成「小鱼出发 → 寻宝小队 → 海洋探险家」后开启持续远航委托。任务按本局累计，换塘与复活保留进度，重开从第一章出发。</p>
             <p>吃比自己小的鱼成长，攒进化点数进化，最终成为海洋霸主。被大鱼吃掉会结算，能用复活机会续命。</p>
           </Section>
 
@@ -615,7 +625,7 @@ const LeaderboardPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, onUpdateCosmetics, setGameStatus, onSwitchSquad, onSquadCommand, onPossessMember, muted, onToggleMute }) => {
+const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, renderer = 'canvas', onStart, onStartBattleTest, onEvolve, onRestart, onRevive, onToggleGodMode, autopilotEnabled, onToggleAutopilot, onUpdateCosmetics, setGameStatus, onSwitchSquad, onSquadCommand, onPossessMember, muted, onToggleMute }) => {
   const { player, status, entities } = gameState;
   const opponent = entities.find(e => e.id !== 'player' && e.type === CreatureType.ORCA);
   // 战队成员 = ownerId 指向玩家的活体（与 systems/squad.ts 的判定保持一致）
@@ -652,6 +662,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
     .filter(item => item.distance <= 2500)
     .sort((a, b) => a.distance - b.distance)[0] ?? null;
 
+  if (gameState.arena && status !== GameStatus.MENU) return <ArenaOverlay state={gameState}
+    onReplay={() => onStart(CreatureType.CLOWN_FISH, DEFAULT_POND, 'FINITE', 'ARENA')}
+    onMenu={onRestart} onMute={onToggleMute} muted={muted} />;
+
   if (status === GameStatus.MENU) {
     const startOptions = [
       CreatureType.CLOWN_FISH,   // t1 · 逃跑
@@ -676,6 +690,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         <div className="menu-content flex flex-col items-center text-center">
             <div className="bg-slate-900/80 p-3 sm:p-5 rounded-3xl border border-slate-700 shadow-2xl backdrop-blur-md">
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-2 sm:mb-3">欢乐鱼塘</h1>
+                <p className="text-xs text-emerald-200/90 mb-2">🍪 完成冒险任务，领取成长与护盾奖励 · 三章主线后继续远航委托</p>
+                <button onClick={() => onStart(CreatureType.CLOWN_FISH, DEFAULT_POND, 'FINITE', 'ARENA')}
+                  className="mb-3 rounded-full border border-amber-400/60 bg-amber-500/15 hover:bg-amber-500/30 px-5 py-2 text-amber-200 text-sm font-bold">
+                  四分钟短局竞技 · 1 人 + 5 AI
+                </button>
 
                 <div className="flex flex-col gap-2 sm:gap-3">
                     <div className="flex items-center justify-center gap-3">
@@ -721,7 +740,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     </div>
                     
                     <div className="mt-2.5 sm:mt-3.5 grid grid-cols-1 sm:grid-cols-3 items-center gap-3 sm:gap-4 w-full">
-                    <button onClick={() => onStart(selectedStarter, selectedPond, selectedWorldMode)} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:order-2 sm:justify-self-center">
+                    <button onClick={() => onStart(selectedStarter, selectedPond, selectedWorldMode, gameState.run?.mode === 'RIVALS' ? 'RIVALS' : 'LEGACY')} className="px-10 sm:px-14 py-3 sm:py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xl sm:text-2xl rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:order-2 sm:justify-self-center">
                         <Play size={26} fill="white" /> {selectedWorldMode === 'ENDLESS' ? '驶入无限海域' : `驶入${getOceanRegion(selectedPond).name}`}
                     </button>
 
@@ -757,6 +776,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 onChange={(cos) => onUpdateCosmetics?.(cos)}
                 onClose={() => setShowCosmetics(false)}
                 fishType={player.type}
+                fish={player}
+                renderer={renderer}
                 mode="player"
             />
         )}
@@ -773,6 +794,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
       <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
         {/* 成就解锁 toast（订阅 gameEvents，解锁时弹 4 秒） */}
         <AchievementToast />
+        {status === GameStatus.PLAYING && <QuestTracker gameState={gameState} />}
 
         {/* RIVALS 显示主要投食目标；旧模式继续显示宝藏倒计时 */}
         {gameState.run ? <FeedingEventAlert gameState={gameState} /> : <TreasureCountdown gameState={gameState} />}
@@ -866,6 +888,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                         <Shield size={16} /> {player.reviveCount > 0 ? '复活保护' : '新手保护'} · {Math.ceil(player.invulnerableTimer / 60)}s
                     </div>
                 )}
+                <button
+                    onClick={() => onToggleAutopilot?.()}
+                    title="只接管玩家鱼：预判追击、绕障避险、自动加速和释放技能、选择进化；页面保持前台运行（快捷键 P）"
+                    aria-pressed={!!autopilotEnabled}
+                    className={`mt-2 w-full px-3 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 border ${autopilotEnabled
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                        : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-emerald-400/60'}`}
+                >
+                    <Bot size={15} /> {autopilotEnabled ? '玩家挂机：开（P 关闭）' : '玩家挂机：关（P 开启）'}
+                </button>
                 {/* 无敌模式开关：G 键的可见形态（之前只有按键，玩家根本不知道有这功能） */}
                 <button
                     onClick={() => onToggleGodMode?.()}
@@ -981,10 +1013,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
             <button onClick={() => onRestart()} className="bg-slate-800/80 hover:bg-slate-700 text-white px-6 py-3 rounded-xl border border-slate-600 flex items-center gap-2 transition-all">
                 <RefreshCw size={20}/> 返回主界面
             </button>
-            {/* P1-4 音效开关 */}
+            {/* 音乐与音效共用静音开关 */}
             <button
                 onClick={() => onToggleMute?.()}
-                title={muted ? '开启音效' : '关闭音效'}
+                title={muted ? '开启音乐与音效' : '关闭音乐与音效'}
+                aria-label={muted ? '开启音乐与音效' : '关闭音乐与音效'}
                 className="bg-slate-800/80 hover:bg-slate-700 text-white px-4 py-3 rounded-xl border border-slate-600 flex items-center gap-2 transition-all"
             >
                 {muted ? <VolumeX size={20} className="text-slate-500" /> : <Volume2 size={20} className="text-cyan-400" />}
@@ -1005,6 +1038,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
         onChange={(cos) => onUpdateCosmetics?.(cos)}
         onClose={() => setGameStatus?.(GameStatus.PLAYING)}
         fishType={player.type}
+        fish={player}
+        renderer={renderer}
         mode="player"
       />
     );
@@ -1078,6 +1113,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                     </p>
                 )}
                 <p className="text-slate-500 text-sm mb-6">名人堂共 {getLeaderboard().length} 条记录</p>
+                {gameState.quests && <p className="text-emerald-200 text-sm mb-5">本局完成 {gameState.quests.completedTotal} 个冒险任务 · 复活后继续当前进度</p>}
                 <div className="flex gap-6 justify-center">
                     <button
                         onClick={() => onRevive?.(false)}
@@ -1099,6 +1135,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, onStartBattle
                 <Crown size={110} className="text-amber-400 mx-auto mb-6" />
                 <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-500 mb-4">称霸海域！</h2>
                 <p className="text-slate-200 text-xl mb-2">你击败了深海霸主</p>
+                {gameState.quests && <p className="text-emerald-200 text-sm mb-3">本局完成 {gameState.quests.completedTotal} 个冒险任务</p>}
                 <p className="text-slate-400 mb-8">
                     最终体重 <span className="text-cyan-400 font-bold">{Math.floor(player.weight)}</span>
                     · 得分 <span className="text-yellow-400 font-bold">{gameState.score}</span>

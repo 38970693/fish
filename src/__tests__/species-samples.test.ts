@@ -70,7 +70,8 @@ describe('V3-05B 河豚与大白鲨共享形态迁移', () => {
     entity.cosmetics = { ...DEFAULT_COSMETICS };
     const morphology = resolveMorphology(entity);
     expect(morphology.recipeId).not.toBe('STANDARD_FISH');
-    if (type === CreatureType.GREAT_WHITE) expect(morphology.surfaceLayers.find(layer => layer.kind === 'GILL')?.count).toBe(3);
+    // Cute shark styling uses two softer gill marks (shared by Canvas and Pixi).
+    if (type === CreatureType.GREAT_WHITE) expect(morphology.surfaceLayers.find(layer => layer.kind === 'GILL')?.count).toBe(2);
     if (type === CreatureType.PUFFER_FISH) {
       const spines = buildRadialSpines(morphology);
       expect(spines).toHaveLength(14);

@@ -12,6 +12,7 @@ import { BiomeType } from '../data/biomes';
 import type { Building, FrameContext, GameState, Obstacle } from '../types';
 import type { WaterCurrentZone } from '../data/habitats';
 import { configureObstacleEcology } from './obstacleEcology';
+import { createReefCluster, REEF_GAPS } from '../data/reefClusters';
 
 const isChunkOwnedId = (id: string): boolean => id.startsWith('endless:');
 const chunkPrefix = (
@@ -143,12 +144,14 @@ export const generateEndlessChunkContent = (
   const size = ENDLESS_WORLD_CONFIG.CHUNK_SIZE;
   const originX = typeof originChunkX === 'bigint' ? originChunkX : BigInt(originChunkX);
   const originY = typeof originChunkY === 'bigint' ? originChunkY : BigInt(originChunkY);
-  const minX = Number(chunkX - originX) * size;
-  const minY = Number(chunkY - originY) * size;
+  // All generation/rejection tests run in chunk-local space before floating-origin translation.
+  const offsetX = Number(chunkX - originX) * size;
+  const offsetY = Number(chunkY - originY) * size;
+  const minX = 0, minY = 0;
   const prefix = chunkPrefix(chunkX, chunkY);
   const centerX = minX + size / 2;
   const centerY = minY + size / 2;
-  const biome = getEndlessBiome(seed, centerX, centerY, originChunkX, originChunkY);
+  const biome = getEndlessBiome(seed, centerX, centerY, chunkX, chunkY);
 
   const obstacleRng = createEndlessRandom(seed, chunkX, chunkY, 'obstacles');
   const obstacleCount = 1 + Math.floor(obstacleRng() * 3);
@@ -206,6 +209,31 @@ export const generateEndlessChunkContent = (
     });
   }
 
+  // A whole cluster stays inside its chunk; the exterior lane is shared open water.
+  const reefRng = createEndlessRandom(seed, chunkX, chunkY, 'reef-clusters-v1');
+  if (reefRng() < (biome === BiomeType.REEF ? 0.9 : 0.65)) {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const center = { x: minX + 400 + reefRng() * (size - 800), y: minY + 400 + reefRng() * (size - 800) };
+      if (chunkX === 0n && chunkY === 0n && Math.hypot(center.x - minX, center.y - minY) < 740) continue;
+      if (buildings.some(b => Math.hypot(center.x - b.x, center.y - b.y) < 310 + b.radius + 160)) continue;
+      if (currents.some(c => {
+        const dx = center.x - c.x, dy = center.y - c.y;
+        return Math.abs(dx * Math.cos(c.angle) + dy * Math.sin(c.angle)) < c.length / 2 + 310
+          && Math.abs(-dx * Math.sin(c.angle) + dy * Math.cos(c.angle)) < c.width / 2 + 310;
+      })) continue;
+      const cluster = createReefCluster(`${prefix}reef:0`, center, reefRng() * Math.PI * 2,
+        REEF_GAPS[Math.floor(reefRng() * 3)], reefRng() < 0.25 ? 'GATE' : 'REFUGE');
+      // Existing rocks are not permitted to close either end of the refuge.
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        if (Math.hypot(obstacles[i].x - center.x, obstacles[i].y - center.y) < 310 + obstacles[i].radius) obstacles.splice(i, 1);
+      }
+      obstacles.push(...cluster);
+      break;
+    }
+  }
+  for (const objects of [obstacles, buildings, currents]) for (const object of objects) {
+    object.x += offsetX; object.y += offsetY;
+  }
   return { obstacles, buildings, currents };
 };
 

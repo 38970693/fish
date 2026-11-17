@@ -27,6 +27,7 @@ import type { RunState } from '../types';
 export const RUN_MODE = {
   LEGACY: 'LEGACY',
   RIVALS: 'RIVALS',
+  ARENA: 'ARENA',
 } as const;
 
 /** 模式 ID：从数据自动推导，加模式即加类型 */
@@ -34,6 +35,7 @@ export type RunMode = keyof typeof RUN_MODE;
 
 /** 默认模式 —— 新模式验证通过前，默认入口仍是旧 Demo */
 export const DEFAULT_RUN_MODE: RunMode = RUN_MODE.LEGACY;
+export const ARENA_RULE_VERSION = 2;
 
 /** 开发期模式开关的持久化键（URL `?mode=` 会写进来，重开一局/刷新后保持） */
 export const RUN_MODE_STORAGE_KEY = 'fish.runMode';
@@ -157,6 +159,7 @@ export const RIVALS_RULES = {
 export const normalizeRunMode = (value?: string | null): RunMode | null => {
   const key = (value ?? '').trim().toUpperCase();
   if (key === RUN_MODE.RIVALS) return RUN_MODE.RIVALS;
+  if (key === RUN_MODE.ARENA) return RUN_MODE.ARENA;
   if (key === RUN_MODE.LEGACY) return RUN_MODE.LEGACY;
   return null;
 };
@@ -197,10 +200,10 @@ export const resolveRunMode = (override?: string | null): RunMode => {
  * 所有消费点用 `if (!state.run) return;` 就能保证旧模式零改动。
  */
 export const createRunState = (mode: RunMode): RunState | undefined => {
-  if (mode !== RUN_MODE.RIVALS) return undefined;
+  if (mode === RUN_MODE.LEGACY) return undefined;
   return {
     mode,
-    ruleVersion: RIVALS_RULES.ruleVersion,
+    ruleVersion: mode === RUN_MODE.ARENA ? ARENA_RULE_VERSION : RIVALS_RULES.ruleVersion,
     phase: RUN_PHASE_ORDER[0],
     clock: 0,
     practice: false,

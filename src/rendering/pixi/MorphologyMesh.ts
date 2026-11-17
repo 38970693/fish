@@ -53,7 +53,8 @@ export const buildSpineMeshData = (
   const uvs = canReuse ? reusable.uvs : new Float32Array(joints * 4);
   const indices = canReuse ? reusable.indices : new Uint32Array((joints - 1) * 6);
   for (let index = 0; index < joints; index += 1) {
-    const fromHead = index / (joints - 1);
+    // 将已有截面向头尾加密，圆头不再被等距三角条带削成折角。
+    const fromHead = (1 - Math.cos(index / (joints - 1) * Math.PI)) * 0.5;
     const x = maxX + (minX - maxX) * fromHead;
     if (!reuseWidths) {
       const width = widthAt(morphology, x);

@@ -7,7 +7,7 @@ import {
   SCAVENGER_SQUAD_ID,
 } from '../data/rivalSquads';
 import { CreatureType } from '../data/creatures';
-import { RIVALS_SPAWN_CONFIG } from '../data/world';
+import { RIVALS_SPAWN_CONFIG, MAX_ENTITIES, WILDLIFE_SPACING } from '../data/world';
 import { createInitialState } from '../factories/initialState';
 import { resolveFeedingPickups } from '../systems/feedingEvents';
 import { getRivalMembers, rivalSquadsSystem } from '../systems/rivalSquads';
@@ -226,6 +226,14 @@ describe('FQ-08 抢食帮', () => {
     const state = createInitialState({ mode: 'RIVALS', skipWorldGen: true });
     state.feedingEvent!.timer = RIVALS_SPAWN_CONFIG.RESERVE_LEAD_FRAMES;
     for (let i = 0; i < 400; i += 1) spawnSystem(state, makeCtx());
-    expect(state.entities).toHaveLength(300 - RIVALS_SPAWN_CONFIG.RESERVED_EVENT_SLOTS);
+    expect(state.entities).toHaveLength(WILDLIFE_SPACING.population);
+    const reservedLimit = MAX_ENTITIES - RIVALS_SPAWN_CONFIG.RESERVED_EVENT_SLOTS;
+    // Also exercise the reservation independently: owned formations do not consume wildlife quota.
+    while (state.entities.length < reservedLimit) state.entities.push({
+      ...createEntity('CLOWN_FISH', 4000, 4000), ownerId: 'reserved-test-team',
+    });
+    state.entities[0].health = 0;
+    spawnSystem(state, makeCtx());
+    expect(state.entities).toHaveLength(reservedLimit);
   });
 });

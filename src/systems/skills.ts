@@ -25,6 +25,8 @@ import type { Entity, GameState, FrameContext, PlayerState } from '../types';
 import { dist } from '../core/math';
 import { createParticle, dealDamage } from './combat';
 import { canHarm } from './factions';
+import { hasObstacleOcclusion } from '../core/obstacleGeometry';
+import { resolveObstacles } from './terrain';
 
 // 用 Entity 而不是 PlayerState：AI 也会放技能（大鱼反制），签名必须兼容两者
 type SkillHandler = (caster: Entity, state: GameState, power: number) => void;
@@ -42,10 +44,11 @@ const forEachNearby = (
   range: number,
   fn: (target: Entity) => void
 ): void => {
-  for (const e of state.entities) {
+  for (const e of state.arena ? [state.player, ...state.entities] : state.entities) {
     if (e.health <= 0) continue;
     if (e.config.behavior === 'MASCOT') continue;
     if (!canHarm(caster, e)) continue;
+    if (hasObstacleOcclusion(caster, e, state.obstacles)) continue;
     if (dist(caster, e) <= range) fn(e);
   }
 };
@@ -83,10 +86,11 @@ const SONAR_REVEAL_FRAMES = 420;
 const nearestEnemy = (caster: Entity, state: GameState, range: number): Entity | null => {
   let best: Entity | null = null;
   let bestDist = range;
-  for (const e of state.entities) {
+  for (const e of state.arena ? [state.player, ...state.entities] : state.entities) {
     if (e.health <= 0) continue;
     if (e.config.behavior === 'MASCOT') continue;
     if (!canHarm(caster, e)) continue;
+    if (hasObstacleOcclusion(caster, e, state.obstacles)) continue;
     const d = dist(caster, e);
     if (d < bestDist) {
       bestDist = d;
@@ -94,6 +98,12 @@ const nearestEnemy = (caster: Entity, state: GameState, range: number): Entity |
     }
   }
   return best;
+};
+
+const displaceCaster = (caster: Entity, state: GameState, x: number, y: number): void => {
+  const origin = { x: caster.x, y: caster.y };
+  caster.x = x; caster.y = y;
+  resolveObstacles(caster, state.obstacles, undefined, origin);
 };
 
 /* ══════════════ 技能实现 ══════════════ */
@@ -162,21 +172,20 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
 
   /** 膨胀：变大并获得护盾 */
   INFLATE: (caster, _state, power) => {
-    caster.renderScale = 1.5 + (power - 1) * 0.5;
+    // 技能等级跨局累积，视觉膨胀不能无限放大；护盾强度仍按技能等级结算。
+    caster.renderScale = Math.min(2, 1.5 + (power - 1) * 0.5);
     caster.shieldTimer = 120 * power;
   },
 
   /** 喷墨：向后撤退并留下墨云 */
   INK: (caster, state, power) => {
-    caster.x -= Math.cos(caster.angle) * 100 * power;
-    caster.y -= Math.sin(caster.angle) * 100 * power;
+    displaceCaster(caster, state, caster.x - Math.cos(caster.angle) * 100 * power, caster.y - Math.sin(caster.angle) * 100 * power);
     burst(state, caster.x + Math.cos(caster.angle) * 50, caster.y + Math.sin(caster.angle) * 50, '#1e293b', 20);
   },
 
   /** 穿刺：向前突进并伤害路径上的敌人 */
   PIERCE: (caster, state, power) => {
-    caster.x += Math.cos(caster.angle) * 300 * power;
-    caster.y += Math.sin(caster.angle) * 300 * power;
+    displaceCaster(caster, state, caster.x + Math.cos(caster.angle) * 300 * power, caster.y + Math.sin(caster.angle) * 300 * power);
     forEachNearby(caster, state, caster.radius * 2 * power, (e) => {
       hitTarget(caster, e, caster.config.damage * 4 * power);
       burst(state, e.x, e.y, '#ef4444', 5);
@@ -284,8 +293,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     const target = nearestEnemy(caster, state, 700 * power);
     if (!target) return;
     const behind = target.angle + Math.PI;
-    caster.x = target.x + Math.cos(behind) * (target.radius + caster.radius + 5);
-    caster.y = target.y + Math.sin(behind) * (target.radius + caster.radius + 5);
+    displaceCaster(caster, state, target.x + Math.cos(behind) * (target.radius + caster.radius + 5), target.y + Math.sin(behind) * (target.radius + caster.radius + 5));
     caster.angle = Math.atan2(target.y - caster.y, target.x - caster.x);
     caster.biteCooldown = 0;
     burst(state, caster.x, caster.y, '#7f1d1d', 12);
@@ -334,8 +342,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
 
   /** 水流弹射：朝当前方向弹射一大段 */
   HYDRO_BOUNCE: (caster, state, power) => {
-    caster.x += Math.cos(caster.angle) * 400 * power;
-    caster.y += Math.sin(caster.angle) * 400 * power;
+    displaceCaster(caster, state, caster.x + Math.cos(caster.angle) * 400 * power, caster.y + Math.sin(caster.angle) * 400 * power);
     burst(state, caster.x, caster.y, '#38bdf8', 10);
   },
 
@@ -352,8 +359,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
 
   /** 瞬撤：向后脱离战斗并短暂无敌 */
   BLINK_OUT: (caster, state, power) => {
-    caster.x -= Math.cos(caster.angle) * 500 * power;
-    caster.y -= Math.sin(caster.angle) * 500 * power;
+    displaceCaster(caster, state, caster.x - Math.cos(caster.angle) * 500 * power, caster.y - Math.sin(caster.angle) * 500 * power);
     caster.invulnerableTimer = 45 * power;
     caster.angerTimer = 0;
     burst(state, caster.x, caster.y, '#38bdf8', 10);
@@ -447,7 +453,7 @@ export const SKILL_HANDLERS: Record<SkillId, SkillHandler> = {
     let drained = 0;
     forEachNearby(caster, state, 350 * power, (e) => {
       const amount = caster.config.damage * power;
-      drained += dealDamage(e, amount);
+      drained += dealDamage(e, amount, state.arena ? caster : undefined);
       burst(state, e.x, e.y, '#22c55e', 3);
     });
     if (drained > 0) {
